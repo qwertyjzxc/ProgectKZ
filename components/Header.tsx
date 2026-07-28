@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Building2, Menu, LogOut, User, Plus, ChevronDown } from "lucide-react";
+import { Building2, Menu, LogOut, User, Plus } from "lucide-react";
 
 export default function Header() {
   const router = useRouter();
@@ -24,36 +24,20 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b shadow-sm">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b shadow-sm">
+      <div className="mx-auto max-w-full px-6 py-3 flex items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2 group">
+        <a href="/" className="flex items-center gap-2 group shrink-0">
           <div className="bg-blue-600 text-white p-1.5 rounded-lg group-hover:bg-blue-700 transition-colors">
             <Building2 className="w-5 h-5" />
           </div>
-          <span className="text-xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
-            KZdom
+          <span className="text-lg font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
+            CRM
           </span>
         </a>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6 text-sm">
-          <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-            Продажа
-          </a>
-          <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-            Аренда
-          </a>
-          <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-            Новостройки
-          </a>
-          <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">
-            Коммерческая
-          </a>
-        </nav>
-
         {/* Right side */}
-        <div className="hidden md:flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm">
           {userEmail ? (
             <>
               <div className="flex items-center gap-2 text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
@@ -71,44 +55,8 @@ export default function Header() {
               Войти
             </Button>
           )}
-          <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm hover:shadow-md transition-all duration-200 gap-1">
-            <Plus className="w-3.5 h-3.5" />
-            Подать объявление
-          </Button>
         </div>
-
-        {/* Mobile menu button */}
-        <button
-          className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          <Menu className="w-5 h-5" />
-        </button>
       </div>
-
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t bg-white px-4 py-3 space-y-3">
-          <nav className="flex flex-col gap-2">
-            <a href="#" className="text-gray-600 py-2 hover:text-blue-600">Продажа</a>
-            <a href="#" className="text-gray-600 py-2 hover:text-blue-600">Аренда</a>
-            <a href="#" className="text-gray-600 py-2 hover:text-blue-600">Новостройки</a>
-            <a href="#" className="text-gray-600 py-2 hover:text-blue-600">Коммерческая</a>
-          </nav>
-          <hr />
-          <div className="flex flex-col gap-2">
-            {userEmail ? (
-              <>
-                <span className="text-sm text-gray-500">{userEmail}</span>
-                <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-500">Выйти</Button>
-              </>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => router.push("/login")}>Войти</Button>
-            )}
-            <Button className="bg-gradient-to-r from-amber-500 to-orange-500">Подать объявление</Button>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
