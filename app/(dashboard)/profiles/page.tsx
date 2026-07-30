@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useProfile } from "@/lib/profile-context";
 import { useRouter } from "next/navigation";
+import { adminCreateUser, getAllProfiles } from "./actions";
 import { UserPlus, Trash2, Edit3, Shield, User, X, Check, Loader2, ArrowLeft } from "lucide-react";
 
 interface Profile {
@@ -29,37 +30,58 @@ const colorMap: Record<string, string> = {
   pink: "bg-pink-100 text-pink-600",
 };
 
-function ProfileFormModal({ profile, onClose, onSave }: { profile?: Profile; onClose: () => void; onSave: (data: any) => void }) {
-  const [fullName, setFullName] = useState(profile?.full_name || "");
-  const [role, setRole] = useState(profile?.role || "user");
-  const [pin, setPin] = useState(profile?.pin || "");
-  const [phone, setPhone] = useState(profile?.phone || "");
-  const [email, setEmail] = useState(profile?.email || "");
-  const [avatarColor, setAvatarColor] = useState(profile?.avatar_color || "blue");
+function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("user");
+  const [pin, setPin] = useState("");
+  const [phone, setPhone] = useState("");
+  const [avatarColor, setAvatarColor] = useState("blue");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ full_name: fullName, role, pin, phone, email, avatar_color: avatarColor, is_active: true });
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/admin/create-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password, full_name: fullName, role, pin, phone, avatar_color: avatarColor }),
+    });
+    const data = await res.json();
+
+    setLoading(false);
+    if (res.ok) {
+      onSave(data);
+    } else {
+      setError(data.error || "Ошибка");
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold">{profile ? "Редактировать профиль" : "Новый профиль"}</h2>
+          <h2 className="text-lg font-bold">Новый пользователь</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">ФИО</label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Иван Романов" required className="text-sm" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">PIN-код</label><Input value={pin} onChange={e => setPin(e.target.value)} placeholder="1234" required className="text-sm" maxLength={10} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7 777 123 45 67" className="text-sm" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@mail.ru" className="text-sm" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Имя пользователя</label><Input value={username} onChange={e => setUsername(e.target.value)} placeholder="ivan" required className="text-sm" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ivan@mail.ru" required className="text-sm" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Пароль</label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required className="text-sm" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">ФИО</label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Иванов Иван" className="text-sm" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Роль</label>
             <select value={role} onChange={e => setRole(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
               <option value="user">Сотрудник</option>
               <option value="admin">Администратор</option>
             </select>
           </div>
+          <div><label className="text-xs text-gray-500 mb-1 block">PIN-код</label><Input value={pin} onChange={e => setPin(e.target.value)} placeholder="1234" className="text-sm" maxLength={10} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7 777 123 45 67" className="text-sm" /></div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Цвет аватара</label>
             <div className="flex flex-wrap gap-2">
@@ -70,9 +92,10 @@ function ProfileFormModal({ profile, onClose, onSave }: { profile?: Profile; onC
               ))}
             </div>
           </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" type="button" onClick={onClose} size="sm">Отмена</Button>
-            <Button type="submit" size="sm" className="bg-blue-600">{profile ? "Сохранить" : "Создать"}</Button>
+            <Button type="submit" disabled={loading} size="sm" className="bg-blue-600">{loading ? "Создание..." : "Создать"}</Button>
           </div>
         </form>
       </div>
@@ -87,12 +110,12 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editProfile, setEditProfile] = useState<Profile | null>(null);
+  const [createError, setCreateError] = useState("");
 
   const fetchProfiles = async () => {
     setLoading(true);
-    const res = await fetch("/api/profiles");
-    const data = await res.json();
-    if (Array.isArray(data)) setProfiles(data);
+    const data = await getAllProfiles();
+    setProfiles(data);
     setLoading(false);
   };
 
@@ -105,9 +128,12 @@ export default function ProfilesPage() {
   }, [currentProfile?.role]);
 
   const handleAdd = async (data: any) => {
-    const res = await fetch("/api/profiles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-    if (res.ok) {
+    const result = await adminCreateUser(data);
+    if (result.error) {
+      setCreateError(result.error);
+    } else {
       setShowAdd(false);
+      setCreateError("");
       fetchProfiles();
       refreshProfiles();
     }
@@ -191,7 +217,8 @@ export default function ProfilesPage() {
         </div>
       )}
 
-      {showAdd && <ProfileFormModal onClose={() => setShowAdd(false)} onSave={handleAdd} />}
+      {createError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">{createError}</div>}
+      {showAdd && <CreateUserModal onClose={() => { setShowAdd(false); setCreateError(""); }} onSave={handleAdd} />}
       {editProfile && <ProfileFormModal profile={editProfile} onClose={() => setEditProfile(null)} onSave={handleEdit} />}
     </div>
   );
