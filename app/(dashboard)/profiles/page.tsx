@@ -32,13 +32,8 @@ const colorMap: Record<string, string> = {
 
 function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("user");
-  const [pin, setPin] = useState("");
-  const [phone, setPhone] = useState("");
-  const [avatarColor, setAvatarColor] = useState("blue");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -47,18 +42,18 @@ function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (da
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/admin/create-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password, full_name: fullName, role, pin, phone, avatar_color: avatarColor }),
+    const result = await adminCreateUser({
+      username,
+      email: `${username}@app.local`,
+      password,
+      role,
     });
-    const data = await res.json();
 
     setLoading(false);
-    if (res.ok) {
-      onSave(data);
+    if (result.success) {
+      onSave(result);
     } else {
-      setError(data.error || "Ошибка");
+      setError(result.error || "Ошибка");
     }
   };
 
@@ -71,26 +66,12 @@ function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (da
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Имя пользователя</label><Input value={username} onChange={e => setUsername(e.target.value)} placeholder="ivan" required className="text-sm" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ivan@mail.ru" required className="text-sm" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Пароль</label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required className="text-sm" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">ФИО</label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Иванов Иван" className="text-sm" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Роль</label>
             <select value={role} onChange={e => setRole(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
               <option value="user">Сотрудник</option>
               <option value="admin">Администратор</option>
             </select>
-          </div>
-          <div><label className="text-xs text-gray-500 mb-1 block">PIN-код</label><Input value={pin} onChange={e => setPin(e.target.value)} placeholder="1234" className="text-sm" maxLength={10} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7 777 123 45 67" className="text-sm" /></div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Цвет аватара</label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(colorMap).map(([color, classes]) => (
-                <button key={color} type="button" onClick={() => setAvatarColor(color)}
-                  className={"w-8 h-8 rounded-full border-2 transition-all " + (avatarColor === color ? "border-gray-800 scale-110 ring-2 ring-offset-1" : "border-transparent") + " " + classes.split(" ")[0]}
-                />
-              ))}
-            </div>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex justify-end gap-2 pt-2 border-t">
