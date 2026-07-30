@@ -173,7 +173,7 @@ export default function ProfilesPage() {
           </div>
         </div>
         <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
-          <UserPlus className="w-4 h-4" />Создать профиль
+          <UserPlus className="w-4 h-4" />Создать пользователя
         </Button>
       </div>
 
