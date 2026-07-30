@@ -209,7 +209,15 @@ export default function DashboardHeader() {
                     Управление профилями
                   </button>
                 )}
-                <button className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-red-50 text-left text-red-600">
+                <button
+                  onClick={async () => {
+                    const { createClient } = await import("@/lib/supabase/client");
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    window.location.href = "/login";
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-red-50 text-left text-red-600"
+                >
                   <LogOut className="w-4 h-4" />
                   Выйти
                 </button>
