@@ -74,6 +74,37 @@ export async function adminDeleteUser(userId: string) {
   return { success: true };
 }
 
+export async function adminUpdateProfile(userId: string, data: {
+  full_name?: string;
+  role?: string;
+  pin?: string;
+  phone?: string;
+  avatar_color?: string;
+  is_active?: boolean;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "admin") {
+    return { error: "Только администратор может редактировать профили" };
+  }
+
+  const { error } = await serviceClient
+    .from("profiles")
+    .update(data)
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function getAllProfiles() {
   return await serviceClient
     .from("profiles")
