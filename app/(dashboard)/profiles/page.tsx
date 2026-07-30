@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useProfile } from "@/lib/profile-context";
 import { useRouter } from "next/navigation";
-import { adminCreateUser, getAllProfiles } from "./actions";
+import { adminCreateUser, adminDeleteUser, getAllProfiles } from "./actions";
 import { UserPlus, Trash2, Edit3, Shield, User, X, Check, Loader2, ArrowLeft } from "lucide-react";
 
 interface Profile {
   id: number;
+  user_id: string;
   full_name: string;
   role: string;
   pin: string;
@@ -129,12 +130,14 @@ export default function ProfilesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Удалить профиль?")) return;
-    const res = await fetch("/api/profiles/" + id, { method: "DELETE" });
-    if (res.ok) {
+  const handleDelete = async (profile: Profile) => {
+    if (!confirm(`Удалить пользователя ${profile.full_name || profile.email}? Это удалит его из auth.users.`)) return;
+    const result = await adminDeleteUser(profile.user_id);
+    if (result.success) {
       fetchProfiles();
       refreshProfiles();
+    } else {
+      alert(result.error);
     }
   };
 
@@ -187,7 +190,7 @@ export default function ProfilesPage() {
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditProfile(p)}>
                     <Edit3 className="w-3.5 h-3.5 mr-1" />Редактировать
                   </Button>
-                  <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(p.id)}>
+                  <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(p)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>

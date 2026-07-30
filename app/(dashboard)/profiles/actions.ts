@@ -53,6 +53,27 @@ export async function adminCreateUser(data: {
   return { success: true };
 }
 
+export async function adminDeleteUser(userId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "admin") {
+    return { error: "Только администратор может удалять пользователей" };
+  }
+
+  const { error } = await serviceClient.auth.admin.deleteUser(userId);
+  if (error) return { error: error.message };
+
+  return { success: true };
+}
+
 export async function getAllProfiles() {
   return await serviceClient
     .from("profiles")
