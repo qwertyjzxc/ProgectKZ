@@ -1,24 +1,38 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
 
+async function getCurrentUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || null;
+}
+
 export async function getMyProfiles() {
-  const { data: profiles, error } = await serviceClient
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const { data: profiles } = await serviceClient
     .from("profiles")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) return [];
-  return profiles;
+  return profiles || [];
 }
 
 export async function getCurrentProfile() {
-  const { data: profiles, error } = await serviceClient
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  const { data: profiles } = await serviceClient
     .from("profiles")
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error || !profiles || profiles.length === 0) return null;
+  if (!profiles || profiles.length === 0) return null;
 
   const admin = profiles.find(p => p.role === "admin");
   if (admin) return admin;
