@@ -1,10 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { serviceClient } from "@/lib/supabase/service";
 
 export async function getMyProfiles() {
-  const supabase = await createClient();
-  const { data: profiles, error } = await supabase
+  const { data: profiles, error } = await serviceClient
     .from("profiles")
     .select("*")
     .order("created_at", { ascending: false });
