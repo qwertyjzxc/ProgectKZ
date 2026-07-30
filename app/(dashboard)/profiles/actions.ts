@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function adminCreateUser(data: {
   username: string;
-  email: string;
+  email?: string;
   password: string;
   full_name?: string;
   role?: string;
@@ -27,8 +27,10 @@ export async function adminCreateUser(data: {
     return { error: "Только администратор может создавать пользователей" };
   }
 
+  const email = data.email || `${data.username}@crm.local`;
+
   const { data: authData, error: authError } = await serviceClient.auth.admin.createUser({
-    email: data.email,
+    email,
     password: data.password,
     email_confirm: true,
     user_metadata: { username: data.username, full_name: data.full_name || "" },

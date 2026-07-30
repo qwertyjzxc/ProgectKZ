@@ -44,7 +44,6 @@ function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (da
 
     const result = await adminCreateUser({
       username,
-      email: `${username}@app.local`,
       password,
       role,
     });
