@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { getMyProfiles } from "./profile-actions";
 
 interface Profile {
   id: number;
@@ -32,8 +33,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fetchProfiles = async () => {
     try {
-      const res = await fetch("/api/profiles");
-      const data = await res.json();
+      const data = await getMyProfiles();
       if (Array.isArray(data)) {
         setProfiles(data);
         if (!currentProfile && data.length > 0) {
