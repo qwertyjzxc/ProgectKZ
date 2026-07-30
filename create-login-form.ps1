@@ -1,3 +1,4 @@
+$content = @'
 "use client";
 
 import { useState } from 'react';
@@ -70,3 +71,5 @@ export default function LoginForm() {
     </form>
   );
 }
+'@
+Set-Content -Path 'app\login\login-form.tsx' -Value $content -Encoding UTF8

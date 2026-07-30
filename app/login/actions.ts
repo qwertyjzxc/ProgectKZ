@@ -1,50 +1,38 @@
 "use server";
 
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { createClient } from '@/lib/supabase/server';
+import { serviceClient } from '@/lib/supabase/service';
 
 export async function login({ username, password }: { username: string; password: string }) {
-  const lookupClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  try {
+    const { data: profile, error: profileError } = await serviceClient
+      .from('profiles')
+      .select('email')
+      .eq('username', username)
+      .single();
 
-  const { data: profile, error: profileError } = await lookupClient
-    .from("profiles")
-    .select("email")
-    .eq("username", username)
-    .single();
+    if (profileError || !profile) {
+      return { error: 'User not found' };
+    }
 
-  if (profileError || !profile) {
-    return { error: "Пользователь не найден" };
+    if (!profile.email) {
+      return { error: 'No email in profile' };
+    }
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: profile.email,
+      password,
+    });
+
+    if (error || !data.session) {
+      return { error: error?.message || 'Login failed' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('LOGIN EXCEPTION:', err);
+    return { error: 'Internal server error' };
   }
-
-  const authClient = createClient(supabaseUrl, supabaseAnonKey);
-
-  const { data, error } = await authClient.auth.signInWithPassword({
-    email: profile.email,
-    password,
-  });
-
-  if (error || !data.session) {
-    return { error: error?.message || "Ошибка входа" };
-  }
-
-  const cookieStore = await cookies();
-  cookieStore.set("sb-access-token", data.session.access_token, {
-    path: "/",
-    maxAge: data.session.expires_in,
-    httpOnly: true,
-    sameSite: "lax",
-  });
-  cookieStore.set("sb-refresh-token", data.session.refresh_token, {
-    path: "/",
-    maxAge: data.session.expires_in,
-    httpOnly: true,
-    sameSite: "lax",
-  });
-
-  return { success: true };
 }

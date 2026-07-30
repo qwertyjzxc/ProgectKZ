@@ -1,37 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
-import Header from "@/components/Header";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Krisha.kz — Недвижимость Шымкента",
-  description: "Жилые комплексы, новостройки и квартиры в Шымкенте",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+export const metadata: Metadata = { title: "Romanov Estate — CRM", description: "Управление недвижимостью" };
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="ru"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <Header />
-        {children}
-      </body>
+    <html lang="ru" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="h-full bg-gray-100"><TooltipProvider>{children}</TooltipProvider></body>
     </html>
   );
 }

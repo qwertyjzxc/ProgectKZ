@@ -7,39 +7,32 @@ export async function GET() {
     .from("clients")
     .select("*")
     .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
-
   const { data, error } = await supabase
     .from("clients")
     .insert({
-      date: body.date,
-      name: body.name,
-      rooms: body.rooms,
-      district: body.district,
-      amount: body.amount,
-      furniture: body.furniture,
-      rental_period: body.rentalPeriod,
-      phone: body.phone,
-      who_lives: body.whoLives,
-      people_count: body.peopleCount,
-      notes: body.notes,
-      completed: body.completed,
-      broker: body.broker,
+      date: body.date || new Date().toLocaleDateString("ru-RU"),
+      name: body.name || "",
+      rooms: body.rooms || "",
+      district: body.district || "",
+      amount: body.amount || 0,
+      furniture: body.furniture || "",
+      rental_period: body.rental_period || "",
+      phone: body.phone || "",
+      who_lives: body.who_lives || "",
+      people_count: body.people_count || 1,
+      notes: body.notes || "",
+      completed: body.completed || "",
+      broker: body.broker || "",
     })
     .select()
     .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

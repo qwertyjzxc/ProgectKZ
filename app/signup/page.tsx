@@ -9,6 +9,7 @@ export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -21,6 +22,11 @@ export default function SignupPage() {
     setError(null);
     setMessage(null);
 
+    if (!username.trim()) {
+      setError("Введите имя пользователя");
+      return;
+    }
+
     if (password !== confirm) {
       setError("Пароли не совпадают");
       return;
@@ -28,7 +34,13 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username },
+      },
+    });
 
     if (error) {
       setError(error.message);
@@ -53,6 +65,14 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSignup} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Имя пользователя"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           <input
             type="email"
             placeholder="Email"
