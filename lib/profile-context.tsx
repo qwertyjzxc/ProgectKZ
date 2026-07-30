@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getMyProfiles } from "./profile-actions";
+import { getMyProfiles, getCurrentProfile } from "./profile-actions";
 
 interface Profile {
   id: number;
@@ -33,12 +33,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const fetchProfiles = async () => {
     try {
-      const data = await getMyProfiles();
-      if (Array.isArray(data)) {
-        setProfiles(data);
-        if (!currentProfile && data.length > 0) {
-          setCurrentProfile(data[0]);
-        }
+      const [profilesData, current] = await Promise.all([
+        getMyProfiles(),
+        getCurrentProfile(),
+      ]);
+      if (Array.isArray(profilesData)) {
+        setProfiles(profilesData);
+      }
+      if (current) {
+        setCurrentProfile(current);
       }
     } catch (err) {
       console.error("Failed to fetch profiles", err);
