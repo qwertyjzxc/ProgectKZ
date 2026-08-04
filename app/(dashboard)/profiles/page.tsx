@@ -87,9 +87,6 @@ function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: (da
 function ProfileFormModal({ profile, onClose, onSave }: { profile: Profile; onClose: () => void; onSave: (data: any) => void }) {
   const [fullName, setFullName] = useState(profile.full_name || "");
   const [role, setRole] = useState(profile.role || "user");
-  const [pin, setPin] = useState(profile.pin || "");
-  const [phone, setPhone] = useState(profile.phone || "");
-  const [avatarColor, setAvatarColor] = useState(profile.avatar_color || "blue");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -97,7 +94,7 @@ function ProfileFormModal({ profile, onClose, onSave }: { profile: Profile; onCl
     e.preventDefault();
     setError("");
     setLoading(true);
-    onSave({ full_name: fullName, role, pin, phone, avatar_color: avatarColor });
+    onSave({ full_name: fullName, role });
   };
 
   return (
@@ -118,20 +115,6 @@ function ProfileFormModal({ profile, onClose, onSave }: { profile: Profile; onCl
             <select value={role} onChange={e => setRole(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
               <option value="user">Сотрудник</option>
               <option value="admin">Администратор</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN</label>
-            <Input value={pin} onChange={e => setPin(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Цвет аватара</label>
-            <select value={avatarColor} onChange={e => setAvatarColor(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
-              {Object.keys(colorMap).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="flex gap-3 pt-2">
@@ -246,8 +229,8 @@ export default function ProfilesPage() {
 
                 <div className="space-y-1 text-sm text-gray-600 mb-4">
                   {p.phone && <p>📱 {p.phone}</p>}
-                  {p.email && <p>✉️ {p.email}</p>}
-                  <p>🔑 PIN: {p.pin || "—"}</p>
+
+
                 </div>
 
                 <div className="flex gap-2">
