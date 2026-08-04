@@ -47,9 +47,9 @@ export default function ClientTable({ clients, onDeleteClient }: ClientTableProp
   return (
     <>
       {/* Table container with horizontal scroll */}
-      <div className="bg-white rounded-xl shadow-md border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+                  <div className="bg-white rounded-xl shadow-md border">
+            <div className="overflow-x-auto">
+              <table className="w-full">
             {/* Sticky header */}
             <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b-2 border-gray-200">
               <tr>
