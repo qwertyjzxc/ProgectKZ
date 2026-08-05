@@ -17,6 +17,6 @@ CREATE POLICY "Allow update notifications" ON notifications FOR UPDATE USING (tr
 
 -- Тестовые уведомления для первого профиля
 INSERT INTO notifications (profile_id, message, type, related_to, is_read)
-VALUES (1, 'Добро пожаловать в Romanov Estate CRM', 'info', '', false),
+VALUES (1, 'Добро пожаловать в kzproject CRM', 'info', '', false),
        (1, 'Новый клиент добавлен в базу', 'client', '/clients/1', false),
        (1, 'Сделка на сумму 15 000 000 ₸ закрыта', 'deal', '/deals/1', false);

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
-  pokupka: "clients_pokupka",
   prodaja: "clients_prodaja",
 };
 
@@ -27,8 +27,8 @@ export async function GET(
       .order("created_at", { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }
 }
 
@@ -43,6 +43,11 @@ export async function POST(
     const { data, error } = await supabase
       .from(table)
       .insert({
+        type: body.type || "",
+        area: body.area || "",
+        address: body.address || "",
+        jk: body.jk || "",
+        contract: body.contract || "",
         date: body.date || new Date().toLocaleDateString("ru-RU"),
         name: body.name || "",
         rooms: body.rooms || "",
@@ -60,8 +65,15 @@ export async function POST(
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logActivity({
+      client_table: table,
+      client_id: data.id,
+      client_name: data.name || "",
+      action: "create",
+      message: "Добавил клиента",
+    });
     return NextResponse.json(data, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }
 }

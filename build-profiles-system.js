@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 function w(file, content) { fs.writeFileSync(file, content, 'utf-8'); console.log('OK:', file); }
 

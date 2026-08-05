@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ interface Deal {
 }
 
 type EditableDeal = Pick<Deal, 'id' | 'name' | 'client' | 'amount' | 'stage' | 'date'>;
+type DealFormData = Pick<Deal, 'name' | 'client' | 'amount' | 'stage' | 'date'>;
 
 const stageColors: Record<string, string> = {
   "Сделка закрыта": "bg-green-100 text-green-800",
@@ -27,7 +28,7 @@ const stageColors: Record<string, string> = {
   "Первичный контакт": "bg-purple-100 text-purple-800",
 };
 
-function DealFormModal({ deal, onClose, onSave }: { deal?: EditableDeal; onClose: () => void; onSave: (d: any) => void }) {
+function DealFormModal({ deal, onClose, onSave }: { deal?: EditableDeal; onClose: () => void; onSave: (d: DealFormData) => void }) {
   const [name, setName] = useState(deal?.name || "");
   const [client, setClient] = useState(deal?.client || "");
   const [amount, setAmount] = useState(deal?.amount ? String(deal.amount) : "");
@@ -46,7 +47,7 @@ function DealFormModal({ deal, onClose, onSave }: { deal?: EditableDeal; onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">{deal ? "Редактировать сделку" : "Новая сделка"}</h2>
@@ -91,22 +92,18 @@ function DealsContent() {
   const [filterStage, setFilterStage] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const fetchDeals = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/deals");
-      const data = await res.json();
-      if (Array.isArray(data)) setDeals(data);
-      else if (data.error) setError(data.error);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchDeals = useCallback(() => {
+    fetch("/api/deals")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setDeals(data);
+        else if (data.error) setError(data.error);
+      })
+      .catch(err => setError(err instanceof Error ? err.message : "Ошибка загрузки"))
+      .finally(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { fetchDeals(); }, []);
+  useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
   const filtered = useMemo(() => {
     let result = deals;
@@ -118,7 +115,7 @@ function DealsContent() {
     return result;
   }, [deals, searchQuery, filterStage]);
 
-  const handleAdd = async (data: any) => {
+  const handleAdd = async (data: DealFormData) => {
     const res = await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (res.ok) {
       const newDeal = await res.json();
@@ -127,7 +124,7 @@ function DealsContent() {
     }
   };
 
-  const handleEdit = async (data: any) => {
+  const handleEdit = async (data: DealFormData) => {
     if (!editDeal) return;
     const res = await fetch("/api/deals/" + editDeal.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (res.ok) {
@@ -151,7 +148,6 @@ function DealsContent() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Сделки</h1>
-          <p className="text-sm text-gray-500 mt-1">Воронка продаж Romanov Estate</p>
         </div>
         <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
           <Plus className="w-4 h-4" />Новая сделка
@@ -207,7 +203,7 @@ function DealsContent() {
       </div>
 
       {loading && <div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Загрузка из Supabase...</p></div>}
-      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={fetchDeals} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchDeals(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">

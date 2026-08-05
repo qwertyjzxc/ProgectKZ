@@ -1,9 +1,12 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getMyProfiles, getCurrentProfile } from "./profile-actions";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { getProfileData } from "./profile-actions";
 
-interface Profile {
+export interface Profile {
   id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
   full_name: string;
   role: string;
   pin: string;
@@ -13,47 +16,60 @@ interface Profile {
   is_active: boolean;
 }
 
+export function profileName(p?: { first_name?: string; last_name?: string; full_name?: string } | null): string {
+  if (!p) return "";
+  const full = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+  return full || p.full_name || "";
+}
+
+export function profileInitials(name: string): string {
+  return name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?";
+}
+
 interface ProfileContextType {
   currentProfile: Profile | null;
   profiles: Profile[];
   setCurrentProfile: (p: Profile) => void;
-  refreshProfiles: () => void;
+  refreshProfiles: () => Promise<Profile[]>;
+  loading: boolean;
 }
 
 const ProfileContext = createContext<ProfileContextType>({
   currentProfile: null,
   profiles: [],
   setCurrentProfile: () => {},
-  refreshProfiles: () => {},
+  refreshProfiles: async () => [],
+  loading: true,
 });
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchProfiles = async () => {
-    try {
-      const [profilesData, current] = await Promise.all([
-        getMyProfiles(),
-        getCurrentProfile(),
-      ]);
-      if (Array.isArray(profilesData)) {
-        setProfiles(profilesData);
-      }
-      if (current) {
-        setCurrentProfile(current);
-      }
-    } catch (err) {
-      console.error("Failed to fetch profiles", err);
-    }
-  };
+  const fetchProfiles = useCallback((): Promise<Profile[]> => {
+    return getProfileData()
+      .then(({ profiles, currentProfile }) => {
+        setProfiles(profiles);
+        setCurrentProfile(prev => {
+          if (prev && profiles.some(p => p.id === prev.id)) return prev;
+          return currentProfile;
+        });
+        return profiles;
+      })
+      .catch(err => {
+        console.error("Failed to fetch profiles", err);
+        return [];
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { fetchProfiles(); }, []);
+  useEffect(() => { fetchProfiles(); }, [fetchProfiles]);
 
   const refreshProfiles = () => fetchProfiles();
 
   return (
-    <ProfileContext.Provider value={{ currentProfile, profiles, setCurrentProfile, refreshProfiles }}>
+    <ProfileContext.Provider value={{ currentProfile, profiles, setCurrentProfile, refreshProfiles, loading }}>
       {children}
     </ProfileContext.Provider>
   );

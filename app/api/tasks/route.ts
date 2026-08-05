@@ -1,23 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const COMPLETED_TTL_MS = 10 * 60 * 1000;
+
 export async function GET() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+
+  // Автоудаление задач, завершённых более 10 минут назад
+  const cutoff = new Date(Date.now() - COMPLETED_TTL_MS).toISOString();
+  await supabase
+    .from("tasks")
+    .delete()
+    .eq("status", "Завершено")
+    .lt("completed_at", cutoff);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*, task_assignees(assignee_id)")
+    .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const normalized = (data || []).map(t => ({
+    ...t,
+    assignee_ids: ((t.task_assignees || []) as Array<{ assignee_id: number }>).map(a => a.assignee_id),
+    task_assignees: undefined,
+  }));
+  return NextResponse.json(normalized);
 }
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
+  const status = body.status || "В работе";
+  const assigneeIds = Array.isArray(body.assignee_ids)
+    ? [...new Set(body.assignee_ids.map(Number).filter(Boolean))]
+    : [];
   const { data, error } = await supabase.from("tasks").insert({
     title: body.title,
-    client: body.client,
-    due_date: body.dueDate || body.due_date || "",
-    priority: body.priority,
-    status: body.status || "В работе",
+    client: body.client || "",
+    description: body.description || "",
+    created_date: body.created_date || "",
+    due_date: body.due_date || "",
+    priority: body.priority || "Средний",
+    status,
+    completed_at: status === "Завершено" ? new Date().toISOString() : null,
   }).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+
+  if (assigneeIds.length) {
+    const { error: linkError } = await supabase.from("task_assignees").insert(
+      assigneeIds.map(aid => ({ task_id: data.id, assignee_id: aid }))
+    );
+    if (linkError) console.error("Ошибка назначения исполнителей:", linkError.message);
+  }
+
+  for (const aid of assigneeIds) {
+    void (async () => {
+      const { error: notifyError } = await supabase.from("notifications").insert({
+        profile_id: aid,
+        message: "Вам назначена задача: «" + (data.title || "") + "»",
+        type: "task",
+        related_to: "/tasks",
+      });
+      if (notifyError) console.error("Ошибка уведомления о задаче:", notifyError.message);
+    })();
+  }
+
+  return NextResponse.json({ ...data, assignee_ids: assigneeIds }, { status: 201 });
 }

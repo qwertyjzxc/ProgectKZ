@@ -15,9 +15,13 @@ CREATE TABLE IF NOT EXISTS tasks (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   title TEXT NOT NULL DEFAULT '',
   client TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  created_date TEXT DEFAULT '',
   due_date TEXT DEFAULT '',
   priority TEXT DEFAULT 'Средний',
   status TEXT DEFAULT 'В работе',
+  assignee_id BIGINT REFERENCES profiles(id) ON DELETE SET NULL,
+  completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

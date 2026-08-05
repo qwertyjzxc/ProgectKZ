@@ -1,10 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Bell, RotateCcw, X, Check, Shield, Settings, LogOut } from "lucide-react";
-import { useProfile } from "@/lib/profile-context";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Bell, X, Check, Shield, Settings, LogOut, UserCog, UserPlus } from "lucide-react";
+import { useProfile, profileName, profileInitials } from "@/lib/profile-context";
+import AddProfileModal from "./AddProfileModal";
 
 interface Notification {
   id: number;
@@ -18,40 +17,58 @@ interface Notification {
 
 export default function DashboardHeader() {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { currentProfile, profiles, setCurrentProfile } = useProfile();
+  const { currentProfile, profiles, setCurrentProfile, refreshProfiles, loading } = useProfile();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [searchValue, setSearchValue] = useState(searchParams.get("search") || "");
+  const [showAddProfile, setShowAddProfile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchNotifications = () => {
-    if (!currentProfile?.id) { setNotifications([]); setUnreadCount(0); return; }
+  const applyNotifications = useCallback((list: Notification[]) => {
+    setNotifications(list);
+    setUnreadCount(list.filter(n => !n.is_read).length);
+  }, []);
+
+  const fetchNotifications = useCallback(() => {
+    if (!currentProfile?.id) return;
     fetch("/api/notifications?profile_id=" + currentProfile.id)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setNotifications(data);
-          setUnreadCount(data.filter((n: any) => !n.is_read).length);
-        }
+        if (Array.isArray(data)) applyNotifications(data);
       })
       .catch(() => {});
-  };
+  }, [currentProfile, applyNotifications]);
 
-  useEffect(() => { fetchNotifications(); }, [currentProfile?.id]);
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  // Периодическое обновление — новые уведомления появляются живьём,
+  // прочитанные исчезают без перезагрузки страницы
+  useEffect(() => {
+    const timer = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(timer);
+  }, [fetchNotifications]);
 
   const markAsRead = async (id: number) => {
-    await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-    fetchNotifications();
+    // Оптимистично помечаем прочитанным сразу
+    applyNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+    try {
+      const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error("Ошибка");
+    } catch {
+      fetchNotifications();
+    }
   };
 
   const markAllAsRead = async () => {
     if (!currentProfile?.id) return;
-    await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
-    fetchNotifications();
+    applyNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    try {
+      const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
+      if (!res.ok) throw new Error("Ошибка");
+    } catch {
+      fetchNotifications();
+    }
   };
 
   const formatTime = (dateStr: string) => {
@@ -66,19 +83,11 @@ export default function DashboardHeader() {
     return date.toLocaleDateString("ru-RU");
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-    if (searchValue) params.set("search", searchValue); else params.delete("search");
-    router.push(pathname + "?" + params.toString());
-  };
-
-  const handleResetFilters = () => { router.push(pathname); setSearchValue(""); };
-
   const avatarColor = currentProfile?.avatar_color || "blue";
-  const initials = currentProfile?.full_name
-    ? currentProfile.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
+  const initials = profileInitials(profileName(currentProfile));
+  const currentDisplayName = loading
+    ? ""
+    : profileName(currentProfile) || "Гость";
 
   const colorMap: Record<string, string> = {
     blue: "bg-blue-100 text-blue-600",
@@ -94,13 +103,7 @@ export default function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b h-16 flex items-center px-6 gap-3">
-      <form onSubmit={handleSearch} className="relative flex-1 max-w-xl">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input name="search" placeholder="Поиск" value={searchValue} onChange={e => setSearchValue(e.target.value)} className="pl-10 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white" />
-      </form>
       <div className="flex items-center gap-2 ml-auto">
-        <Button variant="outline" size="sm" onClick={handleResetFilters} className="gap-1 text-xs"><RotateCcw className="w-3.5 h-3.5" /> Сбросить</Button>
-
         {/* Notifications */}
         <div className="relative">
           <button
@@ -167,11 +170,20 @@ export default function DashboardHeader() {
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg px-3 py-1.5"
           >
-            <div className={"w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold " + profileAvatarClass}>
-              {initials}
-            </div>
-            <span className="hidden sm:inline font-medium">{currentProfile?.full_name || "Гость"}</span>
-            {currentProfile?.role === "admin" && <Shield className="w-3.5 h-3.5 text-yellow-500" title="Администратор" />}
+            {loading ? (
+              <>
+                <div className="w-7 h-7 rounded-full bg-gray-200 animate-pulse" />
+                <span className="hidden sm:inline w-24 h-3.5 bg-gray-200 rounded animate-pulse" />
+              </>
+            ) : (
+              <>
+                <div className={"w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold " + profileAvatarClass}>
+                  {initials}
+                </div>
+                <span className="hidden sm:inline font-medium">{currentDisplayName}</span>
+              </>
+            )}
+            {currentProfile?.role === "admin" && <Shield className="w-3.5 h-3.5 text-yellow-500" aria-label="Администратор" />}
           </button>
 
           {showProfileMenu && (
@@ -179,33 +191,52 @@ export default function DashboardHeader() {
               <div className="fixed inset-0 z-30" onClick={() => setShowProfileMenu(false)} />
               <div className="absolute right-0 top-11 w-64 bg-white rounded-xl shadow-xl border z-40 p-2">
                 <div className="px-3 py-2 border-b mb-1">
-                  <p className="text-sm font-semibold text-gray-800">{currentProfile?.full_name}</p>
+                  <p className="text-sm font-semibold text-gray-800">{profileName(currentProfile) || "Гость"}</p>
                   <p className="text-xs text-gray-500">{currentProfile?.role === "admin" ? "Администратор" : "Сотрудник"}</p>
                 </div>
 
-                <p className="px-3 py-1 text-xs text-gray-400 font-semibold uppercase">Переключить профиль</p>
-                {profiles.filter(p => p.id !== currentProfile?.id).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => { setCurrentProfile(p); setShowProfileMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-gray-50 text-left"
-                  >
-                    <div className={"w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold " + (colorMap[p.avatar_color] || colorMap.blue)}>
-                      {p.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                    </div>
-                    <span>{p.full_name}</span>
-                    {p.role === "admin" && <Shield className="w-3 h-3 text-yellow-500 ml-auto" />}
-                    {currentProfile?.id === p.id && <Check className="w-4 h-4 text-blue-500 ml-auto" />}
-                  </button>
-                ))}
+                {profiles.length > 1 && (
+                  <>
+                    <p className="px-3 py-1 text-xs text-gray-400 font-semibold uppercase">Мои профили</p>
+                    {profiles.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setCurrentProfile(p); setShowProfileMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-gray-50 text-left"
+                      >
+                        <div className={"w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 " + (colorMap[p.avatar_color] || colorMap.blue)}>
+                          {profileInitials(profileName(p))}
+                        </div>
+                        <span className="truncate">{profileName(p) || p.username}</span>
+                        {p.role === "admin" && <Shield className="w-3 h-3 text-yellow-500 ml-auto shrink-0" />}
+                        {currentProfile?.id === p.id && <Check className="w-4 h-4 text-blue-500 ml-auto shrink-0" />}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                <button
+                  onClick={() => { setShowAddProfile(true); setShowProfileMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-gray-50 text-left"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Добавить профиль
+                </button>
 
                 <hr className="my-1" />
+                <button
+                  onClick={() => { router.push("/settings"); setShowProfileMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-gray-50 text-left"
+                >
+                  <Settings className="w-4 h-4" />
+                  Настройки профиля
+                </button>
                 {currentProfile?.role === "admin" && (
                   <button
                     onClick={() => { router.push("/profiles"); setShowProfileMenu(false); }}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg hover:bg-gray-50 text-left"
                   >
-                    <Settings className="w-4 h-4" />
+                    <UserCog className="w-4 h-4" />
                     Управление профилями
                   </button>
                 )}
@@ -226,6 +257,19 @@ export default function DashboardHeader() {
           )}
         </div>
       </div>
+
+      {showAddProfile && (
+        <AddProfileModal
+          isAdmin={profiles.some(p => p.role === "admin")}
+          onClose={() => setShowAddProfile(false)}
+          onAttached={async (profileId: number) => {
+            setShowAddProfile(false);
+            const list = await refreshProfiles();
+            const added = list.find(x => x.id === profileId);
+            if (added) setCurrentProfile(added);
+          }}
+        />
+      )}
     </header>
   );
 }

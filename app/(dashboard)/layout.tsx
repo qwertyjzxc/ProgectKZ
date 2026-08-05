@@ -1,6 +1,7 @@
 import Sidebar from "@/components/dashboard/Sidebar";
 import DashboardHeader from "@/components/dashboard/Header";
 import { ProfileProvider } from "@/lib/profile-context";
+import { Suspense } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +9,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen bg-gray-100">
         <Sidebar />
         <div className="ml-64 flex-1 flex flex-col min-w-0">
-          <DashboardHeader />
+          <Suspense>
+            <DashboardHeader />
+          </Suspense>
           <main className="flex-1 overflow-y-auto p-6">
             {children}
           </main>
