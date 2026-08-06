@@ -34,9 +34,11 @@ export async function proxy(request: NextRequest) {
   // Публичные маршруты (без авторизации)
   const publicRoutes = ["/login", "/signup"];
   const callbackRoutes = ["/auth"];
+  const publicPrefixes = ["/p/"];
   const isPublic =
     publicRoutes.includes(pathname) ||
-    callbackRoutes.some((r) => pathname.startsWith(r));
+    callbackRoutes.some((r) => pathname.startsWith(r)) ||
+    publicPrefixes.some((r) => pathname.startsWith(r));
 
   // 1. Гость → /login
   if (!session && !isPublic) {
