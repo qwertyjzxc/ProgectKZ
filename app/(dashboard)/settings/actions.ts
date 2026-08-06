@@ -91,3 +91,48 @@ export async function changeMyPassword(password: string) {
   await serviceClient.from("profiles").update({ password_enc: encryptSecret(password) }).eq("user_id", user.id);
   return { success: true };
 }
+
+const NOTIFICATION_KEYS = [
+  "clients_create",
+  "clients_update",
+  "clients_delete",
+  "deals_create",
+  "deals_update",
+  "deals_delete",
+  "tasks_create",
+  "tasks_update",
+  "tasks_delete",
+];
+
+export async function updateNotificationSettings(profileId: number, settings: Record<string, boolean>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: target } = await serviceClient
+    .from("profiles")
+    .select("id, user_id")
+    .eq("id", profileId)
+    .single();
+  if (!target) return { error: "Профиль не найден" };
+
+  const ownerId = (target.user_id as string) || "";
+  let hasAccess = !!ownerId && ownerId === user.id;
+  if (!hasAccess) {
+    const linkedIds = await getLinkedProfileIds(user.id);
+    hasAccess = linkedIds.includes(profileId);
+  }
+  if (!hasAccess) return { error: "Нет доступа к этому профилю" };
+
+  const clean: Record<string, boolean> = {};
+  for (const key of NOTIFICATION_KEYS) {
+    clean[key] = settings[key] === true;
+  }
+
+  const { error } = await serviceClient
+    .from("profiles")
+    .update({ notification_settings: clean })
+    .eq("id", profileId);
+  if (error) return { error: error.message };
+  return { success: true };
+}

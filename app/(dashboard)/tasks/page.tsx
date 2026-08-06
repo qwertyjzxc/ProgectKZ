@@ -473,7 +473,8 @@ function TasksContent() {
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchTasks(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
 
       {!loading && !error && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border">
+          <div className="overflow-y-auto max-h-[60vh]">
           <table className="w-full table-fixed text-center">
             <colgroup>
               <col className="w-[4%]" />
@@ -486,15 +487,15 @@ function TasksContent() {
               <col className="w-[5%]" />
             </colgroup>
             <thead>
-              <tr className="bg-gray-100 border-b-2 border-gray-300">
-                <th className="px-2 py-3 rounded-tl-xl"></th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide text-left">Задача</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Исполнитель</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Создана</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Срок</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Приоритет</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
-                <th className="px-2 py-3 rounded-tr-xl">
+              <tr className="bg-gray-100">
+                <th className="px-2 py-3 rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Задача</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Исполнитель</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Создана</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Срок</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Приоритет</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                <th className="px-2 py-3 rounded-tr-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">
                   {deleteMode && (
                     <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
                       {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
@@ -503,7 +504,7 @@ function TasksContent() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-6 py-16 text-center text-gray-400">
@@ -603,6 +604,7 @@ function TasksContent() {
                   })}
               </tbody>
           </table>
+          </div>
           <div className="border-t bg-gray-50/50 px-4 py-2 text-xs text-gray-400">
             Показано: {filtered.length} из {tasks.length} задач
             {hasFilters && <button onClick={resetFilters} className="ml-3 text-blue-500 hover:text-blue-600">Сбросить всё</button>}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, buildChanges, buildUpdateMessage, TASK_LABELS } from "@/lib/activity";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -63,13 +64,38 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     })();
   }
 
+  const oldRow = { ...existing, assignee_ids: existingAssignees };
+  const newRow = { ...data, assignee_ids: newAssignees };
+  const changes = buildChanges(oldRow, newRow, TASK_LABELS);
+  if (changes.length > 0) {
+    await logActivity({
+      client_table: "tasks",
+      client_id: data.id,
+      client_name: data.title || existing?.title || "",
+      action: "update",
+      message: buildUpdateMessage(changes),
+      changes,
+    });
+  }
+
   return NextResponse.json({ ...data, assignee_ids: newAssignees });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { id } = await params;
+  const { data: existing } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (existing) {
+    await logActivity({
+      client_table: "tasks",
+      client_id: existing.id,
+      client_name: existing.title || "",
+      action: "delete",
+      message: "Удалил задачу",
+      changes: buildChanges(existing, {}, TASK_LABELS),
+    });
+  }
   return NextResponse.json({ success: true });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
 
 const COMPLETED_TTL_MS = 10 * 60 * 1000;
 
@@ -65,6 +66,15 @@ export async function POST(request: NextRequest) {
     })();
   }
 
+  await logActivity({
+    client_table: "tasks",
+    client_id: data.id,
+    client_name: data.title || "",
+    action: "create",
+    message: "Добавил задачу",
+    changes: buildChanges({}, { ...data, assignee_ids: assigneeIds }, TASK_LABELS),
+  });
+
   return NextResponse.json({ ...data, assignee_ids: assigneeIds }, { status: 201 });
 }
 
@@ -73,7 +83,25 @@ export async function DELETE(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
   if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных задач" }, { status: 400 });
+  const { data: existing } = await supabase.from("tasks").select("id, title").in("id", ids);
   const { error } = await supabase.from("tasks").delete().in("id", ids);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (ids.length === 1 && existing?.[0]) {
+    await logActivity({
+      client_table: "tasks",
+      client_id: existing[0].id,
+      client_name: existing[0].title || "",
+      action: "delete",
+      message: "Удалил задачу",
+    });
+  } else {
+    await logActivity({
+      client_table: "tasks",
+      client_id: 0,
+      client_name: "",
+      action: "delete",
+      message: `Удалил ${ids.length} задач`,
+    });
+  }
   return NextResponse.json({ success: true, deleted: ids.length });
 }

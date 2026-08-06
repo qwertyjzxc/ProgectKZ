@@ -72,7 +72,7 @@ export async function DELETE(
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
     const supabase = await createClient();
-    const { data: existing } = await supabase.from(table).select("id, name").eq("id", id).maybeSingle();
+    const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (existing) {
@@ -82,6 +82,7 @@ export async function DELETE(
         client_name: existing.name || "",
         action: "delete",
         message: "Удалил клиента",
+        changes: buildChanges(existing, {}),
       });
     }
     return NextResponse.json({ success: true });

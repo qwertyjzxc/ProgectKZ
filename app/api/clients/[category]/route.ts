@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { logActivity } from "@/lib/activity";
+import { logActivity, buildChanges } from "@/lib/activity";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -71,6 +71,7 @@ export async function POST(
       client_name: data.name || "",
       action: "create",
       message: "Добавил клиента",
+      changes: buildChanges({}, data),
     });
     return NextResponse.json(data, { status: 201 });
   } catch (e) {

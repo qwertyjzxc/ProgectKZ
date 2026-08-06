@@ -5,8 +5,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/PhoneInput";
 import { useProfile, profileName, profileInitials, type Profile } from "@/lib/profile-context";
-import { updateMyProfile, changeMyPassword } from "./actions";
-import { CheckCircle2, Loader2, Shield, UserRound, Phone, Mail, AtSign, Lock, KeyRound } from "lucide-react";
+import { updateMyProfile, changeMyPassword, updateNotificationSettings } from "./actions";
+import { CheckCircle2, Loader2, Shield, UserRound, Phone, Mail, AtSign, Lock, KeyRound, Bell } from "lucide-react";
+
+const NOTIFICATION_ENTITIES = [
+  { key: "clients", label: "Клиенты" },
+  { key: "deals", label: "Сделки" },
+  { key: "tasks", label: "Задачи" },
+];
+const NOTIFICATION_ACTIONS = [
+  { suffix: "create", label: "Добавление" },
+  { suffix: "update", label: "Изменение" },
+  { suffix: "delete", label: "Удаление" },
+];
+const ALL_NOTIFICATION_KEYS = NOTIFICATION_ENTITIES.flatMap(e =>
+  NOTIFICATION_ACTIONS.map(a => `${e.key}_${a.suffix}`)
+);
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none " +
+        (checked ? "bg-blue-600" : "bg-gray-300")
+      }
+    >
+      <span
+        className={
+          "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform " +
+          (checked ? "translate-x-5" : "translate-x-0")
+        }
+      />
+    </button>
+  );
+}
 
 function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
   const { refreshProfiles } = useProfile();
@@ -29,7 +66,25 @@ function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
   const [pwdError, setPwdError] = useState("");
   const [pwdSuccess, setPwdSuccess] = useState("");
 
+  const [notifSettings, setNotifSettings] = useState<Record<string, boolean>>(() => {
+    const base: Record<string, boolean> = {};
+    ALL_NOTIFICATION_KEYS.forEach(k => { base[k] = false; });
+    return { ...base, ...(currentProfile.notification_settings || {}) };
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifError, setNotifError] = useState("");
+  const [notifSuccess, setNotifSuccess] = useState(false);
+
   const isAdmin = currentProfile.role === "admin";
+
+  const notifAllOn = ALL_NOTIFICATION_KEYS.every(k => notifSettings[k]);
+  const toggleNotifAll = (v: boolean) => {
+    setNotifSettings(prev => {
+      const next = { ...prev };
+      ALL_NOTIFICATION_KEYS.forEach(k => { next[k] = v; });
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,17 +132,34 @@ function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
     }
   };
 
+  const handleNotifSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNotifError("");
+    setNotifSuccess(false);
+    setNotifSaving(true);
+    const result = await updateNotificationSettings(currentProfile.id, notifSettings);
+    setNotifSaving(false);
+    if (result?.success) {
+      setNotifSuccess(true);
+      refreshProfiles();
+    } else {
+      setNotifError(result?.error || "Не удалось сохранить настройки");
+    }
+  };
+
   const typedName = (firstName.trim() + " " + lastName.trim()).trim();
   const initials = profileInitials(typedName || profileName(currentProfile));
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-[90rem]">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Настройки профиля</h1>
         <p className="text-sm text-gray-500 mt-1">Ваши контактные данные в системе</p>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div className="flex items-center gap-4 p-6 border-b bg-gray-50/50">
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-lg font-bold shrink-0">
             {initials}
@@ -173,6 +245,68 @@ function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
             </Button>
           </div>
         </form>
+      </div>
+        </div>
+
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden h-full">
+          <div className="p-6 border-b bg-gray-50/50">
+            <div className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-gray-400" />
+              <h2 className="font-semibold text-gray-900">Уведомления</h2>
+            </div>
+          <p className="text-sm text-gray-500 mt-1">Получайте оповещения о действиях других сотрудников</p>
+        </div>
+        <form onSubmit={handleNotifSubmit} className="p-6 space-y-4">
+          {notifSuccess && (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-700">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Настройки уведомлений сохранены
+            </div>
+          )}
+          {notifError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+              {notifError}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-800">Все изменения</p>
+              <p className="text-xs text-gray-400">Добавление, изменение и удаление клиентов, сделок и задач</p>
+            </div>
+            <Toggle checked={notifAllOn} onChange={toggleNotifAll} label="Все изменения" />
+          </div>
+
+          <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
+            {NOTIFICATION_ENTITIES.map(entity => (
+              <div key={entity.key} className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 px-4 py-3">
+                <p className="text-sm font-medium text-gray-700 sm:col-span-1">{entity.label}</p>
+                <div className="sm:col-span-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                  {NOTIFICATION_ACTIONS.map(action => {
+                    const k = `${entity.key}_${action.suffix}`;
+                    return (
+                      <label key={k} className="flex items-center gap-2 cursor-pointer">
+                        <Toggle
+                          checked={!!notifSettings[k]}
+                          onChange={v => setNotifSettings(prev => ({ ...prev, [k]: v }))}
+                          label={`${entity.label} — ${action.label}`}
+                        />
+                        <span className="text-sm text-gray-600">{action.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button type="submit" disabled={notifSaving} className="bg-blue-600 px-8">
+              {notifSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сохранить"}
+            </Button>
+          </div>
+          </form>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">

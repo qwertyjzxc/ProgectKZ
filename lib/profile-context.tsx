@@ -15,6 +15,7 @@ export interface Profile {
   avatar_color: string;
   is_active: boolean;
   is_linked?: boolean;
+  notification_settings?: Record<string, boolean>;
 }
 
 export function profileName(p?: { first_name?: string; last_name?: string; full_name?: string } | null): string {

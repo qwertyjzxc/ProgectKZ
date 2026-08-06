@@ -773,7 +773,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
       {/* Clients table */}
       {!loading && !error && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border">
+          <div className="overflow-y-auto max-h-[60vh]">
           <table className="w-full table-fixed text-center">
             <colgroup>
               <col className="w-[15%]" />
@@ -789,18 +790,18 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <col className="w-[3%]" />
             </colgroup>
             <thead>
-              <tr className="bg-gray-100 border-b-2 border-gray-300">
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl">Клиент</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Район</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Комнат</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Площадь</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Адрес</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">ЖК</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Брокер</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Бюджет</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Дата</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
-                <th className="px-2 py-3 rounded-tr-xl">
+              <tr className="bg-gray-100">
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                <th className="px-2 py-3 rounded-tr-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">
                   {deleteMode && (
                     <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
                       {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
@@ -809,7 +810,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-6 py-16 text-center text-gray-400">
@@ -898,6 +899,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               ))}
               </tbody>
           </table>
+          </div>
           <div className="border-t bg-gray-50/50 px-4 py-2.5 text-xs text-gray-400 flex items-center justify-between rounded-b-xl">
             <span>Показано: {filtered.length} из {categoryClients.length} клиентов</span>
             {hasActiveFilters && (

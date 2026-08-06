@@ -24,6 +24,8 @@ export interface FieldChange {
 export const ACTIVITY_TABLE_LABELS: Record<string, string> = {
   clients_arenda: "Аренда",
   clients_prodaja: "Покупка",
+  deals: "Сделки",
+  tasks: "Задачи",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -47,6 +49,36 @@ const FIELD_LABELS: Record<string, string> = {
   date: "Дата",
 };
 
+export const DEAL_LABELS: Record<string, string> = {
+  name: "Название",
+  client: "Клиент",
+  amount: "Сумма",
+  stage: "Этап",
+  date: "Дата",
+};
+
+export const TASK_LABELS: Record<string, string> = {
+  title: "Название",
+  client: "Клиент",
+  description: "Описание",
+  created_date: "Дата создания",
+  due_date: "Срок",
+  priority: "Приоритет",
+  status: "Статус",
+  assignee_ids: "Исполнители",
+};
+
+const NOTIFICATION_ENTITY_LABELS: Record<string, string> = {
+  clients: "Клиенты",
+  deals: "Сделки",
+  tasks: "Задачи",
+};
+
+export function notificationKey(clientTable: string, action: string): string {
+  const entity = clientTable.startsWith("clients_") ? "clients" : clientTable;
+  return `${entity}_${action}`;
+}
+
 function fmtValue(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "number") return v.toLocaleString("ru-RU");
@@ -69,9 +101,9 @@ function normalizeForCompare(key: string, v: unknown): string {
   return String(v).trim();
 }
 
-export function buildChanges(oldRow: Record<string, unknown>, newRow: Record<string, unknown>): FieldChange[] {
+export function buildChanges(oldRow: Record<string, unknown>, newRow: Record<string, unknown>, labels: Record<string, string> = FIELD_LABELS): FieldChange[] {
   const changes: FieldChange[] = [];
-  for (const [key, label] of Object.entries(FIELD_LABELS)) {
+  for (const [key, label] of Object.entries(labels)) {
     const oldV = oldRow[key];
     const newV = newRow[key];
     if (normalizeForCompare(key, oldV) !== normalizeForCompare(key, newV)) {
@@ -117,7 +149,38 @@ export async function logActivity(entry: {
       actor_id: user?.id || null,
       actor_name: actorName || "Сотрудник",
     });
+
+    const entity = entry.client_table.startsWith("clients_") ? "clients" : entry.client_table;
+    const key = notificationKey(entry.client_table, entry.action);
+    const skipIds = new Set<number>();
+    if (user) {
+      const { data: actorProfiles } = await serviceClient
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id);
+      (actorProfiles || []).forEach(p => skipIds.add(p.id));
+    }
+    const entityLabel = NOTIFICATION_ENTITY_LABELS[entity] || entity;
+    const { data: targets } = await serviceClient
+      .from("profiles")
+      .select("id, notification_settings")
+      .eq("is_active", true);
+    const rows = (targets || [])
+      .filter(p => !skipIds.has(p.id))
+      .filter(p => {
+        const s = (p.notification_settings as Record<string, boolean> | null) || {};
+        return s[key] === true;
+      })
+      .map(p => ({
+        profile_id: p.id,
+        message: `${actorName || "Сотрудник"} · ${entityLabel}: ${entry.message}${entry.client_name ? " — " + entry.client_name : ""}`,
+        type: "activity",
+        related_to: entity === "clients" ? "/clients" : "/" + entity,
+      }));
+    if (rows.length > 0) {
+      await serviceClient.from("notifications").insert(rows);
+    }
   } catch {
-    // Журнал не должен ломать основную операцию с клиентом
+    // Журнал и уведомления не должны ломать основную операцию
   }
 }

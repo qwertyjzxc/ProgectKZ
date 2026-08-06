@@ -303,27 +303,27 @@ function DealsContent() {
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchDeals(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
 
       {!loading && !error && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border">
+            <div className="overflow-y-auto max-h-[60vh]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50">
                 <tr>
                   {deleteMode && (
-                    <th className="px-4 py-3 w-10">
+                    <th className="px-4 py-3 w-10 sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">
                       <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
                         {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
                       </button>
                     </th>
                   )}
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Сделка</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Клиент</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Сумма</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Этап</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Дата</th>
-                  <th className="px-4 py-3 w-12"></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase rounded-tl-xl sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Сделка</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Клиент</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Сумма</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Этап</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Дата</th>
+                  <th className="px-4 py-3 w-12 sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200 rounded-tr-xl"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={deleteMode ? 7 : 6} className="px-6 py-16 text-center text-gray-400">
@@ -392,8 +392,8 @@ function DealsContent() {
                 })}
               </tbody>
             </table>
-          </div>
-          <div className="border-t bg-gray-50/50 px-4 py-2 text-xs text-gray-400">
+            </div>
+          <div className="border-t bg-gray-50/50 px-4 py-2 text-xs text-gray-400 rounded-b-xl">
             Показано: {filtered.length} из {deals.length} сделок • Закрыто: {closedDeals.length} • Конверсия: {conversion}%
             {(searchQuery || filterStage) && <button onClick={() => { setSearchQuery(""); setFilterStage(""); }} className="ml-3 text-blue-500 hover:text-blue-600">Сбросить всё</button>}
           </div>
