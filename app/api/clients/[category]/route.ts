@@ -77,3 +77,30 @@ export async function POST(
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ category: string }> }
+) {
+  try {
+    const { category } = await params;
+    const { supabase, table } = await getTable(category);
+    const body = await request.json().catch(() => ({}));
+    const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
+    if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных клиентов" }, { status: 400 });
+
+    const { error } = await supabase.from(table).delete().in("id", ids);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logActivity({
+      client_table: table,
+      client_id: ids[0],
+      client_name: "",
+      action: "delete",
+      message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}`,
+    });
+    return NextResponse.json({ success: true, deleted: ids.length });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
+  }
+}

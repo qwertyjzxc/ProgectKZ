@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Calendar, CheckCircle2, AlertCircle, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Clock } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, AlertCircle, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Clock, Square, CheckSquare } from "lucide-react";
 import AddTaskModal, { type NewTaskData } from "@/components/AddTaskModal";
 import AssigneePicker from "@/components/AssigneePicker";
 import { useProfile, profileName, profileInitials, type Profile } from "@/lib/profile-context";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Task {
   id: number;
@@ -196,7 +197,7 @@ function EditTaskModal({ task, onClose, onSave }: { task: EditableTask; onClose:
 }
 
 function TasksContent() {
-  const { profiles } = useProfile();
+  const { allProfiles } = useProfile();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -209,11 +210,56 @@ function TasksContent() {
   const [filterAssignees, setFilterAssignees] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Режим удаления
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const dragRef = useRef(false);
+
+  useEffect(() => {
+    const up = () => { dragRef.current = false; };
+    window.addEventListener("pointerup", up);
+    return () => window.removeEventListener("pointerup", up);
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRowContextMenu = (e: React.MouseEvent, id: number) => {
+    if (!deleteMode) return;
+    e.preventDefault();
+    toggleSelect(id);
+  };
+
+  const handleRowPointerDown = (e: React.PointerEvent, id: number) => {
+    if (!deleteMode || e.button !== 0) return;
+    e.preventDefault();
+    dragRef.current = true;
+    toggleSelect(id);
+  };
+
+  const handleRowPointerEnter = (id: number) => {
+    if (!deleteMode || !dragRef.current) return;
+    toggleSelect(id);
+  };
+
+  const exitDeleteMode = () => {
+    setDeleteMode(false);
+    setSelectedIds(new Set());
+  };
+
   const profileMap = useMemo(() => {
     const m = new Map<number, Profile>();
-    profiles.forEach(p => m.set(p.id, p));
+    allProfiles.forEach(p => m.set(p.id, p));
     return m;
-  }, [profiles]);
+  }, [allProfiles]);
 
   const fetchTasks = useCallback(() => {
     fetch("/api/tasks")
@@ -233,19 +279,6 @@ function TasksContent() {
     const timer = setInterval(fetchTasks, 60000);
     return () => clearInterval(timer);
   }, [fetchTasks]);
-
-  // Ширина скроллбара тела таблицы — чтобы шапка точно совпадала с колонками
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setScrollbarWidth(el.offsetWidth - el.clientWidth);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   const filtered = useMemo(() => {
     let result = tasks;
@@ -321,6 +354,31 @@ function TasksContent() {
     if (res.ok) setTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  const allVisibleSelected = filtered.length > 0 && filtered.every(t => selectedIds.has(t.id));
+  const handleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach(t => next.delete(t.id));
+      else filtered.forEach(t => next.add(t.id));
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/tasks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) });
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => !selectedIds.has(t.id)));
+        exitDeleteMode();
+      }
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const overdueCount = tasks.filter(isTaskOverdue).length;
 
   const hasFilters = !!(searchQuery || filterPriority || filterStatus || filterAssignees.length > 0);
@@ -346,7 +404,29 @@ function TasksContent() {
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
         <Button variant={showFilters || hasFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{(hasFilters && (filterPriority || filterStatus || filterAssignees.length > 0)) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
+        {!deleteMode ? (
+          <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">
+            <Trash2 className="w-4 h-4" />Удалить
+          </Button>
+        ) : (
+          <>
+            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={selectedIds.size === 0 || deleting} className="gap-1">
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Удалить ({selectedIds.size})
+            </Button>
+            <Button variant="ghost" size="sm" onClick={exitDeleteMode} className="gap-1 text-gray-500">
+              <X className="w-4 h-4" />Отмена
+            </Button>
+          </>
+        )}
       </div>
+
+      {deleteMode && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2">
+          <CheckSquare className="w-4 h-4 text-blue-500 shrink-0" />
+          Режим удаления: правый клик — выделить строку, зажмите левую кнопку и скролльте — выделить несколько
+        </div>
+      )}
 
       {showFilters && (
         <div className="mb-4 p-3 bg-white rounded-xl border shadow-sm space-y-3">
@@ -394,65 +474,70 @@ function TasksContent() {
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="overflow-hidden" style={{ paddingRight: scrollbarWidth }}>
-            <table className="w-full table-fixed text-center">
-              <colgroup>
-                <col className="w-[4%]" />
-                <col className="w-[30%]" />
-                <col className="w-[14%]" />
-                <col className="w-[12%]" />
-                <col className="w-[15%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
-                <col className="w-[5%]" />
-              </colgroup>
-              <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-300">
-                  <th className="px-2 py-3 rounded-tl-xl"></th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide text-left">Задача</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Исполнитель</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Создана</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Срок</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Приоритет</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
-                  <th className="px-2 py-3 rounded-tr-xl"></th>
+          <table className="w-full table-fixed text-center">
+            <colgroup>
+              <col className="w-[4%]" />
+              <col className="w-[30%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+              <col className="w-[15%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[5%]" />
+            </colgroup>
+            <thead>
+              <tr className="bg-gray-100 border-b-2 border-gray-300">
+                <th className="px-2 py-3 rounded-tl-xl"></th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide text-left">Задача</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Исполнитель</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Создана</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Срок</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Приоритет</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
+                <th className="px-2 py-3 rounded-tr-xl">
+                  {deleteMode && (
+                    <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
+                      {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  )}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-16 text-center text-gray-400">
+                    <p className="text-lg">Нет задач</p>
+                    <p className="text-sm mt-1">{tasks.length === 0 ? "Нажмите «Новая задача»" : "Попробуйте изменить фильтры"}</p>
+                    {tasks.length > 0 && <button onClick={resetFilters} className="mt-2 text-blue-500 hover:text-blue-600 text-sm">Сбросить фильтры</button>}
+                  </td>
                 </tr>
-              </thead>
-            </table>
-          </div>
-          <div ref={scrollRef} className="max-h-[calc(100vh_-_420px)] overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="px-5 py-16 text-center text-gray-400">
-                <p className="text-lg">Нет задач</p>
-                <p className="text-sm mt-1">{tasks.length === 0 ? "Нажмите «Новая задача»" : "Попробуйте изменить фильтры"}</p>
-                {tasks.length > 0 && <button onClick={resetFilters} className="mt-2 text-blue-500 hover:text-blue-600 text-sm">Сбросить фильтры</button>}
-              </div>
-            ) : (
-              <table className="w-full table-fixed text-center">
-                <colgroup>
-                  <col className="w-[4%]" />
-                  <col className="w-[30%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[5%]" />
-                </colgroup>
-                <tbody className="divide-y divide-gray-100">
+              )}
                   {filtered.map(t => {
                     const overdue = isTaskOverdue(t);
                     const displayStatus = t.status === "Завершено" ? "Завершено" : overdue ? "Просрочено" : t.status;
                     return (
-                      <tr key={t.id} className="hover:bg-gray-50/60 transition-colors group">
+                      <tr
+                        key={t.id}
+                        onContextMenu={e => handleRowContextMenu(e, t.id)}
+                        onPointerDown={e => handleRowPointerDown(e, t.id)}
+                        onPointerEnter={() => handleRowPointerEnter(t.id)}
+                        className={
+                          (deleteMode ? "cursor-pointer " : "") +
+                          (selectedIds.has(t.id) ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/50 " : "hover:bg-gray-50/60 ") +
+                          "transition-colors group"
+                        }
+                      >
                         <td className="px-2 py-3">
-                          <button
-                            onClick={() => toggleStatus(t.id, t.status)}
-                            title={t.status === "Завершено" ? "Вернуть в работу" : "Завершить"}
-                            className={"mx-auto w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all " + (t.status === "Завершено" ? "bg-blue-500 border-blue-500" : "border-gray-300 hover:border-blue-400")}
-                          >
-                            {t.status === "Завершено" && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                          </button>
+                          {!deleteMode && (
+                            <button
+                              onClick={() => toggleStatus(t.id, t.status)}
+                              title={t.status === "Завершено" ? "Вернуть в работу" : "Завершить"}
+                              className={"mx-auto w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all " + (t.status === "Завершено" ? "bg-blue-500 border-blue-500" : "border-gray-300 hover:border-blue-400")}
+                            >
+                              {t.status === "Завершено" && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                            </button>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-left min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -492,23 +577,32 @@ function TasksContent() {
                           </div>
                         </td>
                         <td className="px-2 py-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground size-7 opacity-0 group-hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem onClick={() => setEditTask({ id: t.id, title: t.title, client: t.client, description: t.description, created_date: t.created_date, due_date: t.due_date, priority: t.priority, status: t.status, assignee_ids: t.assignee_ids })}><Edit3 className="w-4 h-4 mr-2" />Редактировать</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(t.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50"><Trash2 className="w-4 h-4 mr-2" />Удалить</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {deleteMode ? (
+                            <button
+                              onPointerDown={e => e.stopPropagation()}
+                              onContextMenu={e => e.stopPropagation()}
+                              onClick={e => { e.stopPropagation(); toggleSelect(t.id); }}
+                              className="mx-auto block text-gray-500 hover:text-blue-600 transition-colors"
+                            >
+                              {selectedIds.has(t.id) ? <CheckSquare className="w-4 h-4 text-red-500" /> : <Square className="w-4 h-4" />}
+                            </button>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground size-7 opacity-0 group-hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => setEditTask({ id: t.id, title: t.title, client: t.client, description: t.description, created_date: t.created_date, due_date: t.due_date, priority: t.priority, status: t.status, assignee_ids: t.assignee_ids })}><Edit3 className="w-4 h-4 mr-2" />Редактировать</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(t.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50"><Trash2 className="w-4 h-4 mr-2" />Удалить</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-            )}
-          </div>
+              </tbody>
+          </table>
           <div className="border-t bg-gray-50/50 px-4 py-2 text-xs text-gray-400">
             Показано: {filtered.length} из {tasks.length} задач
             {hasFilters && <button onClick={resetFilters} className="ml-3 text-blue-500 hover:text-blue-600">Сбросить всё</button>}
@@ -518,6 +612,17 @@ function TasksContent() {
 
       {showAdd && <AddTaskModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
       {editTask && <EditTaskModal task={editTask} onClose={() => setEditTask(null)} onSave={handleEdit} />}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Удаление задач"
+        message={`Удалить ${selectedIds.size} ${selectedIds.size === 1 ? "задачу" : selectedIds.size < 5 ? "задачи" : "задач"}?`}
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

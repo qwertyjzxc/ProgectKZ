@@ -10,7 +10,7 @@ import type { ActivityEntry } from "@/lib/activity";
 
 const TABLE_LABELS: Record<string, string> = {
   clients_arenda: "Аренда",
-  clients_prodaja: "Продажа",
+  clients_prodaja: "Покупка",
 };
 
 const ACTION_BADGES: Record<string, string> = {

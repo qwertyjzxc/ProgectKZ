@@ -22,7 +22,7 @@ export default function AssigneePicker({
   onChange: (ids: number[]) => void;
   placeholder?: string;
 }) {
-  const { profiles } = useProfile();
+  const { allProfiles } = useProfile();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -46,7 +46,7 @@ export default function AssigneePicker({
       >
         {value.length === 0 && <span className="px-1 text-sm text-gray-400">{placeholder}</span>}
         {value.map(id => {
-          const p = profiles.find(x => x.id === id);
+          const p = allProfiles.find(x => x.id === id);
           if (!p) return null;
           const name = profileName(p) || p.username;
           const color = avatarColors[p.avatar_color || "blue"] || avatarColors.blue;
@@ -68,8 +68,8 @@ export default function AssigneePicker({
       </div>
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border bg-white p-1 shadow-lg">
-          {profiles.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Нет профилей</p>}
-          {profiles.map(p => {
+          {allProfiles.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Нет профилей</p>}
+          {allProfiles.map(p => {
             const name = profileName(p) || p.username;
             const color = avatarColors[p.avatar_color || "blue"] || avatarColors.blue;
             const selected = value.includes(p.id);

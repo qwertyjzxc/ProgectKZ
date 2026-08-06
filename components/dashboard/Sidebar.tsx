@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 
 const clientSubItems = [
   { href: "/clients", label: "Аренда", icon: Home },
-  { href: "/clients/sell", label: "Продажа", icon: Banknote },
+  { href: "/clients/sell", label: "Покупка", icon: Banknote },
 ];
 
 const objectsSubItems = [

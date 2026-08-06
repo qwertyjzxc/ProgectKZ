@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, type LucideIcon } from "lucide-react";
+import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, Square, CheckSquare, type LucideIcon } from "lucide-react";
 import { RENT_CATEGORY_LABELS, type RentCategory } from "@/components/RentCategorySelector";
 import AssignTaskModal from "@/components/AssignTaskModal";
 import Combobox from "@/components/Combobox";
@@ -46,7 +46,7 @@ const completedColors: Record<string, string> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   arenda: "Аренда",
-  prodaja: "Продажа",
+  prodaja: "Покупка",
 };
 
 type ClientFormData = Omit<Client, "id" | "created_at">;
@@ -258,8 +258,8 @@ function getInitials(name: string): string {
 
 // ====== FORM MODAL ======
 function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string }) {
-  const { currentProfile, profiles } = useProfile();
-  const brokerNames = useMemo(() => profiles.map(p => profileName(p)).filter(Boolean).sort(), [profiles]);
+  const { currentProfile, allProfiles } = useProfile();
+  const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
   const [type, setType] = useState(client?.type || defaultType || "");
   const [area, setArea] = useState(client?.area || "");
   const [address, setAddress] = useState(client?.address || "");
@@ -367,7 +367,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 // ====== MAIN CONTENT ======
 export default function ClientCategoryContent({ category, propertyType, onBack }: { category: "arenda" | "prodaja"; propertyType?: RentCategory; onBack?: () => void }) {
-  const { currentProfile, profiles } = useProfile();
+  const { currentProfile, allProfiles } = useProfile();
   const isAdmin = currentProfile?.role === "admin";
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -395,24 +395,56 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Ширина скроллбара тела таблицы — чтобы шапка точно совпадала с колонками
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  // Режим удаления
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const dragRef = useRef(false);
+
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setScrollbarWidth(el.offsetWidth - el.clientWidth);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
+    const up = () => { dragRef.current = false; };
+    window.addEventListener("pointerup", up);
+    return () => window.removeEventListener("pointerup", up);
   }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRowContextMenu = (e: React.MouseEvent, id: number) => {
+    if (!deleteMode) return;
+    e.preventDefault();
+    toggleSelect(id);
+  };
+
+  const handleRowPointerDown = (e: React.PointerEvent, id: number) => {
+    if (!deleteMode || e.button !== 0) return;
+    e.preventDefault();
+    dragRef.current = true;
+    toggleSelect(id);
+  };
+
+  const handleRowPointerEnter = (id: number) => {
+    if (!deleteMode || !dragRef.current) return;
+    toggleSelect(id);
+  };
+
+  const exitDeleteMode = () => {
+    setDeleteMode(false);
+    setSelectedIds(new Set());
+  };
 
   // Collect unique values for dropdowns
   const uniqueDistricts = useMemo(() => [...new Set(clients.map(c => c.district).filter(Boolean))].sort(), [clients]);
   const uniqueRooms = useMemo(() => [...new Set(clients.map(c => c.rooms).filter(Boolean))].sort(), [clients]);
   const uniqueJk = useMemo(() => [...new Set(clients.map(c => c.jk).filter(Boolean))].sort(), [clients]);
-  const brokerNames = useMemo(() => profiles.map(p => profileName(p)).filter(Boolean).sort(), [profiles]);
+  const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
 
   const categoryClients = useMemo(() => {
     if (!propertyType) return clients;
@@ -532,6 +564,31 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     if (res.ok) setClients(prev => prev.filter(c => c.id !== id));
   };
 
+  const allVisibleSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  const handleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach(c => next.delete(c.id));
+      else filtered.forEach(c => next.add(c.id));
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/clients/" + category, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) });
+      if (res.ok) {
+        setClients(prev => prev.filter(c => !selectedIds.has(c.id)));
+        exitDeleteMode();
+      }
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const categoryLabel = CATEGORY_LABELS[category] || category;
 
   return (
@@ -578,7 +635,29 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           Фильтры
           {hasActiveFilters && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}
         </Button>
+        {!deleteMode ? (
+          <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">
+            <Trash2 className="w-4 h-4" />Удалить
+          </Button>
+        ) : (
+          <>
+            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={selectedIds.size === 0 || deleting} className="gap-1">
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Удалить ({selectedIds.size})
+            </Button>
+            <Button variant="ghost" size="sm" onClick={exitDeleteMode} className="gap-1 text-gray-500">
+              <X className="w-4 h-4" />Отмена
+            </Button>
+          </>
+        )}
       </div>
+
+      {deleteMode && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2">
+          <CheckSquare className="w-4 h-4 text-blue-500 shrink-0" />
+          Режим удаления: правый клик — выделить строку, зажмите левую кнопку и скролльте — выделить несколько
+        </div>
+      )}
 
       {/* Filter panel */}
       {showFilters && (
@@ -695,54 +774,42 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Clients table */}
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="overflow-hidden" style={{ paddingRight: scrollbarWidth }}>
-            <table className="w-full table-fixed text-center">
-              <colgroup>
-                <col className="w-[15%]" />
-                <col className="w-[9%]" />
-                <col className="w-[7%]" />
-                <col className="w-[8%]" />
-                <col className="w-[12%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[11%]" />
-                <col className="w-[8%]" />
-                <col className="w-[9%]" />
-                <col className="w-[3%]" />
-              </colgroup>
-              <thead>
-                <tr className="bg-gray-100 border-b-2 border-gray-300">
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl">Клиент</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Район</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Комнат</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Площадь</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Адрес</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">ЖК</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Брокер</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Бюджет</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Дата</th>
-                  <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
-                  <th className="px-2 py-3 rounded-tr-xl"></th>
-                </tr>
-              </thead>
-            </table>
-          </div>
-          <div ref={scrollRef} className="max-h-[calc(100vh_-_340px)] overflow-y-auto">
-            <table className="w-full table-fixed text-center">
-              <colgroup>
-                <col className="w-[15%]" />
-                <col className="w-[9%]" />
-                <col className="w-[7%]" />
-                <col className="w-[8%]" />
-                <col className="w-[12%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[11%]" />
-                <col className="w-[8%]" />
-                <col className="w-[9%]" />
-                <col className="w-[3%]" />
-              </colgroup>
-              <tbody className="divide-y divide-gray-100">
+          <table className="w-full table-fixed text-center">
+            <colgroup>
+              <col className="w-[15%]" />
+              <col className="w-[9%]" />
+              <col className="w-[7%]" />
+              <col className="w-[8%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[11%]" />
+              <col className="w-[8%]" />
+              <col className="w-[9%]" />
+              <col className="w-[3%]" />
+            </colgroup>
+            <thead>
+              <tr className="bg-gray-100 border-b-2 border-gray-300">
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl">Клиент</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Район</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Комнат</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Площадь</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Адрес</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">ЖК</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Брокер</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Бюджет</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Дата</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Статус</th>
+                <th className="px-2 py-3 rounded-tr-xl">
+                  {deleteMode && (
+                    <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
+                      {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  )}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-6 py-16 text-center text-gray-400">
@@ -755,7 +822,18 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                 </tr>
               )}
               {filtered.map(c => (
-                <tr key={c.id} className="hover:bg-blue-50/40 transition-colors group cursor-pointer" onClick={() => setViewClient(c)}>
+                <tr
+                  key={c.id}
+                  onContextMenu={e => handleRowContextMenu(e, c.id)}
+                  onPointerDown={e => handleRowPointerDown(e, c.id)}
+                  onPointerEnter={() => handleRowPointerEnter(c.id)}
+                  onClick={() => { if (!deleteMode) setViewClient(c); }}
+                  className={
+                    (deleteMode ? "cursor-pointer " : "cursor-pointer ") +
+                    (selectedIds.has(c.id) ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/50 " : "hover:bg-blue-50/40 ") +
+                    "transition-colors group"
+                  }
+                >
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-start gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-xs font-semibold shrink-0">
@@ -785,31 +863,41 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     </Badge>
                   </td>
                   <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => setViewClient(c)}>
-                          <Eye className="w-4 h-4 mr-2" />Просмотр
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setAssignClient(c)}>
-                          <ListTodo className="w-4 h-4 mr-2" />Назначить задачу
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setEditClient(c)}>
-                          <Edit3 className="w-4 h-4 mr-2" />Редактировать
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(c.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
-                          <Trash2 className="w-4 h-4 mr-2" />Удалить
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {deleteMode ? (
+                      <button
+                        onPointerDown={e => e.stopPropagation()}
+                        onContextMenu={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); toggleSelect(c.id); }}
+                        className="text-gray-500 hover:text-blue-600 transition-colors"
+                      >
+                        {selectedIds.has(c.id) ? <CheckSquare className="w-4 h-4 text-red-500" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => setViewClient(c)}>
+                            <Eye className="w-4 h-4 mr-2" />Просмотр
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAssignClient(c)}>
+                            <ListTodo className="w-4 h-4 mr-2" />Назначить задачу
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditClient(c)}>
+                            <Edit3 className="w-4 h-4 mr-2" />Редактировать
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(c.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                            <Trash2 className="w-4 h-4 mr-2" />Удалить
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </td>
                 </tr>
               ))}
               </tbody>
-            </table>
-          </div>
+          </table>
           <div className="border-t bg-gray-50/50 px-4 py-2.5 text-xs text-gray-400 flex items-center justify-between rounded-b-xl">
             <span>Показано: {filtered.length} из {categoryClients.length} клиентов</span>
             {hasActiveFilters && (
@@ -824,6 +912,17 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {editClient && <ClientFormModal client={editClient} onClose={() => setEditClient(null)} onSave={handleEdit} />}
       {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Удаление клиентов"
+        message={`Удалить ${selectedIds.size} ${selectedIds.size === 1 ? "клиента" : selectedIds.size < 5 ? "клиентов" : "клиентов"}?`}
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

@@ -23,7 +23,7 @@ export interface FieldChange {
 
 export const ACTIVITY_TABLE_LABELS: Record<string, string> = {
   clients_arenda: "Аренда",
-  clients_prodaja: "Продажа",
+  clients_prodaja: "Покупка",
 };
 
 const FIELD_LABELS: Record<string, string> = {

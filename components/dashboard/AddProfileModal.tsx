@@ -125,8 +125,8 @@ export default function AddProfileModal({
                   <span className="font-medium truncate">{profileName(p) || p.username}</span>
                   {p.role === "admin" && <Shield className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
                   {attachingId === p.id
-                    ? <Loader2 className="w-4 h-4 animate-spin text-gray-400 ml-auto shrink-0" />
-                    : <UserPlus className="w-4 h-4 text-gray-300 ml-auto shrink-0" />}
+                    ? <Loader2 className="w-4 h-4 animate-spin text-blue-500 ml-auto shrink-0" />
+                    : <UserPlus className="w-4 h-4 text-blue-500 ml-auto shrink-0" />}
                 </button>
               ))}
             </div>

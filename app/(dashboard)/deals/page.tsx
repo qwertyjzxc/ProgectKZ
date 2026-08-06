@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare } from "lucide-react";
+import SalesChart from "@/components/SalesChart";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Deal {
   id: number;
@@ -92,6 +94,51 @@ function DealsContent() {
   const [filterStage, setFilterStage] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Режим удаления
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const dragRef = useRef(false);
+
+  useEffect(() => {
+    const up = () => { dragRef.current = false; };
+    window.addEventListener("pointerup", up);
+    return () => window.removeEventListener("pointerup", up);
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRowContextMenu = (e: React.MouseEvent, id: number) => {
+    if (!deleteMode) return;
+    e.preventDefault();
+    toggleSelect(id);
+  };
+
+  const handleRowPointerDown = (e: React.PointerEvent, id: number) => {
+    if (!deleteMode || e.button !== 0) return;
+    e.preventDefault();
+    dragRef.current = true;
+    toggleSelect(id);
+  };
+
+  const handleRowPointerEnter = (id: number) => {
+    if (!deleteMode || !dragRef.current) return;
+    toggleSelect(id);
+  };
+
+  const exitDeleteMode = () => {
+    setDeleteMode(false);
+    setSelectedIds(new Set());
+  };
+
   const fetchDeals = useCallback(() => {
     fetch("/api/deals")
       .then(res => res.json())
@@ -139,6 +186,31 @@ function DealsContent() {
     if (res.ok) setDeals(prev => prev.filter(d => d.id !== id));
   };
 
+  const allVisibleSelected = filtered.length > 0 && filtered.every(d => selectedIds.has(d.id));
+  const handleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach(d => next.delete(d.id));
+      else filtered.forEach(d => next.add(d.id));
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/deals", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) });
+      if (res.ok) {
+        setDeals(prev => prev.filter(d => !selectedIds.has(d.id)));
+        exitDeleteMode();
+      }
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const closedDeals = deals.filter(d => d.stage === "Сделка закрыта");
   const closedAmount = closedDeals.reduce((s, d) => s + (d.amount || 0), 0);
   const conversion = deals.length > 0 ? ((closedDeals.length / deals.length) * 100).toFixed(0) : "0";
@@ -161,7 +233,29 @@ function DealsContent() {
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
         <Button variant={showFilters || filterStage ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{filterStage && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
+        {!deleteMode ? (
+          <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">
+            <Trash2 className="w-4 h-4" />Удалить
+          </Button>
+        ) : (
+          <>
+            <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={selectedIds.size === 0 || deleting} className="gap-1">
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Удалить ({selectedIds.size})
+            </Button>
+            <Button variant="ghost" size="sm" onClick={exitDeleteMode} className="gap-1 text-gray-500">
+              <X className="w-4 h-4" />Отмена
+            </Button>
+          </>
+        )}
       </div>
+
+      {deleteMode && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-gray-500 bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2">
+          <CheckSquare className="w-4 h-4 text-blue-500 shrink-0" />
+          Режим удаления: правый клик — выделить строку, зажмите левую кнопку и скролльте — выделить несколько
+        </div>
+      )}
 
       {/* Filter panel */}
       {showFilters && (
@@ -202,6 +296,9 @@ function DealsContent() {
         <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Конверсия</p><p className="text-2xl font-bold text-blue-600 mt-0.5">{conversion}%</p></div>
       </div>
 
+      {/* Sales chart */}
+      <SalesChart deals={deals} />
+
       {loading && <div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Загрузка из Supabase...</p></div>}
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchDeals(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
 
@@ -211,6 +308,13 @@ function DealsContent() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
+                  {deleteMode && (
+                    <th className="px-4 py-3 w-10">
+                      <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
+                        {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </th>
+                  )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Сделка</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Клиент</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Сумма</th>
@@ -222,15 +326,39 @@ function DealsContent() {
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-gray-400">
+                    <td colSpan={deleteMode ? 7 : 6} className="px-6 py-16 text-center text-gray-400">
                       <p className="text-lg">Нет сделок</p>
                       <p className="text-sm mt-1">{deals.length === 0 ? "Нажмите «Новая сделка»" : "Попробуйте изменить фильтры"}</p>
                       {deals.length > 0 && <button onClick={() => { setSearchQuery(""); setFilterStage(""); }} className="mt-2 text-blue-500 hover:text-blue-600 text-sm">Сбросить фильтры</button>}
                     </td>
                   </tr>
                 )}
-                {filtered.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50/60 transition-colors group">
+                {filtered.map(d => {
+                  const isSelected = selectedIds.has(d.id);
+                  return (
+                  <tr
+                    key={d.id}
+                    onContextMenu={e => handleRowContextMenu(e, d.id)}
+                    onPointerDown={e => handleRowPointerDown(e, d.id)}
+                    onPointerEnter={() => handleRowPointerEnter(d.id)}
+                    className={
+                      (deleteMode ? "cursor-pointer " : "") +
+                      (isSelected ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/50 " : "hover:bg-gray-50/60 ") +
+                      "transition-colors group"
+                    }
+                  >
+                    {deleteMode && (
+                      <td className="px-4 py-3">
+                        <button
+                          onPointerDown={e => e.stopPropagation()}
+                          onContextMenu={e => e.stopPropagation()}
+                          onClick={e => { e.stopPropagation(); toggleSelect(d.id); }}
+                          className="text-gray-500 hover:text-blue-600 transition-colors"
+                        >
+                          {isSelected ? <CheckSquare className="w-4 h-4 text-red-500" /> : <Square className="w-4 h-4" />}
+                        </button>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.name || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{d.client || "—"}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
@@ -243,22 +371,25 @@ function DealsContent() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.date || "—"}</td>
                     <td className="px-4 py-3 text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground size-7 opacity-0 group-hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={() => setEditDeal({ id: d.id, name: d.name, client: d.client, amount: d.amount, stage: d.stage, date: d.date })}>
-                            <Edit3 className="w-4 h-4 mr-2" />Редактировать
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(d.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
-                            <Trash2 className="w-4 h-4 mr-2" />Удалить
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {!deleteMode && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground size-7 opacity-0 group-hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => setEditDeal({ id: d.id, name: d.name, client: d.client, amount: d.amount, stage: d.stage, date: d.date })}>
+                              <Edit3 className="w-4 h-4 mr-2" />Редактировать
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(d.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                              <Trash2 className="w-4 h-4 mr-2" />Удалить
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -271,6 +402,17 @@ function DealsContent() {
 
       {showAdd && <DealFormModal onClose={() => setShowAdd(false)} onSave={handleAdd} />}
       {editDeal && <DealFormModal deal={editDeal} onClose={() => setEditDeal(null)} onSave={handleEdit} />}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Удаление сделок"
+        message={`Удалить ${selectedIds.size} ${selectedIds.size === 1 ? "сделку" : "сделок"}?`}
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

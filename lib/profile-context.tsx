@@ -14,6 +14,7 @@ export interface Profile {
   email: string;
   avatar_color: string;
   is_active: boolean;
+  is_linked?: boolean;
 }
 
 export function profileName(p?: { first_name?: string; last_name?: string; full_name?: string } | null): string {
@@ -29,7 +30,8 @@ export function profileInitials(name: string): string {
 interface ProfileContextType {
   currentProfile: Profile | null;
   profiles: Profile[];
-  setCurrentProfile: (p: Profile) => void;
+  allProfiles: Profile[];
+  setCurrentProfile: (p: Profile | null) => void;
   refreshProfiles: () => Promise<Profile[]>;
   loading: boolean;
 }
@@ -37,6 +39,7 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType>({
   currentProfile: null,
   profiles: [],
+  allProfiles: [],
   setCurrentProfile: () => {},
   refreshProfiles: async () => [],
   loading: true,
@@ -45,12 +48,14 @@ const ProfileContext = createContext<ProfileContextType>({
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfiles = useCallback((): Promise<Profile[]> => {
     return getProfileData()
-      .then(({ profiles, currentProfile }) => {
+      .then(({ profiles, allProfiles, currentProfile }) => {
         setProfiles(profiles);
+        setAllProfiles(allProfiles);
         setCurrentProfile(prev => {
           if (prev && profiles.some(p => p.id === prev.id)) return prev;
           return currentProfile;
@@ -69,7 +74,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const refreshProfiles = () => fetchProfiles();
 
   return (
-    <ProfileContext.Provider value={{ currentProfile, profiles, setCurrentProfile, refreshProfiles, loading }}>
+    <ProfileContext.Provider value={{ currentProfile, profiles, allProfiles, setCurrentProfile, refreshProfiles, loading }}>
       {children}
     </ProfileContext.Provider>
   );

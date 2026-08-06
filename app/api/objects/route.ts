@@ -10,14 +10,22 @@ export async function GET(request: NextRequest) {
     const perPage = Math.max(1, Math.min(100, parseInt(searchParams.get("perPage") || "30", 10) || 30));
     const from = (page - 1) * perPage;
     const to = from + perPage - 1;
+    const status = searchParams.get("status") || "active";
 
     const supabase = await createClient();
-    const { count } = await supabase.from("objects").select("*", { count: "exact", head: true });
-    const { data, error } = await supabase
+    let countQuery = supabase.from("objects").select("id", { count: "exact", head: true });
+    if (status === "active") countQuery = countQuery.eq("is_active", true);
+    else if (status === "inactive") countQuery = countQuery.eq("is_active", false);
+    const { count } = await countQuery;
+
+    let dataQuery = supabase
       .from("objects")
       .select("*")
       .order("created_at", { ascending: false })
       .range(from, to);
+    if (status === "active") dataQuery = dataQuery.eq("is_active", true);
+    else if (status === "inactive") dataQuery = dataQuery.eq("is_active", false);
+    const { data, error } = await dataQuery;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const total = count ?? 0;
     return NextResponse.json({
@@ -52,11 +60,13 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(JSON.stringify(payload) + "\n"));
 
         try {
+          const runStarted = new Date().toISOString();
           const batch = await fetchAllKrishaListings(params, pages, async ({ page, totalPages, items }) => {
             if (items.length > 0) {
+              const rows = items.map(it => ({ ...it, is_active: true, last_seen_at: runStarted }));
               const { error } = await serviceClient
                 .from("objects")
-                .upsert(items, { onConflict: "krisha_id" });
+                .upsert(rows, { onConflict: "krisha_id" });
               if (error) throw new Error(error.message);
             }
             send({ type: "progress", page, totalPages, items });

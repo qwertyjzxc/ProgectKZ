@@ -11,17 +11,26 @@ export const RENT_CATEGORY_LABELS: Record<RentCategory, string> = {
 };
 
 export const RENT_CATEGORIES: { id: RentCategory; label: string; subtitle: string; icon: LucideIcon }[] = [
+  { id: "apartments", label: "Квартиры", subtitle: "Квартиры в жилых комплексах", icon: Building },
   { id: "houses", label: "Дома", subtitle: "Частные дома, коттеджи", icon: Home },
   { id: "premises", label: "Помещения", subtitle: "Коммерческие площади, офисы", icon: Building2 },
-  { id: "apartments", label: "Квартиры", subtitle: "Квартиры в жилых комплексах", icon: Building },
 ];
 
-export default function RentCategorySelector({ onSelect }: { onSelect: (category: RentCategory) => void }) {
+export default function RentCategorySelector({
+  onSelect,
+  category = "arenda",
+}: {
+  onSelect: (category: RentCategory) => void;
+  category?: "arenda" | "prodaja";
+}) {
+  const heading = category === "prodaja" ? "Клиенты · Покупка" : "Клиенты · Аренда";
+  const subtitle = category === "prodaja" ? "Выберите тип недвижимости для покупки" : "Выберите категорию недвижимости";
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Клиенты · Аренда</h1>
-        <p className="text-sm text-gray-500 mt-1">Выберите категорию недвижимости</p>
+        <h1 className="text-2xl font-bold text-gray-900">{heading}</h1>
+        <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {RENT_CATEGORIES.map(({ id, label, subtitle, icon: Icon }) => (

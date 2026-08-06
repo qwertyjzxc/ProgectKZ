@@ -22,7 +22,7 @@ async function getLinkedProfileIds(userId: string): Promise<number[]> {
 
 export async function getProfileData() {
   const userId = await getCurrentUserId();
-  if (!userId) return { profiles: [], currentProfile: null };
+  if (!userId) return { profiles: [], allProfiles: [], currentProfile: null };
 
   const [ownedRes, linksRes] = await Promise.all([
     serviceClient
@@ -47,28 +47,47 @@ export async function getProfileData() {
     linked = (data || []).filter(p => !ownedIds.has(p.id));
   }
 
-  const list = [...owned, ...linked];
+  // profiles — только «мои» (свои + подключённые): для переключателя профилей
+  const profiles = [
+    ...owned.map(p => ({ ...p, is_linked: false })),
+    ...linked.map(p => ({ ...p, is_linked: true })),
+  ];
 
-  // Администратору показываем всех сотрудников (для назначения задач, брокеров и т.д.)
-  if (list.some(p => p.role === "admin")) {
+  // allProfiles — для выбора исполнителей/брокеров: администратору видны все сотрудники
+  let allProfiles = profiles;
+  if (profiles.some(p => p.role === "admin")) {
     const { data } = await serviceClient
       .from("profiles")
       .select("*")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
-    const currentIds = new Set(list.map(p => p.id));
+    const currentIds = new Set(profiles.map(p => p.id));
     for (const p of (data || [])) {
-      if (!currentIds.has(p.id)) list.push(p);
+      if (!currentIds.has(p.id)) allProfiles = [...allProfiles, { ...p, is_linked: false }];
     }
   }
 
   let currentProfile = null;
-  if (list.length > 0) {
-    const admin = list.find(p => p.role === "admin");
-    currentProfile = admin || list.find(p => p.first_name || p.last_name || p.full_name) || list[0];
+  if (profiles.length > 0) {
+    const admin = profiles.find(p => p.role === "admin");
+    currentProfile = admin || profiles.find(p => p.first_name || p.last_name || p.full_name) || profiles[0];
   }
 
-  return { profiles: list, currentProfile };
+  return { profiles, allProfiles, currentProfile };
+}
+
+export async function detachProfile(profileId: number): Promise<{ success?: boolean; error?: string }> {
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Не авторизован" };
+
+  const { error } = await serviceClient
+    .from("profile_links")
+    .delete()
+    .eq("user_id", userId)
+    .eq("profile_id", profileId);
+  if (error) return { error: error.message };
+
+  return { success: true };
 }
 
 export async function listProfilesForAttach() {

@@ -4,7 +4,6 @@ import FilterPanel, { type SearchFilters } from "@/components/dashboard/FilterPa
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, ExternalLink, Building2 } from "lucide-react";
-
 interface ObjectItem {
   id: number;
   krisha_id: number;
@@ -20,6 +19,7 @@ interface ObjectItem {
   description: string;
   image_url: string;
   krisha_url: string;
+  is_active?: boolean;
 }
 
 interface PageData {
@@ -54,13 +54,16 @@ export default function OurObjectsTab() {
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [view, setView] = useState<"active" | "inactive">("active");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [pages, setPages] = useState("1");
   const [progress, setProgress] = useState<{ page: number; totalPages: number; count: number } | null>(null);
 
   const loadPage = useCallback((p: number) => {
-    fetch(`/api/objects?page=${p}&perPage=${PER_PAGE}`)
+    const qs = new URLSearchParams({ page: String(p), perPage: String(PER_PAGE), status: view });
+    fetch(`/api/objects?${qs.toString()}`)
       .then((res) => res.json())
       .then((d) => {
         if (d.items) setData(d);
@@ -68,11 +71,36 @@ export default function OurObjectsTab() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Ошибка загрузки объектов"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     loadPage(page);
   }, [page, loadPage]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError("");
+    setInfo("");
+    try {
+      const res = await fetch("/api/objects/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Ошибка синхронизации");
+      const cats = d.results || [];
+      const imported = cats.reduce((s: number, c: { imported?: number }) => s + (c.imported || 0), 0);
+      const deactivated = cats.reduce((s: number, c: { deactivated?: number }) => s + (c.deactivated || 0), 0);
+      setInfo(`Полный синк завершён: обновлено ${imported} объявл., снято с публикации ${deactivated}.`);
+      if (page !== 1) setPage(1);
+      else loadPage(1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка синхронизации");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleSearch = async (filters: SearchFilters) => {
     setImporting(true);
@@ -185,13 +213,36 @@ export default function OurObjectsTab() {
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-800">
-          В базе: <span className="text-gray-500">{data?.total ?? 0}</span> объектов
-        </h2>
-        <Button variant="outline" size="sm" onClick={() => loadPage(page)}>
-          <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Обновить
-        </Button>
+      <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {view === "active" ? "Активные объекты" : "Снятые с публикации"}
+            <span className="text-gray-500">: {data?.total ?? 0}</span>
+          </h2>
+          <div className="flex items-center rounded-lg border bg-white p-0.5">
+            <button
+              onClick={() => setView("active")}
+              className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (view === "active" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+            >
+              Активные
+            </button>
+            <button
+              onClick={() => setView("inactive")}
+              className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (view === "inactive" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+            >
+              Снятые
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+            {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+            Полный синк
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => loadPage(page)}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Обновить
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -202,8 +253,12 @@ export default function OurObjectsTab() {
       ) : items.length === 0 ? (
         <div className="mt-6 bg-white rounded-xl shadow-sm border p-12 text-center text-gray-400">
           <Building2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-lg">Объектов пока нет</p>
-          <p className="text-sm mt-1">Укажите параметры выше и нажмите «Загрузить с Krisha»</p>
+          <p className="text-lg">{view === "active" ? "Активных объектов пока нет" : "Снятых объектов нет"}</p>
+          <p className="text-sm mt-1">
+            {view === "active"
+              ? "Укажите параметры выше и нажмите «Загрузить с Krisha», или запустите «Полный синк»"
+              : "Снятые появятся здесь после полного синка"}
+          </p>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -213,7 +268,7 @@ export default function OurObjectsTab() {
               href={o.krisha_url}
               target="_blank"
               rel="noreferrer"
-              className="bg-white rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
+              className={"bg-white rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col " + (o.is_active === false ? "opacity-60 saturate-50" : "")}
             >
               <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
                 {o.image_url ? (
@@ -234,6 +289,9 @@ export default function OurObjectsTab() {
                   <Badge variant="secondary" className="absolute top-2 right-2 bg-white/90">
                     {o.deal_type}
                   </Badge>
+                )}
+                {o.is_active === false && (
+                  <Badge className="absolute bottom-2 left-2 bg-red-600 text-white">Снято с публикации</Badge>
                 )}
               </div>
               <div className="p-4 flex flex-col gap-1.5 flex-1">

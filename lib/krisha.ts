@@ -39,6 +39,17 @@ export interface KrishaPageProgress {
 const CITY = "shymkent";
 export const MAX_KRISHA_PAGES = 504;
 
+// Все категории, которые синхронизируются с krisha.kz в базу
+export const KRISHA_CATEGORIES = [
+  { dealType: "Продажа", propType: "Квартира" },
+  { dealType: "Аренда", propType: "Квартира" },
+  { dealType: "Продажа", propType: "Дом" },
+  { dealType: "Аренда", propType: "Дом" },
+  { dealType: "Продажа", propType: "Участок" },
+  { dealType: "Продажа", propType: "Помещение" },
+  { dealType: "Аренда", propType: "Помещение" },
+];
+
 const PROP_CATEGORIES: Record<string, string> = {
   "Квартира": "kvartiry",
   "Дом": "doma-dachi",
