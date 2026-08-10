@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage, TASK_LABELS } from "@/lib/activity";
 
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const { id } = await params;
+  const { data, error } = await supabase.from("tasks").select("*").eq("id", id).single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  return NextResponse.json(data);
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { id } = await params;
@@ -59,6 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         message: "Вам назначена задача: «" + (data.title || "") + "»",
         type: "task",
         related_to: "/tasks",
+        related_id: Number(id),
       });
       if (notifyError) console.error("Ошибка уведомления о задаче:", notifyError.message);
     })();

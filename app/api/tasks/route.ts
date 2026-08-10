@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
         message: "Вам назначена задача: «" + (data.title || "") + "»",
         type: "task",
         related_to: "/tasks",
+        related_id: data.id,
       });
       if (notifyError) console.error("Ошибка уведомления о задаче:", notifyError.message);
     })();

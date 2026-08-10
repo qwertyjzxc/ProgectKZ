@@ -32,6 +32,23 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
         </div>
         <div className="order-1 lg:order-2"><PropertyGallery images={images} /></div>
       </div>
+      {/* Map */}
+      {(p.address || (p as any).city) && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Расположение</h2>
+          <div className="rounded-2xl overflow-hidden border h-72 sm:h-96">
+            <iframe
+              src={`https://yandex.ru/map-widget/v1/?text=${encodeURIComponent([(p as any).city, p.address].filter(Boolean).join(', '))}&z=15`}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allowFullScreen
+              className="w-full h-full"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="border-t mt-8"><div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-xs text-gray-400 text-center">Romanov Estate</div></div>
     </div>
   );

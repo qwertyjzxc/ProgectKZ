@@ -29,7 +29,7 @@ export default function Sidebar() {
   const [clientsOpen, setClientsOpen] = useState(false);
   const [objectsOpen, setObjectsOpen] = useState(() => pathname.startsWith("/dashboard"));
 
-  useEffect(() => {
+  const fetchUnread = () => {
     if (!currentProfile?.id) return;
     fetch("/api/notifications?profile_id=" + currentProfile.id)
       .then(res => res.json())
@@ -39,7 +39,13 @@ export default function Sidebar() {
         }
       })
       .catch(() => {});
-  }, [currentProfile?.id]);
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    const timer = setInterval(fetchUnread, 15000);
+    return () => clearInterval(timer);
+  }, [currentProfile?.id, pathname]);
 
   const allItems = currentProfile?.role === "admin"
     ? [...navItems, { href: "/profiles", label: "Профили", icon: Shield }]

@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, X, Check, Shield, Settings, LogOut, UserCog, UserPlus } from "lucide-react";
+import { Bell, X, Check, Shield, Settings, LogOut, UserCog, UserPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfile, profileName, profileInitials, type Profile } from "@/lib/profile-context";
 import AddProfileModal from "./AddProfileModal";
+import TaskModal from "./TaskModal";
 import { detachProfile } from "@/lib/profile-actions";
 
 interface Notification {
@@ -13,6 +14,7 @@ interface Notification {
   message: string;
   type: string;
   related_to: string;
+  related_id: number | null;
   is_read: boolean;
   created_at: string;
 }
@@ -24,6 +26,7 @@ export default function DashboardHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAddProfile, setShowAddProfile] = useState(false);
+  const [taskModal, setTaskModal] = useState<number | null>(null);
   const [detachTarget, setDetachTarget] = useState<Profile | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -162,7 +165,7 @@ export default function DashboardHeader() {
                 {notifications.map(n => (
                   <div
                     key={n.id}
-                    onClick={() => markAsRead(n.id)}
+                    onClick={() => { markAsRead(n.id); if (n.related_id) setTaskModal(n.related_id); }}
                     className={
                       "px-3 py-3 rounded-lg cursor-pointer transition-colors mb-0.5 " +
                       (n.is_read
@@ -324,6 +327,7 @@ export default function DashboardHeader() {
           </div>
         </div>
       )}
+      {taskModal && <TaskModal taskId={taskModal} onClose={() => setTaskModal(null)} />}
     </header>
   );
 }

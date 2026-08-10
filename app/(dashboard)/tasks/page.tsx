@@ -209,6 +209,7 @@ function TasksContent() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterAssignees, setFilterAssignees] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // Режим удаления
   const [deleteMode, setDeleteMode] = useState(false);
@@ -299,11 +300,26 @@ function TasksContent() {
       } else {
         result = result.filter(t => t.status === filterStatus);
       }
+    } else if (showCompleted) {
+      result = result.filter(t => t.status === "Завершено");
+    } else {
+      result = result.filter(t => t.status !== "Завершено");
     }
     return result;
-  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap]);
+  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap, showCompleted]);
 
-  const toggleStatus = async (id: number, currentStatus: string) => {
+  const [confirmComplete, setConfirmComplete] = useState<{ id: number; currentStatus: string } | null>(null);
+
+  const toggleStatus = (id: number, currentStatus: string) => {
+    if (currentStatus !== "Завершено") {
+      setConfirmComplete({ id, currentStatus });
+    } else {
+      doToggleStatus(id, currentStatus);
+    }
+  };
+
+  const doToggleStatus = async (id: number, currentStatus: string) => {
+    setConfirmComplete(null);
     const newStatus = currentStatus === "Завершено" ? "В работе" : "Завершено";
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus, completed_at: newStatus === "Завершено" ? new Date().toISOString() : null } : t));
     const res = await fetch("/api/tasks/" + id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
@@ -404,6 +420,9 @@ function TasksContent() {
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
         <Button variant={showFilters || hasFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{(hasFilters && (filterPriority || filterStatus || filterAssignees.length > 0)) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
+        <Button variant={showCompleted ? "default" : "outline"} size="sm" onClick={() => setShowCompleted(!showCompleted)} className="gap-1">
+          <CheckSquare className="w-4 h-4" />Архив
+        </Button>
         {!deleteMode ? (
           <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />Удалить
@@ -525,7 +544,7 @@ function TasksContent() {
                         onPointerEnter={() => handleRowPointerEnter(t.id)}
                         className={
                           (deleteMode ? "cursor-pointer " : "") +
-                          (selectedIds.has(t.id) ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/50 " : "hover:bg-gray-50/60 ") +
+                          (selectedIds.has(t.id) ? "bg-red-100 hover:bg-red-200 " : deleteMode ? "hover:bg-red-100/50 " : "hover:bg-gray-50/60 ") +
                           "transition-colors group"
                         }
                       >
@@ -624,6 +643,16 @@ function TasksContent() {
         cancelLabel="Отмена"
         onConfirm={handleBulkDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmComplete}
+        title="Завершить задачу?"
+        message="Задача будет помечена как завершённая и скрыта из общего списка."
+        confirmLabel="Завершить"
+        cancelLabel="Отмена"
+        onConfirm={() => confirmComplete && doToggleStatus(confirmComplete.id, confirmComplete.currentStatus)}
+        onCancel={() => setConfirmComplete(null)}
       />
     </div>
   );

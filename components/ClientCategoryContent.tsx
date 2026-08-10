@@ -831,7 +831,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                   onClick={() => { if (!deleteMode) setViewClient(c); }}
                   className={
                     (deleteMode ? "cursor-pointer " : "cursor-pointer ") +
-                    (selectedIds.has(c.id) ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/50 " : "hover:bg-blue-50/40 ") +
+                    (selectedIds.has(c.id) ? "bg-red-100 hover:bg-red-200 " : deleteMode ? "hover:bg-red-100/50 " : "hover:bg-blue-50/40 ") +
                     "transition-colors group"
                   }
                 >

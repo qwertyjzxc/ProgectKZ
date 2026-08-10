@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS properties (
   description TEXT DEFAULT '',
   image_url TEXT DEFAULT '',
   image_urls JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'Активно',
   city TEXT DEFAULT '',
   building_type TEXT DEFAULT '',
   complex_name TEXT DEFAULT '',

@@ -304,7 +304,7 @@ export default function ActivityPage() {
                 onContextMenu={ev => handleCardContextMenu(ev, e.id)}
                 className={
                   "flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors select-none " +
-                  (isSelected ? "bg-red-50 hover:bg-red-100" : deleteMode ? "hover:bg-red-50/50" : "hover:bg-gray-50")
+                  (isSelected ? "bg-red-100 hover:bg-red-200" : deleteMode ? "hover:bg-red-100/50" : "hover:bg-gray-50")
                 }
               >
                 {deleteMode && (

@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const bathroom = formData.get("bathroom")?.toString() || "";
   const ceilingHeight = parseFloat(formData.get("ceiling_height")?.toString() || "0") || null;
   const description = formData.get("description")?.toString() || "";
-
+  const status = formData.get("status")?.toString() || "Активно";
   const files = formData.getAll("images") as File[];
   const newUrls: string[] = [];
   for (const f of files) {
@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (!ue) { const { data: ud } = supabase.storage.from("property-images").getPublicUrl(fileName); newUrls.push(ud.publicUrl); }
     }
   }
-  const updateData: Record<string, any> = { title, price, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description };
+  const updateData: Record<string, any> = { title, price, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status };
   if (newUrls.length > 0) { updateData.image_url = newUrls[0]; updateData.image_urls = newUrls; }
   const { data, error } = await supabase.from("properties").update(updateData).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

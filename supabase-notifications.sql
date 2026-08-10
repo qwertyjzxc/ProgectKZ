@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   message TEXT NOT NULL DEFAULT '',
   type TEXT DEFAULT 'info',
   related_to TEXT DEFAULT '',
+  related_id BIGINT,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

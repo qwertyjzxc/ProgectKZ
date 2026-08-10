@@ -8,6 +8,31 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
+export async function DELETE(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+
+  const { ids } = await request.json();
+  if (!Array.isArray(ids) || ids.length === 0) return NextResponse.json({ error: "Нет id для удаления" }, { status: 400 });
+
+  const { data: properties } = await supabase.from("properties").select("image_url").in("id", ids);
+  if (properties) {
+    for (const p of properties) {
+      if (p.image_url) {
+        try {
+          const url = new URL(p.image_url);
+          const fn = url.pathname.split("/").pop();
+          if (fn) await supabase.storage.from("property-images").remove([fn]);
+        } catch {}
+      }
+    }
+  }
+  const { error } = await supabase.from("properties").delete().in("id", ids);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -26,6 +51,7 @@ export async function POST(request: NextRequest) {
   const bathroom = formData.get("bathroom")?.toString() || "";
   const ceilingHeight = parseFloat(formData.get("ceiling_height")?.toString() || "0") || null;
   const description = formData.get("description")?.toString() || "";
+  const status = formData.get("status")?.toString() || "Активно";
 
   const files = formData.getAll("images") as File[];
   const imageUrls: string[] = [];
@@ -40,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
   }
   const mainImage = imageUrls[0] || "";
-  const { data, error } = await supabase.from("properties").insert({ title, price, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, image_url: mainImage, image_urls: imageUrls }).select().single();
+  const { data, error } = await supabase.from("properties").insert({ title, price, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, image_url: mainImage, image_urls: imageUrls }).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

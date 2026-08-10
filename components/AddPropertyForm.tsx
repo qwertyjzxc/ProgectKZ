@@ -18,6 +18,7 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: an
   const [bath, setBath] = useState(property?.bathroom || "");
   const [ceil, setCeil] = useState(property?.ceiling_height ? String(property.ceiling_height) : "");
   const [desc, setDesc] = useState(property?.description || "");
+  const [propStatus, setPropStatus] = useState(property?.status || "Активно");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>(property?.image_urls?.length ? property.image_urls : []);
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,7 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: an
     fd.append("title",title);fd.append("price",price);fd.append("rooms",rooms);
     fd.append("address",address);fd.append("city",city);fd.append("building_type",bType);
     fd.append("complex_name",complex);fd.append("year_built",year);fd.append("area",area);
-    fd.append("bathroom",bath);fd.append("ceiling_height",ceil);fd.append("description",desc);
+    fd.append("bathroom",bath);fd.append("ceiling_height",ceil);fd.append("description",desc);fd.append("status",propStatus);
     files.forEach(f=>fd.append("images",f));
     const url = isEdit ? `/api/properties/${property.id}` : "/api/properties";
     try {
@@ -59,6 +60,7 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: an
         <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸ *</label><Input value={price} onChange={e=>setPrice(e.target.value)} type="number" placeholder="25000000" required className="text-sm" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Комнат</label><Input value={rooms} onChange={e=>setRooms(e.target.value)} type="number" placeholder="2" className="text-sm" /></div>
         <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e=>setAddress(e.target.value)} placeholder="ул. Абая, 42" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Статус</label><select value={propStatus} onChange={e=>setPropStatus(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>Активно</option><option>Продано</option><option>Сдано</option><option>Неактивно</option></select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Город</label><Input value={city} onChange={e=>setCity(e.target.value)} placeholder="Алматы" className="text-sm" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Тип дома</label><select value={bType} onChange={e=>setBType(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбрано</option><option>Кирпичный</option><option>Монолитный</option><option>Панельный</option></select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Input value={complex} onChange={e=>setComplex(e.target.value)} placeholder="ЖК Комфорт" className="text-sm" /></div>
