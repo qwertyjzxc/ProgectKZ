@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PhoneInput from "@/components/PhoneInput";
 import { useProfile, profileName, profileInitials, type Profile } from "@/lib/profile-context";
 import { updateMyProfile, changeMyPassword, updateNotificationSettings } from "./actions";
-import { CheckCircle2, Loader2, Shield, UserRound, Phone, Mail, AtSign, Lock, KeyRound, Bell } from "lucide-react";
+import { CheckCircle2, Loader2, Shield, UserRound, Phone, Mail, AtSign, Lock, KeyRound, Bell, Plus, Trash2, MapPin, Building } from "lucide-react";
 
 const NOTIFICATION_ENTITIES = [
   { key: "clients", label: "Клиенты" },
@@ -42,6 +42,152 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
         }
       />
     </button>
+  );
+}
+
+function ReferenceBooks() {
+  const [districts, setDistricts] = useState<{ id: number; name: string }[]>([]);
+  const [complexes, setComplexes] = useState<{ id: number; name: string }[]>([]);
+  const [newDistrict, setNewDistrict] = useState("");
+  const [newComplex, setNewComplex] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [dRes, cRes] = await Promise.all([
+      fetch("/api/districts"),
+      fetch("/api/residential-complexes"),
+    ]);
+    if (dRes.ok) setDistricts(await dRes.json());
+    if (cRes.ok) setComplexes(await cRes.json());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addDistrict = async () => {
+    if (!newDistrict.trim()) return;
+    setError("");
+    const res = await fetch("/api/districts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newDistrict }),
+    });
+    if (res.ok) {
+      setNewDistrict("");
+      load();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Ошибка");
+    }
+  };
+
+  const deleteDistrict = async (id: number) => {
+    await fetch("/api/districts", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    load();
+  };
+
+  const addComplex = async () => {
+    if (!newComplex.trim()) return;
+    setError("");
+    const res = await fetch("/api/residential-complexes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newComplex }),
+    });
+    if (res.ok) {
+      setNewComplex("");
+      load();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Ошибка");
+    }
+  };
+
+  const deleteComplex = async (id: number) => {
+    await fetch("/api/residential-complexes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    load();
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">
+        <div className="p-6 border-b bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-gray-400" />
+            <h2 className="font-semibold text-gray-900">Справочники</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">Управление районами и жилыми комплексами</p>
+        </div>
+        <div className="p-6 space-y-3">
+          {[0, 1, 2].map(i => <div key={i} className="h-9 bg-gray-100 rounded-lg animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">
+      <div className="p-6 border-b bg-gray-50/50">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-gray-400" />
+          <h2 className="font-semibold text-gray-900">Справочники</h2>
+        </div>
+        <p className="text-sm text-gray-500 mt-1">Управление районами и жилыми комплексами</p>
+      </div>
+      <div className="p-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 mb-4">{error}</div>
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4" /> Районы ({districts.length})
+            </h3>
+            <div className="flex gap-2 mb-3">
+              <Input value={newDistrict} onChange={e => setNewDistrict(e.target.value)} placeholder="Новый район" className="text-sm" onKeyDown={e => e.key === "Enter" && addDistrict()} />
+              <Button onClick={addDistrict} disabled={!newDistrict.trim()} className="bg-blue-600 shrink-0"><Plus className="w-4 h-4" /></Button>
+            </div>
+            <div className="max-h-64 overflow-auto rounded-lg border divide-y divide-gray-100">
+              {districts.map(d => (
+                <div key={d.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
+                  <span className="text-sm text-gray-700">{d.name}</span>
+                  <button onClick={() => deleteDistrict(d.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+              {districts.length === 0 && <p className="px-3 py-4 text-sm text-gray-400 text-center">Пусто</p>}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <Building className="w-4 h-4" /> Жилые комплексы ({complexes.length})
+            </h3>
+            <div className="flex gap-2 mb-3">
+              <Input value={newComplex} onChange={e => setNewComplex(e.target.value)} placeholder="Новый ЖК" className="text-sm" onKeyDown={e => e.key === "Enter" && addComplex()} />
+              <Button onClick={addComplex} disabled={!newComplex.trim()} className="bg-blue-600 shrink-0"><Plus className="w-4 h-4" /></Button>
+            </div>
+            <div className="max-h-64 overflow-auto rounded-lg border divide-y divide-gray-100">
+              {complexes.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
+                  <span className="text-sm text-gray-700">{c.name}</span>
+                  <button onClick={() => deleteComplex(c.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+              {complexes.length === 0 && <p className="px-3 py-4 text-sm text-gray-400 text-center">Пусто</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -351,6 +497,8 @@ function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
           </div>
         </form>
       </div>
+
+      {isAdmin && <ReferenceBooks />}
     </div>
   );
 }

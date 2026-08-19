@@ -5,15 +5,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, Square, CheckSquare, type LucideIcon } from "lucide-react";
+import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, Square, CheckSquare, CheckCircle2, type LucideIcon } from "lucide-react";
 import { RENT_CATEGORY_LABELS, type RentCategory } from "@/components/RentCategorySelector";
 import AssignTaskModal from "@/components/AssignTaskModal";
+import CompleteDealModal from "@/components/CompleteDealModal";
 import Combobox from "@/components/Combobox";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PhoneInput, { maskKzPhone } from "@/components/PhoneInput";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
+
+async function fetchReference(table: string): Promise<string[]> {
+  try {
+    const url = table === "districts" ? "/api/districts" : "/api/residential-complexes";
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((r: { name: string }) => r.name);
+  } catch {
+    return [];
+  }
+}
+
+const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
+  houses: "Дома",
+  premises: "Помещения",
+  apartments: "Квартира",
+};
 
 interface Client {
   id: number;
@@ -38,10 +57,43 @@ interface Client {
   created_at: string;
 }
 
+const CLIENT_STATUSES = [
+  "В процессе",
+  "Завершено",
+  "Отказ",
+  "Заморожено",
+  "Подписание договора",
+  "Оплата",
+  "VIP Клиент",
+  "Перспективный",
+  "Думает",
+  "Проблемный",
+];
+
 const completedColors: Record<string, string> = {
   "В процессе": "bg-yellow-100 text-yellow-800",
   "Завершено": "bg-green-100 text-green-800",
   "Отказ": "bg-red-100 text-red-800",
+  "Заморожено": "bg-blue-100 text-blue-800",
+  "Подписание договора": "bg-indigo-100 text-indigo-800",
+  "Оплата": "bg-cyan-100 text-cyan-800",
+  "VIP Клиент": "bg-amber-100 text-amber-800",
+  "Перспективный": "bg-emerald-100 text-emerald-800",
+  "Думает": "bg-orange-100 text-orange-800",
+  "Проблемный": "bg-rose-100 text-rose-800",
+};
+
+const STATUS_STAT_COLORS: Record<string, string> = {
+  "В процессе": "text-yellow-600",
+  "Завершено": "text-green-600",
+  "Отказ": "text-red-500",
+  "Заморожено": "text-blue-600",
+  "Подписание договора": "text-indigo-600",
+  "Оплата": "text-cyan-600",
+  "VIP Клиент": "text-amber-600",
+  "Перспективный": "text-emerald-600",
+  "Думает": "text-orange-600",
+  "Проблемный": "text-rose-600",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -61,7 +113,7 @@ function CardSection({ title, children }: { title: string; children: React.React
   );
 }
 
-function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void }) {
+function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign, onComplete }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void; onComplete: () => void }) {
   const [showActivity, setShowActivity] = useState(false);
   const [activity, setActivity] = useState<import("@/lib/activity").ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -110,6 +162,9 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign 
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
+              <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={onComplete}>
+                <CheckCircle2 className="w-4 h-4 mr-1" />Завершить сделку
+              </Button>
               <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={onAssign}>
                 <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
               </Button>
@@ -126,8 +181,8 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign 
             <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
             <DetailItem icon={MapPin} label="Район" value={client.district} />
             <DetailItem icon={MapPin} label="Адрес" value={client.address} />
-            <DetailItem icon={Building} label="ЖК" value={client.jk} />
-            <DetailItem icon={Home} label="Комнат" value={client.rooms} />
+            <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
+            <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
             <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + " м²" : null} />
           </CardSection>
           <CardSection title="Договор и бюджет">
@@ -138,7 +193,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign 
           </CardSection>
           <CardSection title="Контакт">
             <DetailItem icon={Phone} label="Телефон" value={client.phone} />
-            <DetailItem icon={User} label="Кто проживает" value={client.who_lives} />
+            <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
             <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
             <DetailItem icon={User} label="Брокер" value={client.broker} />
           </CardSection>
@@ -224,6 +279,15 @@ function parseDateStr(s: string): number {
   return NaN;
 }
 
+function smartMatch(field: string | undefined | null, query: string): boolean {
+  if (!query) return true;
+  if (!field) return false;
+  const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const cleanField = normalize(field);
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  return words.every(word => cleanField.includes(word));
+}
+
 function toDateInputValue(v: string): string {
   const m = (v || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
@@ -260,6 +324,8 @@ function getInitials(name: string): string {
 function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string }) {
   const { currentProfile, allProfiles } = useProfile();
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
+  const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
+  const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
   const [type, setType] = useState(client?.type || defaultType || "");
   const [area, setArea] = useState(client?.area || "");
   const [address, setAddress] = useState(client?.address || "");
@@ -279,6 +345,11 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
   const [completed, setCompleted] = useState(client?.completed || "");
   const [broker, setBroker] = useState(client ? client.broker : profileName(currentProfile));
 
+  useEffect(() => {
+    fetchReference("districts").then(d => { if (d.length) setDistrictOptions(d); });
+    fetchReference("residential_complexes").then(c => { if (c.length) setJkOptions(c); });
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({ type, area, address, jk, contract, date: fromDateInputValue(date), name, phone, district, rooms, amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod, who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker });
@@ -295,24 +366,24 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Тип недвижимости</label>
-              <Select label="Не указано" value={type} onChange={setType} options={["Дома", "Помещения", "Квартиры"]} />
+              <Select label="Не указано" value={type} onChange={setType} options={["Дома", "Помещения", "Квартира"]} />
             </div>
             <div><label className="text-xs text-gray-500 mb-1 block">Дата</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Имя</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Фамилия Имя" className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} /></div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Район</label>
-              <Combobox value={district} onChange={setDistrict} options={SHYMKENT_DISTRICTS} placeholder="Выберите район Шымкента" />
+              <Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район Шымкента" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Адрес</label>
               <AddressAutocomplete value={address} onChange={setAddress} placeholder="г. Шымкент, ул., дом, кв." />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">ЖК</label>
-              <Combobox value={jk} onChange={setJk} options={SHYMKENT_JK} placeholder="Выберите или введите ЖК" />
+              <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
+              <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите ЖК" />
             </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Комнатность</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="120" className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label><Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="0" className="text-sm" /></div>
@@ -324,11 +395,11 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
               <label className="text-xs text-gray-500 mb-1 block">Срок аренды</label>
               <Select label="Не указано" value={rentalPeriod} onChange={setRentalPeriod} options={["Долгосрочно", "Краткосрочно", "Посуточно"]} />
             </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Кто проживает</label><Input value={whoLives} onChange={e => setWhoLives(e.target.value)} placeholder="Семья, один, ..." className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Кто будет проживать</label><Input value={whoLives} onChange={e => setWhoLives(e.target.value)} placeholder="Семья, один, ..." className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Кол-во человек</label><Input value={peopleCount} onChange={e => setPeopleCount(e.target.value)} type="number" placeholder="1" className="text-sm" /></div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Статус</label>
-              <Select label="Без статуса" value={completed} onChange={setCompleted} options={["В процессе", "Завершено", "Отказ"]} />
+              <Select label="Без статуса" value={completed} onChange={setCompleted} options={CLIENT_STATUSES} />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Брокер</label>
@@ -376,6 +447,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [editClient, setEditClient] = useState<Client | null>(null);
   const [viewClient, setViewClient] = useState<Client | null>(null);
   const [assignClient, setAssignClient] = useState<Client | null>(null);
+  const [completeClient, setCompleteClient] = useState<Client | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Filter state
@@ -448,7 +520,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const categoryClients = useMemo(() => {
     if (!propertyType) return clients;
-    const label = RENT_CATEGORY_LABELS[propertyType];
+    const label = RENT_TYPE_SINGULAR[propertyType];
     return clients.filter(c => c.type === label);
   }, [clients, propertyType]);
 
@@ -487,19 +559,12 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const filtered = useMemo(() => {
     let result = categoryClients;
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
       result = result.filter(c =>
-        c.name?.toLowerCase().includes(q) ||
-        c.phone?.includes(q) ||
-        c.district?.toLowerCase().includes(q) ||
-        c.address?.toLowerCase().includes(q) ||
-        c.jk?.toLowerCase().includes(q) ||
-        c.broker?.toLowerCase().includes(q)
+        smartMatch(c.name, searchQuery) || smartMatch(c.phone, searchQuery) || smartMatch(c.district, searchQuery) || smartMatch(c.address, searchQuery) || smartMatch(c.jk, searchQuery) || smartMatch(c.broker, searchQuery)
       );
     }
     if (filterName) {
-      const q = filterName.toLowerCase();
-      result = result.filter(c => c.name?.toLowerCase().includes(q));
+      result = result.filter(c => smartMatch(c.name, filterName));
     }
     if (filterCompleted) result = result.filter(c => c.completed === filterCompleted);
     if (filterDistrict) result = result.filter(c => c.district === filterDistrict);
@@ -507,8 +572,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     if (filterRooms) result = result.filter(c => c.rooms === filterRooms);
     if (filterJk) result = result.filter(c => c.jk === filterJk);
     if (filterAddress) {
-      const q = filterAddress.toLowerCase();
-      result = result.filter(c => c.address?.toLowerCase().includes(q));
+      result = result.filter(c => smartMatch(c.address, filterAddress));
     }
     if (filterAreaMin) result = result.filter(c => Number(c.area) >= Number(filterAreaMin));
     if (filterAreaMax) result = result.filter(c => Number(c.area) <= Number(filterAreaMax));
@@ -667,9 +731,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <div className="flex flex-wrap gap-1.5">
               {[
                 { value: "", label: "Все" },
-                { value: "В процессе", label: "В процессе" },
-                { value: "Завершено", label: "Завершено" },
-                { value: "Отказ", label: "Отказ" },
+                ...CLIENT_STATUSES.map(s => ({ value: s, label: s })),
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -714,7 +776,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <Input value={filterAddress} onChange={e => setFilterAddress(e.target.value)} placeholder="Улица, дом" className="h-9 text-sm bg-white" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">ЖК</label>
+              <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
               <Combobox value={filterJk} onChange={setFilterJk} options={uniqueJk} placeholder="Любой" />
             </div>
             <div>
@@ -752,9 +814,12 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Всего</p><p className="text-2xl font-bold text-gray-900 mt-0.5">{categoryClients.length}</p></div>
-        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">В процессе</p><p className="text-2xl font-bold text-yellow-600 mt-0.5">{categoryClients.filter(c => c.completed === "В процессе").length}</p></div>
-        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Завершено</p><p className="text-2xl font-bold text-green-600 mt-0.5">{categoryClients.filter(c => c.completed === "Завершено").length}</p></div>
-        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Отказы</p><p className="text-2xl font-bold text-red-500 mt-0.5">{categoryClients.filter(c => c.completed === "Отказ").length}</p></div>
+        {CLIENT_STATUSES.map(s => (
+          <div key={s} className="bg-white rounded-xl border p-4">
+            <p className="text-xs text-gray-500">{s}</p>
+            <p className={"text-2xl font-bold mt-0.5 " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{categoryClients.filter(c => c.completed === s).length}</p>
+          </div>
+        ))}
       </div>
 
       {/* Loading / Error */}
@@ -777,6 +842,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           <div className="overflow-y-auto max-h-[60vh]">
           <table className="w-full table-fixed text-center">
             <colgroup>
+              <col className="w-[3%]" />
               <col className="w-[15%]" />
               <col className="w-[9%]" />
               <col className="w-[7%]" />
@@ -791,12 +857,13 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             </colgroup>
             <thead>
               <tr className="bg-gray-100">
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
@@ -835,6 +902,23 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     "transition-colors group"
                   }
                 >
+                  <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
+                    {c.phone ? (
+                      <a
+                        href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "").replace(/^8/, "7")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                        title="Написать в WhatsApp"
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 text-gray-300">
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-start gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-xs font-semibold shrink-0">
@@ -910,10 +994,11 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       )}
 
       {/* Modals */}
-      {showAdd && <ClientFormModal defaultType={propertyType ? RENT_CATEGORY_LABELS[propertyType] : ""} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
+      {showAdd && <ClientFormModal defaultType={propertyType ? RENT_TYPE_SINGULAR[propertyType] : ""} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
       {editClient && <ClientFormModal client={editClient} onClose={() => setEditClient(null)} onSave={handleEdit} />}
-      {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} />}
+      {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
+      {completeClient && <CompleteDealModal client={completeClient} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}
 
       <ConfirmDialog
         open={confirmDelete}

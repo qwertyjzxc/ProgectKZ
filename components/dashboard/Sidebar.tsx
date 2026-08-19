@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe } from "lucide-react";
 import { useProfile } from "@/lib/profile-context";
 import { useState, useEffect } from "react";
@@ -16,18 +16,25 @@ const objectsSubItems = [
   { href: "/dashboard/ours", label: "Наши объекты", icon: Building2 },
 ];
 
+const dealCategories = [
+  { id: "arenda", label: "Аренда", icon: Home },
+  { id: "pokupka", label: "Покупка", icon: Banknote },
+];
+
 const navItems = [
   { href: "/tasks", label: "Задачи", icon: ListTodo },
-  { href: "/deals", label: "Сделки", icon: Handshake },
   { href: "/activity", label: "Журнал действий", icon: History },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentProfile } = useProfile();
   const [unreadCount, setUnreadCount] = useState(0);
   const [clientsOpen, setClientsOpen] = useState(false);
   const [objectsOpen, setObjectsOpen] = useState(() => pathname.startsWith("/dashboard"));
+  const [dealsOpen, setDealsOpen] = useState(() => pathname.startsWith("/deals"));
+  const currentHref = pathname + (searchParams.toString() ? "?" + searchParams.toString() : "");
 
   const fetchUnread = () => {
     if (!currentProfile?.id) return;
@@ -143,6 +150,49 @@ export default function Sidebar() {
                   >
                     <SubIcon className="w-3.5 h-3.5" />
                     {sub.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Deals group with expandable sub-items */}
+        <div>
+          <button
+            onClick={() => setDealsOpen(!dealsOpen)}
+            className={
+              "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors "
+              + (pathname.startsWith("/deals")
+                ? "bg-gray-100 text-gray-900 font-medium"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
+            }
+          >
+            <span className="flex items-center gap-3">
+              <Handshake className="w-4 h-4" />
+              Сделки
+            </span>
+            <ChevronDown className={"w-4 h-4 transition-transform " + (dealsOpen ? "rotate-180" : "")} />
+          </button>
+          {dealsOpen && (
+            <div className="ml-7 mt-1 space-y-1">
+              {dealCategories.map(cat => {
+                const href = "/deals?category=" + cat.id;
+                const isSubActive = currentHref === href;
+                const CatIcon = cat.icon;
+                return (
+                  <Link
+                    key={cat.id}
+                    href={href}
+                    className={
+                      "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
+                      + (isSubActive
+                        ? "bg-blue-50 text-blue-700 font-medium"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-800")
+                    }
+                  >
+                    <CatIcon className="w-3.5 h-3.5" />
+                    {cat.label}
                   </Link>
                 );
               })}

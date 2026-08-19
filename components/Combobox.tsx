@@ -16,11 +16,16 @@ export default function Combobox({ value, onChange, options, placeholder = "" }:
   const [active, setActive] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  const allOptions = useMemo(() => {
+    if (!value || options.includes(value)) return options;
+    return [value, ...options];
+  }, [options, value]);
+
   const filtered = useMemo(() => {
-    if (!query || query === value) return options;
+    if (!query || query === value) return allOptions;
     const q = query.toLowerCase();
-    return options.filter(o => o.toLowerCase().includes(q));
-  }, [options, query, value]);
+    return allOptions.filter(o => o.toLowerCase().includes(q));
+  }, [allOptions, query, value]);
 
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {

@@ -58,7 +58,7 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: an
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Название *</label><Input value={title} onChange={e=>setTitle(e.target.value)} placeholder="2-к квартира, ЖК Комфорт" required className="text-sm" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸ *</label><Input value={price} onChange={e=>setPrice(e.target.value)} type="number" placeholder="25000000" required className="text-sm" /></div>
-        <div><label className="text-xs text-gray-500 mb-1 block">Комнат</label><Input value={rooms} onChange={e=>setRooms(e.target.value)} type="number" placeholder="2" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e=>setRooms(e.target.value)} type="number" placeholder="2" className="text-sm" /></div>
         <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e=>setAddress(e.target.value)} placeholder="ул. Абая, 42" className="text-sm" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Статус</label><select value={propStatus} onChange={e=>setPropStatus(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>Активно</option><option>Продано</option><option>Сдано</option><option>Неактивно</option></select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Город</label><Input value={city} onChange={e=>setCity(e.target.value)} placeholder="Алматы" className="text-sm" /></div>

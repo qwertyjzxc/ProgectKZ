@@ -17,11 +17,11 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
           <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 leading-tight">{p.title}</h1>
           <p className="text-3xl font-bold text-gray-900">{Number(p.price).toLocaleString()} ₸</p>
           <div className="space-y-2 text-base text-gray-700">
-            {p.rooms != null && <p><span className="text-gray-400 w-36 inline-block">Комнат:</span> {p.rooms}</p>}
+            {p.rooms != null && <p><span className="text-gray-400 w-36 inline-block">Кол-во комнат:</span> {p.rooms}</p>}
             {p.address && <p><span className="text-gray-400 w-36 inline-block">Адрес:</span> {p.address}</p>}
             {(p as any).city && <p><span className="text-gray-400 w-36 inline-block">Город:</span> {(p as any).city}</p>}
             {(p as any).building_type && <p><span className="text-gray-400 w-36 inline-block">Тип дома:</span> {(p as any).building_type}</p>}
-            {(p as any).complex_name && <p><span className="text-gray-400 w-36 inline-block">ЖК:</span> {(p as any).complex_name}</p>}
+            {(p as any).complex_name && <p><span className="text-gray-400 w-36 inline-block">Жилой комплекс:</span> {(p as any).complex_name}</p>}
             {(p as any).year_built && <p><span className="text-gray-400 w-36 inline-block">Год постройки:</span> {(p as any).year_built}</p>}
             {(p as any).area && <p><span className="text-gray-400 w-36 inline-block">Площадь:</span> {(p as any).area} м²</p>}
             {(p as any).bathroom && <p><span className="text-gray-400 w-36 inline-block">Санузел:</span> {(p as any).bathroom}</p>}

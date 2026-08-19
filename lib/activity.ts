@@ -34,14 +34,14 @@ const FIELD_LABELS: Record<string, string> = {
   district: "Район",
   address: "Адрес",
   jk: "ЖК",
-  rooms: "Комнат",
+  rooms: "Кол-во комнат",
   area: "Площадь",
   amount: "Бюджет",
   type: "Тип недвижимости",
   contract: "Договор",
   furniture: "Меблировка",
   rental_period: "Срок аренды",
-  who_lives: "Кто проживает",
+  who_lives: "Кто будет проживать",
   people_count: "Кол-во человек",
   notes: "Заметки",
   completed: "Статус",
@@ -55,6 +55,7 @@ export const DEAL_LABELS: Record<string, string> = {
   amount: "Сумма",
   stage: "Этап",
   date: "Дата",
+  category: "Категория",
 };
 
 export const TASK_LABELS: Record<string, string> = {

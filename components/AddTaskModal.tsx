@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Save, ChevronDown } from "lucide-react";
-import { useProfile } from "@/lib/profile-context";
 import AssigneePicker from "@/components/AssigneePicker";
 
 export interface NewTaskData {
@@ -23,14 +22,13 @@ function nowLocalDateTime(): string {
 }
 
 export default function AddTaskModal({ onClose, onAdd }: { onClose: () => void; onAdd: (t: NewTaskData) => void }) {
-  const { currentProfile } = useProfile();
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
   const [description, setDescription] = useState("");
   const [createdDate, setCreatedDate] = useState(nowLocalDateTime());
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("Средний");
-  const [assigneeIds, setAssigneeIds] = useState<number[]>(currentProfile ? [currentProfile.id] : []);
+  const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

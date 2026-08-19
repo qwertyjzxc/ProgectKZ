@@ -3,16 +3,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Save, CheckCircle2, ChevronDown } from "lucide-react";
-import { useProfile } from "@/lib/profile-context";
 import AssigneePicker from "@/components/AssigneePicker";
 
 export default function AssignTaskModal({ clientName, onClose }: { clientName: string; onClose: () => void }) {
-  const { currentProfile } = useProfile();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState("Средний");
-  const [assigneeIds, setAssigneeIds] = useState<number[]>(currentProfile ? [currentProfile.id] : []);
+  const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
