@@ -7,7 +7,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <ProfileProvider>
       <div className="flex h-screen bg-gray-100">
-        <Sidebar />
+        <Suspense>
+          <Sidebar />
+        </Suspense>
         <div className="ml-64 flex-1 flex flex-col min-w-0">
           <Suspense>
             <DashboardHeader />
