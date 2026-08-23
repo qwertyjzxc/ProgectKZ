@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Combobox from "@/components/Combobox";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Building, Ruler, Briefcase, Phone, User, Users, Building2 } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Building, Ruler, Briefcase, Phone, User, Users, Building2, Eye } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DealCategorySelector from "@/components/DealCategorySelector";
 import DealTypeSelector, { DEAL_CATEGORY_LABELS } from "@/components/DealTypeSelector";
@@ -986,7 +986,13 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                           <DropdownMenuTrigger onPointerDown={e => e.stopPropagation()} className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">
                             <MoreHorizontal className="w-4 h-4" />
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setViewDeal(d)}>
+                              <Eye className="w-4 h-4 mr-2" />Просмотр
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setViewDeal(d); setShowTask(true); }}>
+                              <ListTodo className="w-4 h-4 mr-2" />Назначить задачу
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setEditDeal({ ...d } as EditableDeal)}>
                               <Edit3 className="w-4 h-4 mr-2" />Редактировать
                             </DropdownMenuItem>
