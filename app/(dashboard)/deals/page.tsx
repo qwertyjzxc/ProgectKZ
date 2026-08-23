@@ -13,6 +13,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import DealCategorySelector from "@/components/DealCategorySelector";
 import DealTypeSelector, { DEAL_CATEGORY_LABELS } from "@/components/DealTypeSelector";
 import AssignTaskModal from "@/components/AssignTaskModal";
+import CompleteDealModalForDeal from "@/components/CompleteDealModalForDeal";
 import type { ActivityEntry } from "@/lib/activity";
 
 interface Deal {
@@ -427,6 +428,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityDeleteTarget, setActivityDeleteTarget] = useState<ActivityEntry | null>(null);
+  const [completeDealTarget, setCompleteDealTarget] = useState<Deal | null>(null);
   const [showTask, setShowTask] = useState(false);
   const dragRef = useRef(false);
 
@@ -568,7 +570,11 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     }
     if (filterAmountMin) result = result.filter(d => d.amount >= Number(filterAmountMin));
     if (filterAmountMax) result = result.filter(d => d.amount <= Number(filterAmountMax));
-    if (filterStage) result = result.filter(d => d.completed === filterStage);
+    if (filterStage) {
+      result = result.filter(d => d.completed === filterStage);
+    } else {
+      result = result.filter(d => d.completed !== "Завершено");
+    }
     if (filterDateFrom) {
       const t = parseDateStr(filterDateFrom);
       if (!isNaN(t)) result = result.filter(d => parseDateStr(d.date) >= t);
@@ -706,7 +712,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 shrink-0">Статус</span>
             <div className="flex flex-wrap gap-1.5">
               {[
-                { value: "", label: "Все" },
+                { value: "", label: "Активные" },
                 ...DEAL_STATUSES.map(s => ({ value: s, label: s })),
               ].map(opt => (
                 <button
@@ -969,6 +975,11 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
             <div className="flex items-center justify-between p-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
               <h2 className="text-lg font-bold">Карточка сделки</h2>
               <div className="flex items-center gap-2">
+                {viewDeal.completed !== "Завершено" && (
+                  <Button variant="outline" size="sm" className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200" onClick={() => setCompleteDealTarget(viewDeal)}>
+                    <Check className="w-4 h-4" />Закрыть сделку
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setShowTask(true)}>
                   <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
                 </Button>
@@ -1206,6 +1217,16 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
       {showTask && viewDeal && (
         <AssignTaskModal clientName={viewDeal.name || ""} onClose={() => setShowTask(false)} />
+      )}
+
+      {completeDealTarget && (
+        <CompleteDealModalForDeal
+          deal={completeDealTarget}
+          dealType={dealType}
+          category={category}
+          onClose={() => setCompleteDealTarget(null)}
+          onDone={() => { setCompleteDealTarget(null); setViewDeal(null); fetchDeals(); }}
+        />
       )}
 
       <ConfirmDialog
