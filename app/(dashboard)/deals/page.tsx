@@ -1039,6 +1039,10 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                         <p className="text-[11px] text-gray-400 uppercase tracking-wide">Номер договора</p>
                         <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.contract || "—"}</p>
                       </div>
+                    </>
+                  )}
+                  {!isPomescheniya && !isZemlya && (
+                    <>
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-[11px] text-gray-400 uppercase tracking-wide">Меблировка</p>
                         <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.furniture || "—"}</p>
