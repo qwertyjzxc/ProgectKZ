@@ -169,35 +169,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
           </div>
         </div>
         <div className="flex-1 min-h-0 flex overflow-hidden">
-          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
-            <CardSection title="Объект">
-              <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
-              <DetailItem icon={MapPin} label="Район" value={client.district} />
-              <DetailItem icon={MapPin} label="Адрес" value={client.address} />
-              <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
-              <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
-              <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + " м²" : null} />
-            </CardSection>
-            <CardSection title="Договор и бюджет">
-              <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
-              <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? client.amount.toLocaleString() + " ₸" : null} />
-              <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
-              <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
-            </CardSection>
-            <CardSection title="Контакт">
-              <DetailItem icon={Phone} label="Телефон" value={client.phone} />
-              <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
-              <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
-              <DetailItem icon={User} label="Брокер" value={client.broker} />
-            </CardSection>
-            {client.notes && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
-              </div>
-            )}
-          </div>
-          <div className="w-[320px] shrink-0 border-l bg-gray-50/80 flex flex-col">
+          <div className="w-[320px] shrink-0 border-r bg-gray-50/80 flex flex-col">
             <div className="px-4 py-3 border-b shrink-0">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><History className="w-3.5 h-3.5" />Журнал действий</h3>
             </div>
@@ -241,6 +213,34 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
                 ))
               )}
             </div>
+          </div>
+          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
+            <CardSection title="Объект">
+              <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
+              <DetailItem icon={MapPin} label="Район" value={client.district} />
+              <DetailItem icon={MapPin} label="Адрес" value={client.address} />
+              <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
+              <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
+              <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + " м²" : null} />
+            </CardSection>
+            <CardSection title="Договор и бюджет">
+              <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
+              <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? client.amount.toLocaleString() + " ₸" : null} />
+              <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
+              <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
+            </CardSection>
+            <CardSection title="Контакт">
+              <DetailItem icon={Phone} label="Телефон" value={client.phone} />
+              <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
+              <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
+              <DetailItem icon={User} label="Брокер" value={client.broker} />
+            </CardSection>
+            {client.notes && (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
