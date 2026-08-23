@@ -25,6 +25,9 @@ export const ACTIVITY_TABLE_LABELS: Record<string, string> = {
   clients_arenda: "Аренда",
   clients_prodaja: "Покупка",
   deals: "Сделки",
+  deals_kvartiry: "Квартиры",
+  deals_pomescheniya: "Помещения",
+  deals_zemlya: "Земля",
   tasks: "Задачи",
 };
 
@@ -76,7 +79,7 @@ const NOTIFICATION_ENTITY_LABELS: Record<string, string> = {
 };
 
 export function notificationKey(clientTable: string, action: string): string {
-  const entity = clientTable.startsWith("clients_") ? "clients" : clientTable;
+  const entity = clientTable.startsWith("clients_") ? "clients" : clientTable.startsWith("deals_") ? "deals" : clientTable;
   return `${entity}_${action}`;
 }
 
@@ -151,7 +154,7 @@ export async function logActivity(entry: {
       actor_name: actorName || "Сотрудник",
     });
 
-    const entity = entry.client_table.startsWith("clients_") ? "clients" : entry.client_table;
+    const entity = entry.client_table.startsWith("clients_") ? "clients" : entry.client_table.startsWith("deals_") ? "deals" : entry.client_table;
     const key = notificationKey(entry.client_table, entry.action);
     const skipIds = new Set<number>();
     if (user) {

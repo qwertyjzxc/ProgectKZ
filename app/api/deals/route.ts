@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   }).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await logActivity({
-    client_table: "deals",
+    client_table: table,
     client_id: data.id,
     client_name: data.name || "",
     action: "create",
@@ -88,7 +88,7 @@ export async function DELETE(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (ids.length === 1 && existing?.[0]) {
     await logActivity({
-      client_table: "deals",
+      client_table: table,
       client_id: existing[0].id,
       client_name: existing[0].name || "",
       action: "delete",
@@ -96,7 +96,7 @@ export async function DELETE(request: NextRequest) {
     });
   } else {
     await logActivity({
-      client_table: "deals",
+      client_table: table,
       client_id: 0,
       client_name: "",
       action: "delete",

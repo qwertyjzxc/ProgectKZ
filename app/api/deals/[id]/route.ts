@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const changes = buildChanges(existing || {}, data || {}, DEAL_LABELS);
   if (changes.length > 0) {
     await logActivity({
-      client_table: "deals",
+      client_table: table,
       client_id: data.id,
       client_name: data.name || existing?.name || "",
       action: "update",
@@ -83,7 +83,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (existing) {
     await logActivity({
-      client_table: "deals",
+      client_table: table,
       client_id: existing.id,
       client_name: existing.name || "",
       action: "delete",

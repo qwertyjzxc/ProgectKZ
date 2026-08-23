@@ -447,14 +447,16 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       .catch(() => {});
   }, []);
 
+  const dealTableMap: Record<string, string> = { kvartiry: "deals_kvartiry", pomescheniya: "deals_pomescheniya", zemlya: "deals_zemlya" };
   const loadActivity = useCallback((dealId: number) => {
     setActivityLoading(true);
-    fetch("/api/activity?client_table=deals&client_id=" + dealId)
+    const table = dealTableMap[dealType || "kvartiry"] || "deals_kvartiry";
+    fetch("/api/activity?client_table=" + encodeURIComponent(table) + "&client_id=" + dealId)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setActivity(data); })
       .catch(() => {})
       .finally(() => setActivityLoading(false));
-  }, []);
+  }, [dealType]);
 
   useEffect(() => {
     if (viewDeal) loadActivity(viewDeal.id);
