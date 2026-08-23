@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Combobox from "@/components/Combobox";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Building, Ruler, Briefcase, Phone, User, Users, Building2 } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DealCategorySelector from "@/components/DealCategorySelector";
 import DealTypeSelector, { DEAL_CATEGORY_LABELS } from "@/components/DealTypeSelector";
@@ -97,7 +97,47 @@ const TYPE_LABELS: Record<string, string> = {
   zemlya: "Земля",
 };
 
+const STATUS_STAT_COLORS: Record<string, string> = {
+  "В процессе": "text-yellow-600",
+  "Завершено": "text-green-600",
+  "Отказ": "text-red-500",
+  "Заморожено": "text-blue-600",
+  "Подписание договора": "text-indigo-600",
+  "Оплата": "text-cyan-600",
+  "VIP Клиент": "text-amber-600",
+  "Перспективный": "text-emerald-600",
+  "Думает": "text-orange-600",
+  "Проблемный": "text-rose-600",
+  "Новый собственник": "text-violet-600",
+  "Оценка объекта": "text-sky-600",
+  "Заключение договора": "text-indigo-600",
+  "Упаковка + Маркетинг": "text-teal-600",
+  "Сделка": "text-green-600",
+};
+
 const COMMUNICATIONS_OPTIONS = ["Свет", "Вода", "Газ", "Интернет"];
+
+function CardSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
+    </div>
+  );
+}
+
+function DetailItem({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
+  if (!value && value !== 0) return null;
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
+      <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-gray-900">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+      </div>
+    </div>
+  );
+}
 
 function getInitials(name: string): string {
   return name.split(" ").filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -547,7 +587,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     let result = deals;
     if (searchQuery) {
       result = result.filter(d =>
-        smartMatch(d.name, searchQuery) || smartMatch(d.phone, searchQuery) || smartMatch(d.district, searchQuery) || smartMatch(d.broker, searchQuery)
+        smartMatch(d.name, searchQuery) || smartMatch(d.phone, searchQuery) || smartMatch(d.district, searchQuery) || smartMatch(d.broker, searchQuery) || smartMatch(d.address, searchQuery) || smartMatch(d.jk, searchQuery)
       );
     }
     if (filterClient) {
@@ -647,26 +687,6 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button onClick={onBack} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
-              <ArrowLeft className="w-4 h-4" />Назад
-            </button>
-          )}
-          <h1 className="text-2xl font-bold text-gray-900">Сделки</h1>
-          {category && (
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">{DEAL_CATEGORY_LABELS[category] || category}</span>
-              {dealType && <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">{TYPE_LABELS[dealType] || dealType}</span>}
-            </div>
-          )}
-        </div>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
-          <Plus className="w-4 h-4" />Новая сделка
-        </Button>
-      </div>
-
       {saveError && (
         <div className="mb-4 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
           <span>Не удалось сохранить: {saveError}</span>
@@ -674,10 +694,24 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         </div>
       )}
 
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          {onBack && (
+            <button onClick={onBack} className="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
+              <ArrowLeft className="w-4 h-4" />Назад к категориям
+            </button>
+          )}
+          <h1 className="text-2xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + (TYPE_LABELS[dealType] || dealType) : ""}</h1>
+        </div>
+        <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
+          <Plus className="w-4 h-4" />Новая сделка
+        </Button>
+      </div>
+
       {/* Search + Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по названию, клиенту..." className="pl-10 h-9 text-sm bg-white" />
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по имени, телефону, району, брокеру..." className="pl-10 h-9 text-sm bg-white" />
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
         <Button variant={showFilters || hasActiveFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{hasActiveFilters && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
@@ -793,6 +827,17 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         </div>
       )}
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Всего</p><p className="text-2xl font-bold text-gray-900 mt-0.5">{deals.length}</p></div>
+        {DEAL_STATUSES.slice(0, 3).map(s => (
+          <div key={s} className="bg-white rounded-xl border p-4">
+            <p className="text-xs text-gray-500">{s}</p>
+            <p className={"text-2xl font-bold mt-0.5 " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{deals.filter(d => d.completed === s).length}</p>
+          </div>
+        ))}
+      </div>
+
       {loading && <div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Загрузка из Supabase...</p></div>}
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchDeals(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
 
@@ -800,48 +845,48 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         <div className="bg-white rounded-xl shadow-sm border">
             <div className="overflow-y-auto max-h-[60vh]">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-100">
                 <tr>
                   {deleteMode && (
-                    <th className="px-4 py-3 w-10 sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">
+                    <th className="px-4 py-3 w-10 sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">
                       <button onClick={handleSelectAll} className="text-gray-500 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
                         {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
                       </button>
                     </th>
                   )}
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase rounded-tl-xl sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200"></th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Клиент</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
                   {isZemlya ? (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Телефон</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Участок под</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Район</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Площадь</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Телефон</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Участок под</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                     </>
                   ) : isPomescheniya ? (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Район</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Площадь</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Адрес</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Планировка</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Меблировка</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Кто арендует</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Оплата</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Планировка</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Меблировка</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Кто арендует</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Оплата</th>
                     </>
                   ) : (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Район</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Комнат</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Площадь</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Адрес</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Жилой комплекс</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
                     </>
                   )}
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Брокер</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Бюджет</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Дата</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200">Статус</th>
-                  <th className="px-4 py-3 w-12 sticky top-0 bg-gray-50 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-200 rounded-tr-xl"></th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                  <th className="px-4 py-3 w-12 sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300 rounded-tr-xl"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
@@ -865,7 +910,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     onClick={() => { if (!deleteMode) setViewDeal(d); }}
                     className={
                       (deleteMode ? "cursor-pointer " : "cursor-pointer ") +
-                      (isSelected ? "bg-red-100 hover:bg-red-200 " : deleteMode ? "hover:bg-red-100/50 " : "hover:bg-gray-50/60 ") +
+                      (isSelected ? "bg-red-100 hover:bg-red-200 " : deleteMode ? "hover:bg-red-100/50 " : "hover:bg-blue-50/40 ") +
                       "transition-colors group"
                     }
                   >
@@ -928,7 +973,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     )}
                     <td className="px-4 py-3 text-sm text-gray-600">{d.broker || "—"}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {d.amount ? d.amount >= 1000000 ? (d.amount/1000000).toFixed(1) + " M ₸" : d.amount.toLocaleString() + " ₸" : "—"}
+                      {d.amount ? d.amount.toLocaleString() + " ₸" : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.date || "—"}</td>
                     <td className="px-4 py-3">
@@ -959,9 +1004,11 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
               </tbody>
             </table>
             </div>
-          <div className="border-t bg-gray-50/50 px-4 py-2 text-xs text-gray-400 rounded-b-xl">
-            Показано: {filtered.length} из {deals.length} сделок
-            {hasActiveFilters && <button onClick={resetAllFilters} className="ml-3 text-blue-500 hover:text-blue-600">Сбросить всё</button>}
+          <div className="border-t bg-gray-50/50 px-4 py-2.5 text-xs text-gray-400 flex items-center justify-between rounded-b-xl">
+            <span>Показано: {filtered.length} из {deals.length} сделок</span>
+            {hasActiveFilters && (
+              <button onClick={resetAllFilters} className="text-blue-500 hover:text-blue-600">Сбросить всё</button>
+            )}
           </div>
         </div>
       )}
@@ -972,18 +1019,29 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       {viewDeal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={e => { if (e.target === e.currentTarget) setViewDeal(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
-              <h2 className="text-lg font-bold">Карточка сделки</h2>
-              <div className="flex items-center gap-2">
-                {viewDeal.completed !== "Завершено" && (
-                  <Button variant="outline" size="sm" className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200" onClick={() => setCompleteDealTarget(viewDeal)}>
-                    <Check className="w-4 h-4" />Закрыть сделку
+            <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-bold text-gray-900 truncate">{viewDeal.name || "Без имени"}</h2>
+                  <div className="flex items-center gap-3 mt-2">
+                    <Badge className={"text-sm px-3 py-1 " + (completedColors[viewDeal.completed || ""] || "bg-gray-100 text-gray-700")}>
+                      {viewDeal.completed || "Без статуса"}
+                    </Badge>
+                    <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{viewDeal.date}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {viewDeal.completed !== "Завершено" && (
+                    <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={() => setCompleteDealTarget(viewDeal)}>
+                      <CheckCircle2 className="w-4 h-4 mr-1" />Закрыть сделку
+                    </Button>
+                  )}
+                  <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={() => setShowTask(true)}>
+                    <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
                   </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => setShowTask(true)}>
-                  <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setViewDeal(null)}><X className="w-4 h-4" /></Button>
+                  <Button variant="outline" size="sm" onClick={() => { setViewDeal(null); setEditDeal({ ...viewDeal } as EditableDeal); }}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
+                  <Button variant="ghost" size="icon" onClick={() => setViewDeal(null)}><X className="w-4 h-4" /></Button>
+                </div>
               </div>
             </div>
             <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -1030,175 +1088,60 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   )}
                 </div>
               </div>
-              <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-lg font-bold shrink-0">
-                    {(viewDeal.name || "?")[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{viewDeal.name || "—"}</h3>
-                    <p className="text-sm text-gray-500">{viewDeal.client || "Без клиента"}</p>
-                  </div>
-                  <div className="ml-auto">
-                    {viewDeal.completed && (
-                      <span className={"inline-block px-3 py-1 rounded-full text-xs font-medium " + (completedColors[viewDeal.completed] || "bg-gray-100 text-gray-700")}>
-                        {viewDeal.completed}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Стадия</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.stage || "—"}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Сумма</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.amount ? viewDeal.amount.toLocaleString() + " ₸" : "—"}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Дата</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.date || "—"}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Брокер</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.broker || "—"}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Район</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.district || "—"}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Адрес</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.address || "—"}</p>
-                  </div>
-                  {!isZemlya && (
-                    <>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Комнаты</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.rooms || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Площадь</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.area ? viewDeal.area + " " + (viewDeal.area_unit || "м²") : "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">ЖК</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.jk || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Телефон</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.phone || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Номер договора</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.contract || "—"}</p>
-                      </div>
-                    </>
-                  )}
-                  {!isPomescheniya && !isZemlya && (
-                    <>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Меблировка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.furniture || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Срок аренды</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.rental_period || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Кто проживает</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.who_lives || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Кол-во человек</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.people_count || "—"}</p>
-                      </div>
-                    </>
-                  )}
-                  {isZemlya && (
-                    <>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Тип участка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.plot_type || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Назначение</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.purpose || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Коммуникации</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.communications || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Подъезд</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.access || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Форма участка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.plot_shape || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Рельеф</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.relief || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Документы</p>
-                        {(() => {
-                          const docs = (() => { try { const p = JSON.parse(viewDeal.documents || "[]"); return Array.isArray(p) ? p : []; } catch { return viewDeal.documents ? [{ name: viewDeal.documents, url: viewDeal.documents }] : []; } })();
-                          return docs.length ? (
-                            <div className="space-y-1 mt-1">
-                              {docs.map((d: { name: string; url: string }, i: number) => (
-                                <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
-                              ))}
-                            </div>
-                          ) : <p className="text-sm font-medium text-gray-800 mt-0.5">—</p>;
-                        })()}
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Ограничения</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.restrictions || "—"}</p>
-                      </div>
-                    </>
-                  )}
-                  {isPomescheniya && (
-                    <>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Отделка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.finishing || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Планировка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.layout || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Меблировка</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.furniture || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Тип арендатора</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.renter_type || "—"}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Оплата</p>
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.payment || "—"}</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
+              <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
+                <CardSection title="Объект">
+                  <DetailItem icon={Home} label="Тип недвижимости" value={viewDeal.type || TYPE_LABELS[dealType || ""]} />
+                  <DetailItem icon={MapPin} label="Район" value={viewDeal.district} />
+                  <DetailItem icon={MapPin} label="Адрес" value={viewDeal.address} />
+                  {!isZemlya && <DetailItem icon={Building2} label="Жилой комплекс" value={viewDeal.jk} />}
+                  {!isZemlya && <DetailItem icon={Home} label="Кол-во комнат" value={viewDeal.rooms} />}
+                  <DetailItem icon={Ruler} label="Площадь" value={viewDeal.area ? viewDeal.area + " " + (viewDeal.area_unit || "м²") : null} />
+                  {isZemlya && <DetailItem icon={Home} label="Тип участка" value={viewDeal.plot_type} />}
+                  {isZemlya && <DetailItem icon={Home} label="Назначение" value={viewDeal.purpose} />}
+                  {isZemlya && <DetailItem icon={Home} label="Форма участка" value={viewDeal.plot_shape} />}
+                  {isZemlya && <DetailItem icon={Home} label="Рельеф" value={viewDeal.relief} />}
+                  {isZemlya && <DetailItem icon={Home} label="Подъездные пути" value={viewDeal.access} />}
+                  {isZemlya && <DetailItem icon={Home} label="Коммуникации" value={viewDeal.communications} />}
+                  {isZemlya && <DetailItem icon={Home} label="Ограничения" value={viewDeal.restrictions} />}
+                  {isPomescheniya && <DetailItem icon={Home} label="Отделка" value={viewDeal.finishing} />}
+                  {isPomescheniya && <DetailItem icon={Home} label="Планировка" value={viewDeal.layout} />}
+                  {isPomescheniya && <DetailItem icon={Home} label="Тип арендатора" value={viewDeal.renter_type} />}
+                  {isPomescheniya && <DetailItem icon={Home} label="Способ оплаты" value={viewDeal.payment} />}
+                  {!isPomescheniya && !isZemlya && <DetailItem icon={Briefcase} label="Меблировка" value={viewDeal.furniture} />}
+                  {!isPomescheniya && !isZemlya && <DetailItem icon={CalendarDays} label="Срок аренды" value={viewDeal.rental_period} />}
+                </CardSection>
+                <CardSection title="Договор и бюджет">
+                  <DetailItem icon={FileText} label="Номер договора" value={viewDeal.contract} />
+                  <DetailItem icon={Banknote} label="Бюджет" value={viewDeal.amount ? viewDeal.amount.toLocaleString() + " ₸" : null} />
+                  <DetailItem icon={Home} label="Стадия" value={viewDeal.stage} />
+                  {isPomescheniya && <DetailItem icon={Briefcase} label="Меблировка" value={viewDeal.furniture} />}
+                </CardSection>
+                <CardSection title="Контакт">
+                  <DetailItem icon={Phone} label="Телефон" value={viewDeal.phone} />
+                  <DetailItem icon={User} label="Кто будет проживать" value={viewDeal.who_lives} />
+                  <DetailItem icon={Users} label="Кол-во человек" value={viewDeal.people_count} />
+                  <DetailItem icon={User} label="Брокер" value={viewDeal.broker} />
+                </CardSection>
                 {viewDeal.notes && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide">Заметки</p>
-                    <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{viewDeal.notes}</p>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{viewDeal.notes}</p>
                   </div>
                 )}
+                {(() => {
+                  const docs = (() => { try { const p = JSON.parse(viewDeal.documents || "[]"); return Array.isArray(p) ? p : []; } catch { return viewDeal.documents ? [{ name: viewDeal.documents, url: viewDeal.documents }] : []; } })();
+                  return docs.length ? (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Документы</p>
+                      <div className="space-y-1">
+                        {docs.map((d: { name: string; url: string }, i: number) => (
+                          <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
               </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t shrink-0">
-              <Button variant="outline" size="sm" onClick={() => { setViewDeal(null); setEditDeal({ ...viewDeal } as EditableDeal); }}>Редактировать</Button>
-              <Button variant="ghost" size="sm" onClick={() => setViewDeal(null)}>Закрыть</Button>
             </div>
           </div>
         </div>
