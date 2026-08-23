@@ -50,6 +50,7 @@ interface Deal {
   relief?: string;
   documents?: string;
   restrictions?: string;
+  finishing?: string;
   created_at: string;
 }
 
@@ -1034,6 +1035,26 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                         <p className="text-[11px] text-gray-400 uppercase tracking-wide">Телефон</p>
                         <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.phone || "—"}</p>
                       </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Номер договора</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.contract || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Меблировка</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.furniture || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Срок аренды</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.rental_period || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Кто проживает</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.who_lives || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Кол-во человек</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.people_count || "—"}</p>
+                      </div>
                     </>
                   )}
                   {isZemlya && (
@@ -1084,8 +1105,16 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   {isPomescheniya && (
                     <>
                       <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Отделка</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.finishing || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-[11px] text-gray-400 uppercase tracking-wide">Планировка</p>
                         <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.layout || "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">Меблировка</p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">{viewDeal.furniture || "—"}</p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-[11px] text-gray-400 uppercase tracking-wide">Тип арендатора</p>
