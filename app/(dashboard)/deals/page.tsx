@@ -980,7 +980,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                         {d.completed || "—"}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                       {!deleteMode && (
                         <DropdownMenu>
                           <DropdownMenuTrigger onPointerDown={e => e.stopPropagation()} className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">
