@@ -114,7 +114,6 @@ function CardSection({ title, children }: { title: string; children: React.React
 }
 
 function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign, onComplete }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void; onComplete: () => void }) {
-  const [showActivity, setShowActivity] = useState(false);
   const [activity, setActivity] = useState<import("@/lib/activity").ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<import("@/lib/activity").ActivityEntry | null>(null);
@@ -129,11 +128,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
       .finally(() => setActivityLoading(false));
   }, [clientTable, client.id]);
 
-  const toggleActivity = () => {
-    const next = !showActivity;
-    setShowActivity(next);
-    if (next) loadActivity();
-  };
+  useEffect(() => { loadActivity(); }, [loadActivity]);
 
   const handleDeleteActivity = async () => {
     if (!deleteTarget) return;
@@ -149,8 +144,8 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-5 border-b sticky top-0 bg-white rounded-t-2xl z-10">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="text-xl font-bold text-gray-900 truncate">{client.name || "Без имени"}</h2>
@@ -168,86 +163,85 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
               <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={onAssign}>
                 <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
               </Button>
-              <Button variant="outline" size="sm" onClick={toggleActivity}>
-                <History className="w-4 h-4 mr-1" />Журнал
-              </Button>
               <Button variant="outline" size="sm" onClick={onEdit}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
               <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
             </div>
           </div>
         </div>
-        <div className="p-6 space-y-6">
-          <CardSection title="Объект">
-            <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
-            <DetailItem icon={MapPin} label="Район" value={client.district} />
-            <DetailItem icon={MapPin} label="Адрес" value={client.address} />
-            <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
-            <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
-            <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + " м²" : null} />
-          </CardSection>
-          <CardSection title="Договор и бюджет">
-            <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
-            <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? client.amount.toLocaleString() + " ₸" : null} />
-            <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
-            <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
-          </CardSection>
-          <CardSection title="Контакт">
-            <DetailItem icon={Phone} label="Телефон" value={client.phone} />
-            <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
-            <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
-            <DetailItem icon={User} label="Брокер" value={client.broker} />
-          </CardSection>
-          {client.notes && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
+            <CardSection title="Объект">
+              <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
+              <DetailItem icon={MapPin} label="Район" value={client.district} />
+              <DetailItem icon={MapPin} label="Адрес" value={client.address} />
+              <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
+              <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
+              <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + " м²" : null} />
+            </CardSection>
+            <CardSection title="Договор и бюджет">
+              <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
+              <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? client.amount.toLocaleString() + " ₸" : null} />
+              <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
+              <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
+            </CardSection>
+            <CardSection title="Контакт">
+              <DetailItem icon={Phone} label="Телефон" value={client.phone} />
+              <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
+              <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
+              <DetailItem icon={User} label="Брокер" value={client.broker} />
+            </CardSection>
+            {client.notes && (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
+              </div>
+            )}
+          </div>
+          <div className="w-[320px] shrink-0 border-l bg-gray-50/80 flex flex-col">
+            <div className="px-4 py-3 border-b shrink-0">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><History className="w-3.5 h-3.5" />Журнал действий</h3>
             </div>
-          )}
-          {showActivity && (
-            <div className="border-t pt-5">
-              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Журнал действий</h3>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
               {activityLoading ? (
                 <div className="text-sm text-gray-400 flex items-center gap-2 py-2"><Loader2 className="w-4 h-4 animate-spin" />Загрузка...</div>
               ) : activity.length === 0 ? (
-                <p className="text-sm text-gray-400 py-2">Действий по клиенту пока нет</p>
+                <p className="text-sm text-gray-400 py-2">Действий пока нет</p>
               ) : (
-                <div className="space-y-3">
-                  {activity.map(a => (
-                    <div key={a.id} className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{getInitials(a.actor_name)}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-800">
-                          <span className="font-medium">{a.actor_name || "Сотрудник"}</span> {a.message}
-                          {isAdmin && (
-                            <button
-                              onClick={() => setDeleteTarget(a)}
-                              title="Удалить из журнала"
-                              className="ml-1.5 p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </p>
-                        {a.changes && a.changes.length > 0 && (
-                          <div className="mt-1.5 space-y-1 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-                            {a.changes.map(ch => (
-                              <p key={ch.field} className="text-xs text-gray-600 flex flex-wrap items-baseline gap-x-1.5">
-                                <span className="text-gray-400">{ch.label}:</span>
-                                <span className="text-gray-400 line-through">{ch.oldValue}</span>
-                                <span className="text-gray-500">→</span>
-                                <span className="font-medium text-gray-900">{ch.newValue}</span>
-                              </p>
-                            ))}
-                          </div>
+                activity.map(a => (
+                  <div key={a.id} className="flex items-start gap-2.5 group">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">{getInitials(a.actor_name)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-800 leading-relaxed">
+                        <span className="font-medium">{a.actor_name || "Сотрудник"}</span>{" "}{a.message}
+                        {isAdmin && (
+                          <button
+                            onClick={() => setDeleteTarget(a)}
+                            title="Удалить"
+                            className="ml-1 p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         )}
-                        <p className="text-xs text-gray-400">{formatDateTime(a.created_at)}</p>
-                      </div>
+                      </p>
+                      {a.changes && a.changes.length > 0 && (
+                        <div className="mt-1 space-y-0.5 rounded bg-white border border-gray-100 px-2 py-1.5">
+                          {a.changes.map(ch => (
+                            <p key={ch.field} className="text-[11px] text-gray-500 flex flex-wrap items-baseline gap-x-1">
+                              <span className="text-gray-400">{ch.label}:</span>
+                              <span className="text-gray-400 line-through">{ch.oldValue}</span>
+                              <span>→</span>
+                              <span className="font-medium text-gray-700">{ch.newValue}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-gray-400 mt-0.5">{formatDateTime(a.created_at)}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
