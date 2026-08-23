@@ -127,13 +127,12 @@ function CardSection({ title, children }: { title: string; children: React.React
 }
 
 function DetailItem({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
-  if (!value && value !== 0) return null;
   return (
     <div className="flex items-start gap-3">
       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+        <p className="text-sm font-medium text-gray-900">{(value || value === 0) ? (typeof value === 'number' ? value.toLocaleString() : value) : "—"}</p>
       </div>
     </div>
   );
