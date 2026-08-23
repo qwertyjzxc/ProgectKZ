@@ -12,7 +12,12 @@ export async function GET(request: NextRequest) {
     let query = supabase.from("client_activity").select("*");
 
     if (clientTable && clientId) {
-      query = query.eq("client_table", clientTable).eq("client_id", Number(clientId));
+      const numericId = Number(clientId);
+      if (clientTable.startsWith("deals_")) {
+        query = query.or(`client_table.eq.${clientTable},client_table.eq.deals`).eq("client_id", numericId);
+      } else {
+        query = query.eq("client_table", clientTable).eq("client_id", numericId);
+      }
     }
 
     const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
