@@ -289,7 +289,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: E
                 </div>
               )}
             </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Дата и время</label><Input value={date} readOnly className="text-sm bg-gray-50 cursor-not-allowed" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Дата и время создания</label><Input value={date} readOnly className="text-sm bg-gray-50 cursor-not-allowed" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Район</label><Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="ул., дом, кв." className="text-sm" /></div>
             {!isPomescheniya && !isZemlya && <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите ЖК" /></div>}
@@ -807,7 +807,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Дата</label>
+              <label className="text-xs text-gray-500 mb-1 block">Дата создания</label>
               <div className="flex items-center gap-2">
                 <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-9 w-full text-sm" />
                 <span className="text-xs text-gray-400">—</span>
@@ -883,7 +883,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата создания</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
                   <th className="px-4 py-3 w-12 sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300 rounded-tr-xl"></th>
                 </tr>

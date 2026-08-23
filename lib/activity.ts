@@ -49,7 +49,7 @@ const FIELD_LABELS: Record<string, string> = {
   notes: "Заметки",
   completed: "Статус",
   broker: "Брокер",
-  date: "Дата",
+  date: "Дата создания",
 };
 
 export const DEAL_LABELS: Record<string, string> = {
@@ -57,7 +57,7 @@ export const DEAL_LABELS: Record<string, string> = {
   client: "Клиент",
   amount: "Сумма",
   stage: "Этап",
-  date: "Дата",
+  date: "Дата создания",
   category: "Категория",
 };
 

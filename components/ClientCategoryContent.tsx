@@ -361,7 +361,7 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
               <label className="text-xs text-gray-500 mb-1 block">Тип недвижимости</label>
               <Select label="Не указано" value={type} onChange={setType} options={["Дома", "Помещения", "Квартира"]} />
             </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Дата</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Дата создания</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Имя</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Фамилия Имя" className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} /></div>
             <div>
@@ -785,7 +785,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Дата</label>
+              <label className="text-xs text-gray-500 mb-1 block">Дата создания</label>
               <div className="flex items-center gap-2">
                 <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-9 w-full text-sm" />
                 <span className="text-xs text-gray-400">—</span>
@@ -859,7 +859,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата создания</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
                 <th className="px-2 py-3 rounded-tr-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">
                   {deleteMode && (
