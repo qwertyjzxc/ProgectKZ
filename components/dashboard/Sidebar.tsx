@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside className={"fixed left-0 top-0 h-screen bg-white border-r flex flex-col z-30 transition-[width] duration-200 " + (collapsed ? "w-16" : "w-64")}>
       {/* Logo */}
-      <div className={"h-16 flex items-center border-b bg-blue-600 text-white " + (collapsed ? "justify-center px-0" : "px-6")}>
+      <div className={"h-16 flex items-center border-b bg-blue-600 text-white " + (collapsed ? "justify-center px-0" : "px-4")}>
         <LayoutDashboard className={"shrink-0 " + (collapsed ? "w-5 h-5" : "w-5 h-5 mr-3")} />
         {!collapsed && <span className="font-semibold text-base tracking-tight">kzproject</span>}
         {!collapsed && unreadCount > 0 && (
@@ -81,6 +81,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Развернуть" : "Свернуть"}
+          className={"ml-auto w-9 h-9 flex items-center justify-center rounded-lg text-white bg-blue-700/60 hover:bg-blue-800 transition-colors " + (collapsed ? "mx-auto" : "")}
+        >
+          {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -248,15 +255,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className={"border-t flex items-center " + (collapsed ? "p-2 justify-center" : "p-4 justify-between")}>
+      <div className={"border-t flex items-center " + (collapsed ? "p-2 justify-center" : "p-4")}>
         <span className="text-xs text-gray-400">{collapsed ? "" : "© 2025 kzproject"}</span>
-        <button
-          onClick={onToggle}
-          title={collapsed ? "Развернуть" : "Свернуть"}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors"
-        >
-          {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-        </button>
       </div>
     </aside>
   );
