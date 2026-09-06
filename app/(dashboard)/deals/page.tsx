@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Combobox from "@/components/Combobox";
+import DatePicker from "@/components/DatePicker";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Building, Ruler, Briefcase, Phone, User, Users, Building2, Eye } from "lucide-react";
@@ -595,7 +596,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     if (filterDistrict) {
       result = result.filter(d => smartMatch(d.district, filterDistrict));
     }
-    if (filterRooms) result = result.filter(d => d.rooms === filterRooms);
+    if (filterRooms) result = result.filter(d => (d.rooms || "").trim().startsWith(filterRooms));
     if (filterAreaMin) result = result.filter(d => Number(d.area) >= Number(filterAreaMin));
     if (filterAreaMax) result = result.filter(d => Number(d.area) <= Number(filterAreaMax));
     if (filterAddress) {
@@ -788,7 +789,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Комнат</label>
-              <Input value={filterRooms} onChange={e => setFilterRooms(e.target.value)} placeholder="Кол-во" className="h-9 text-sm bg-white" />
+              <Combobox value={filterRooms} onChange={setFilterRooms} options={["1", "2", "3", "4", "5"]} placeholder="Любые" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label>
@@ -809,9 +810,9 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Дата создания</label>
               <div className="flex items-center gap-2">
-                <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-9 w-full text-sm" />
+                <DatePicker value={filterDateFrom} onChange={setFilterDateFrom} placeholder="От" />
                 <span className="text-xs text-gray-400">—</span>
-                <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="h-9 w-full text-sm" />
+                <DatePicker value={filterDateTo} onChange={setFilterDateTo} placeholder="До" />
               </div>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { RENT_CATEGORY_LABELS, type RentCategory } from "@/components/RentCatego
 import AssignTaskModal from "@/components/AssignTaskModal";
 import CompleteDealModal from "@/components/CompleteDealModal";
 import Combobox from "@/components/Combobox";
+import DatePicker from "@/components/DatePicker";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PhoneInput, { maskKzPhone } from "@/components/PhoneInput";
@@ -507,7 +508,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   // Collect unique values for dropdowns
   const uniqueDistricts = useMemo(() => [...new Set(clients.map(c => c.district).filter(Boolean))].sort(), [clients]);
-  const uniqueRooms = useMemo(() => [...new Set(clients.map(c => c.rooms).filter(Boolean))].sort(), [clients]);
+  const roomsFilterOptions = ["1", "2", "3", "4", "5"];
   const uniqueJk = useMemo(() => [...new Set(clients.map(c => c.jk).filter(Boolean))].sort(), [clients]);
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
 
@@ -562,7 +563,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     if (filterCompleted) result = result.filter(c => c.completed === filterCompleted);
     if (filterDistrict) result = result.filter(c => c.district === filterDistrict);
     if (filterBroker) result = result.filter(c => c.broker === filterBroker);
-    if (filterRooms) result = result.filter(c => c.rooms === filterRooms);
+    if (filterRooms) result = result.filter(c => (c.rooms || "").trim().startsWith(filterRooms));
     if (filterJk) result = result.filter(c => c.jk === filterJk);
     if (filterAddress) {
       result = result.filter(c => smartMatch(c.address, filterAddress));
@@ -754,7 +755,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Комнат</label>
-              <Combobox value={filterRooms} onChange={setFilterRooms} options={uniqueRooms} placeholder="Любые" />
+              <Combobox value={filterRooms} onChange={setFilterRooms} options={roomsFilterOptions} placeholder="Любые" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label>
@@ -787,9 +788,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Дата создания</label>
               <div className="flex items-center gap-2">
-                <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-9 w-full text-sm" />
+                <DatePicker value={filterDateFrom} onChange={setFilterDateFrom} placeholder="От" />
                 <span className="text-xs text-gray-400">—</span>
-                <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="h-9 w-full text-sm" />
+                <DatePicker value={filterDateTo} onChange={setFilterDateTo} placeholder="До" />
               </div>
             </div>
           </div>
