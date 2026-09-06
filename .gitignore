@@ -29,6 +29,16 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+
+# local dev artifacts (not for prod)
+/data/
+clear-all.sql
+setup-crm-supabase.js
+build-profiles-system.js
+create-login-form.ps1
+import-csv.js
+path/
 
 # env files (can opt-in for committing if needed)
 .env*

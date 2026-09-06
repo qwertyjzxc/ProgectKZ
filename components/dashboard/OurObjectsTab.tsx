@@ -50,7 +50,8 @@ export default function OurObjectsTab() {
     return () => window.removeEventListener("pointerup", up);
   }, []);
 
-  const load = async () => {setLoading(true);const r=await window.fetch("/api/properties");const d=await r.json();if(Array.isArray(d))setProps(d);setLoading(false);};
+  const load = async () => {const r=await window.fetch("/api/properties");const d=await r.json();if(Array.isArray(d))setProps(d);setLoading(false);};
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
   useEffect(()=>{load();},[]);
 
   const del=async(id:string)=>{if(!confirm("Удалить?"))return;await window.fetch("/api/properties/"+id,{method:"DELETE"});setProps(p=>p.filter(x=>x.id!==id));};

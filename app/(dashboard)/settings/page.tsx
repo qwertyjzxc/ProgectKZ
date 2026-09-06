@@ -54,7 +54,6 @@ function ReferenceBooks() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
     const [dRes, cRes] = await Promise.all([
       fetch("/api/districts"),
       fetch("/api/residential-complexes"),
@@ -64,6 +63,7 @@ function ReferenceBooks() {
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; setState происходит после await
   useEffect(() => { load(); }, [load]);
 
   const addDistrict = async () => {

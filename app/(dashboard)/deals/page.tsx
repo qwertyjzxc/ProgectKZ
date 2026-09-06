@@ -9,7 +9,7 @@ import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Building, Ruler, Briefcase, Phone, User, Users, Building2, Eye } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Banknote, CalendarDays, Square, CheckSquare, ArrowLeft, History, ListTodo, Upload, FileText, CheckCircle2, Home, MapPin, Ruler, Briefcase, Phone, User, Users, Building2, Eye } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DealCategorySelector from "@/components/DealCategorySelector";
 import DealTypeSelector, { DEAL_CATEGORY_LABELS } from "@/components/DealTypeSelector";
@@ -53,19 +53,18 @@ interface Deal {
   documents?: string;
   restrictions?: string;
   finishing?: string;
+  premise_type?: string;
+  dealType?: string;
   created_at: string;
 }
 
-type EditableDeal = Pick<Deal, 'id' | 'name' | 'client' | 'amount' | 'stage' | 'date' | 'type' | 'category'>;
-type DealFormData = Pick<Deal, 'name' | 'client' | 'amount' | 'stage' | 'date' | 'type' | 'category'>;
-
-const stageColors: Record<string, string> = {
-  "Сделка закрыта": "bg-green-100 text-green-800",
-  "Переговоры": "bg-blue-100 text-blue-800",
-  "Показ": "bg-yellow-100 text-yellow-800",
-  "Ожидание": "bg-gray-100 text-gray-700",
-  "Первичный контакт": "bg-purple-100 text-purple-800",
+type DealFormValues = Partial<Deal> & {
+  dealType?: string;
+  client?: string;
+  premise_type?: string;
 };
+
+const DEAL_TABLE_MAP: Record<string, string> = { kvartiry: "deals_kvartiry", pomescheniya: "deals_pomescheniya", zemlya: "deals_zemlya" };
 
 const DEAL_STATUSES = [
   "В процессе", "Завершено", "Отказ",
@@ -127,7 +126,7 @@ function CardSection({ title, children }: { title: string; children: React.React
   );
 }
 
-function DetailItem({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
+function DetailItem({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
@@ -170,52 +169,52 @@ function smartMatch(field: string | undefined | null, query: string): boolean {
   return words.every(word => cleanField.includes(word));
 }
 
-function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: EditableDeal; onClose: () => void; onSave: (d: any) => void; dealType?: string; category?: string }) {
-  const [type, setType] = useState((deal as any)?.type || "Квартира");
-  const [area, setArea] = useState((deal as any)?.area || "");
-  const [areaUnit, setAreaUnit] = useState((deal as any)?.area_unit || "сот");
-  const [address, setAddress] = useState((deal as any)?.address || "");
-  const [jk, setJk] = useState((deal as any)?.jk || "");
-  const [contract, setContract] = useState((deal as any)?.contract || "");
-  const [date, setDate] = useState(deal?.date || new Date().toLocaleString("ru-RU").replace(",", "").slice(0, 16));
+function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: Deal; onClose: () => void; onSave: (d: DealFormValues) => void; dealType?: string; category?: string }) {
+  const [type, setType] = useState(deal?.type || "Квартира");
+  const [area, setArea] = useState(deal?.area || "");
+  const [areaUnit, setAreaUnit] = useState(deal?.area_unit || "сот");
+  const [address, setAddress] = useState(deal?.address || "");
+  const [jk, setJk] = useState(deal?.jk || "");
+  const [contract, setContract] = useState(deal?.contract || "");
+  const [date] = useState(deal?.date || new Date().toLocaleString("ru-RU").replace(",", "").slice(0, 16));
   const [name, setName] = useState(deal?.name || "");
-  const [phone, setPhone] = useState((deal as any)?.phone || "");
-  const [district, setDistrict] = useState((deal as any)?.district || "");
+  const [phone, setPhone] = useState(deal?.phone || "");
+  const [district, setDistrict] = useState(deal?.district || "");
   const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
   const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
-  const [rooms, setRooms] = useState((deal as any)?.rooms || "");
+  const [rooms, setRooms] = useState(deal?.rooms || "");
   const [amount, setAmount] = useState(deal?.amount ? String(deal.amount) : "");
-  const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
-  const [rentalPeriod, setRentalPeriod] = useState((deal as any)?.rental_period || "");
-  const [whoLives, setWhoLives] = useState((deal as any)?.who_lives || "");
-  const [peopleCount, setPeopleCount] = useState((deal as any)?.people_count ? String((deal as any).people_count) : "1");
-  const [notes, setNotes] = useState((deal as any)?.notes || "");
-  const [completed, setCompleted] = useState((deal as any)?.completed || "В процессе");
-  const [broker, setBroker] = useState((deal as any)?.broker || "");
-  const [layout, setLayout] = useState((deal as any)?.layout || "");
-  const [renterType, setRenterType] = useState((deal as any)?.renter_type || "");
-  const [payment, setPayment] = useState((deal as any)?.payment || "");
-  const [finishing, setFinishing] = useState((deal as any)?.finishing || "");
-  const [premiseType, setPremiseType] = useState((deal as any)?.premise_type || "Отдельно стоящее здание");
-  const [plotType, setPlotType] = useState((deal as any)?.plot_type || "");
-  const [purpose, setPurpose] = useState((deal as any)?.purpose || "");
+  const [furniture, setFurniture] = useState(deal?.furniture || "");
+  const [rentalPeriod, setRentalPeriod] = useState(deal?.rental_period || "");
+  const [whoLives, setWhoLives] = useState(deal?.who_lives || "");
+  const [peopleCount, setPeopleCount] = useState(deal?.people_count ? String(deal.people_count) : "1");
+  const [notes, setNotes] = useState(deal?.notes || "");
+  const [completed, setCompleted] = useState(deal?.completed || "В процессе");
+  const [broker, setBroker] = useState(deal?.broker || "");
+  const [layout, setLayout] = useState(deal?.layout || "");
+  const [renterType, setRenterType] = useState(deal?.renter_type || "");
+  const [payment, setPayment] = useState(deal?.payment || "");
+  const [finishing, setFinishing] = useState(deal?.finishing || "");
+  const [premiseType, setPremiseType] = useState(deal?.premise_type || "Отдельно стоящее здание");
+  const [plotType, setPlotType] = useState(deal?.plot_type || "");
+  const [purpose, setPurpose] = useState(deal?.purpose || "");
   const [communications, setCommunications] = useState<string[]>(() => {
-    const raw = (deal as any)?.communications;
+    const raw = deal?.communications;
     return raw ? String(raw).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
   });
-  const [access, setAccess] = useState((deal as any)?.access || "");
-  const [plotShape, setPlotShape] = useState((deal as any)?.plot_shape || "");
-  const [relief, setRelief] = useState((deal as any)?.relief || "");
+  const [access, setAccess] = useState(deal?.access || "");
+  const [plotShape, setPlotShape] = useState(deal?.plot_shape || "");
+  const [relief, setRelief] = useState(deal?.relief || "");
   const [documents, setDocuments] = useState<{ name: string; url: string }[]>(() => {
-    const raw = (deal as any)?.documents;
+    const raw = deal?.documents;
     if (!raw) return [];
     try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return raw ? [{ name: raw, url: raw }] : []; }
   });
   const [docUploading, setDocUploading] = useState(false);
-  const [restrictions, setRestrictions] = useState((deal as any)?.restrictions || "");
-  const dealCategory = (deal as any)?.category || category || "arenda";
-  const isPomescheniya = (dealType || (deal as any)?.dealType) === "pomescheniya";
-  const isZemlya = (dealType || (deal as any)?.dealType) === "zemlya";
+  const [restrictions, setRestrictions] = useState(deal?.restrictions || "");
+  const dealCategory = deal?.category || category || "arenda";
+  const isPomescheniya = (dealType || deal?.dealType) === "pomescheniya";
+  const isZemlya = (dealType || deal?.dealType) === "zemlya";
 
   const toggleCommunications = (opt: string) => {
     setCommunications(prev => (prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt]));
@@ -326,7 +325,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: E
                   <div className="flex flex-wrap gap-2">
                     {COMMUNICATIONS_OPTIONS.map(opt => {
                       const checked = communications.includes(opt);
-                      return (
+  return (
                         <label key={opt} className={"flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm cursor-pointer select-none transition-colors " + (checked ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300")}>
                           <input type="checkbox" checked={checked} onChange={() => toggleCommunications(opt)} className="accent-blue-600 w-4 h-4" />
                           {opt}
@@ -437,7 +436,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [editDeal, setEditDeal] = useState<EditableDeal | null>(null);
+  const [editDeal, setEditDeal] = useState<Deal | null>(null);
   const [viewDeal, setViewDeal] = useState<Deal | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -489,10 +488,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       .catch(() => {});
   }, []);
 
-  const dealTableMap: Record<string, string> = { kvartiry: "deals_kvartiry", pomescheniya: "deals_pomescheniya", zemlya: "deals_zemlya" };
   const loadActivity = useCallback((dealId: number) => {
-    setActivityLoading(true);
-    const table = dealTableMap[dealType || "kvartiry"] || "deals_kvartiry";
+    const table = DEAL_TABLE_MAP[dealType || "kvartiry"] || "deals_kvartiry";
     fetch("/api/activity?client_table=" + encodeURIComponent(table) + "&client_id=" + dealId)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setActivity(data); })
@@ -626,7 +623,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     return result;
   }, [deals, searchQuery, filterClient, filterDistrict, filterRooms, filterAreaMin, filterAreaMax, filterAddress, filterJk, filterBroker, filterAmountMin, filterAmountMax, filterStage, filterDateFrom, filterDateTo]);
 
-  const handleAdd = async (data: DealFormData) => {
+  const handleAdd = async (data: DealFormValues) => {
     setSaveError(null);
     const res = await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (res.ok) {
@@ -639,7 +636,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     }
   };
 
-  const handleEdit = async (data: DealFormData) => {
+  const handleEdit = async (data: DealFormValues) => {
     if (!editDeal) return;
     setSaveError(null);
     const res = await fetch("/api/deals/" + editDeal.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, type: dealType, category: category }) });
@@ -682,8 +679,6 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       setConfirmDelete(false);
     }
   };
-
-  const closedDeals = deals.filter(d => d.completed === "Завершено");
 
   return (
     <div>
@@ -914,7 +909,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     onContextMenu={e => handleRowContextMenu(e, d.id)}
                     onPointerDown={e => handleRowPointerDown(e, d.id)}
                     onPointerEnter={() => handleRowPointerEnter(d.id)}
-                    onClick={() => { if (!deleteMode) setViewDeal(d); }}
+                    onClick={() => { if (!deleteMode) { setActivityLoading(true); setViewDeal(d); } }}
                     className={
                       (deleteMode ? "cursor-pointer " : "cursor-pointer ") +
                       (isSelected ? "bg-red-100 hover:bg-red-200 " : deleteMode ? "hover:bg-red-100/50 " : "hover:bg-blue-50/40 ") +
@@ -995,13 +990,13 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                             <MoreHorizontal className="w-4 h-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onClick={() => setViewDeal(d)}>
+                            <DropdownMenuItem onClick={() => { setActivityLoading(true); setViewDeal(d); }}>
                               <Eye className="w-4 h-4 mr-2" />Просмотр
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setViewDeal(d); setShowTask(true); }}>
+                            <DropdownMenuItem onClick={() => { setActivityLoading(true); setViewDeal(d); setShowTask(true); }}>
                               <ListTodo className="w-4 h-4 mr-2" />Назначить задачу
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setEditDeal({ ...d } as EditableDeal)}>
+                            <DropdownMenuItem onClick={() => setEditDeal({ ...d })}>
                               <Edit3 className="w-4 h-4 mr-2" />Редактировать
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDelete(d.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
@@ -1052,7 +1047,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={() => setShowTask(true)}>
                     <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => { setViewDeal(null); setEditDeal({ ...viewDeal } as EditableDeal); }}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setViewDeal(null); setEditDeal({ ...viewDeal }); }}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
                   <Button variant="ghost" size="icon" onClick={() => setViewDeal(null)}><X className="w-4 h-4" /></Button>
                 </div>
               </div>

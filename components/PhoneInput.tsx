@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 
 export function maskKzPhone(raw: string): string {
@@ -29,10 +29,12 @@ export default function PhoneInput({ value, onChange, className }: PhoneInputPro
   const prevExt = useRef(value);
 
   // Синхронизация при внешнем изменении value (например, при смене клиента для редактирования)
-  if (value !== prevExt.current) {
-    prevExt.current = value;
-    if (value !== display) setDisplay(value);
-  }
+  useEffect(() => {
+    if (value !== prevExt.current) {
+      prevExt.current = value;
+      setDisplay(value);
+    }
+  }, [value]);
 
   return (
     <Input

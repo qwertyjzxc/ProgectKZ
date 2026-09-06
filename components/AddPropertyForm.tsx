@@ -4,7 +4,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImagePlus, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
-export default function AddPropertyForm({ property, onSuccess }: { property?: any; onSuccess?: () => void }) {
+export interface Property {
+  id: string;
+  title?: string;
+  price?: number;
+  rooms?: number | null;
+  address?: string;
+  city?: string;
+  building_type?: string;
+  complex_name?: string;
+  year_built?: number | null;
+  area?: number | null;
+  bathroom?: string;
+  ceiling_height?: number | null;
+  description?: string;
+  status?: string;
+  image_url?: string;
+  image_urls?: string[];
+}
+
+export default function AddPropertyForm({ property, onSuccess }: { property?: Property; onSuccess?: () => void }) {
   const isEdit = !!property;
   const [title, setTitle] = useState(property?.title || "");
   const [price, setPrice] = useState(property?.price ? String(property.price) : "");

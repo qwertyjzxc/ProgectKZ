@@ -2,12 +2,30 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import PropertyGallery from "@/components/PropertyGallery";
 
+interface PublicProperty {
+  title: string;
+  price: number;
+  rooms: number | null;
+  address: string;
+  description: string;
+  image_url?: string;
+  image_urls?: string[];
+  city?: string;
+  building_type?: string;
+  complex_name?: string;
+  year_built?: number;
+  area?: number;
+  bathroom?: string;
+  ceiling_height?: number;
+}
+
 export default async function PublicPropertyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: p } = await supabase.from("properties").select("*").eq("id", id).single();
-  if (!p) notFound();
-  const images: string[] = (p.image_urls as string[])?.length ? (p.image_urls as string[]) : p.image_url ? [p.image_url] : [];
+  const { data: raw } = await supabase.from("properties").select("*").eq("id", id).single();
+  if (!raw) notFound();
+  const p = raw as unknown as PublicProperty;
+  const images: string[] = p.image_urls?.length ? p.image_urls : p.image_url ? [p.image_url] : [];
 
   return (
     <div className="min-h-screen bg-white">
@@ -19,13 +37,13 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
           <div className="space-y-2 text-base text-gray-700">
             {p.rooms != null && <p><span className="text-gray-400 w-36 inline-block">Кол-во комнат:</span> {p.rooms}</p>}
             {p.address && <p><span className="text-gray-400 w-36 inline-block">Адрес:</span> {p.address}</p>}
-            {(p as any).city && <p><span className="text-gray-400 w-36 inline-block">Город:</span> {(p as any).city}</p>}
-            {(p as any).building_type && <p><span className="text-gray-400 w-36 inline-block">Тип дома:</span> {(p as any).building_type}</p>}
-            {(p as any).complex_name && <p><span className="text-gray-400 w-36 inline-block">Жилой комплекс:</span> {(p as any).complex_name}</p>}
-            {(p as any).year_built && <p><span className="text-gray-400 w-36 inline-block">Год постройки:</span> {(p as any).year_built}</p>}
-            {(p as any).area && <p><span className="text-gray-400 w-36 inline-block">Площадь:</span> {(p as any).area} м²</p>}
-            {(p as any).bathroom && <p><span className="text-gray-400 w-36 inline-block">Санузел:</span> {(p as any).bathroom}</p>}
-            {(p as any).ceiling_height && <p><span className="text-gray-400 w-36 inline-block">Потолки:</span> {(p as any).ceiling_height} м</p>}
+            {p.city && <p><span className="text-gray-400 w-36 inline-block">Город:</span> {p.city}</p>}
+            {p.building_type && <p><span className="text-gray-400 w-36 inline-block">Тип дома:</span> {p.building_type}</p>}
+            {p.complex_name && <p><span className="text-gray-400 w-36 inline-block">Жилой комплекс:</span> {p.complex_name}</p>}
+            {p.year_built && <p><span className="text-gray-400 w-36 inline-block">Год постройки:</span> {p.year_built}</p>}
+            {p.area && <p><span className="text-gray-400 w-36 inline-block">Площадь:</span> {p.area} м²</p>}
+            {p.bathroom && <p><span className="text-gray-400 w-36 inline-block">Санузел:</span> {p.bathroom}</p>}
+            {p.ceiling_height && <p><span className="text-gray-400 w-36 inline-block">Потолки:</span> {p.ceiling_height} м</p>}
           </div>
           <hr className="border-gray-200" />
           {p.description && (<div><h2 className="text-base font-semibold text-gray-900 mb-2">Описание</h2><p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-sm">{p.description}</p></div>)}
@@ -33,12 +51,12 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
         <div className="order-1 lg:order-2"><PropertyGallery images={images} /></div>
       </div>
       {/* Map */}
-      {(p.address || (p as any).city) && (
+      {(p.address || p.city) && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-6">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Расположение</h2>
           <div className="rounded-2xl overflow-hidden border h-72 sm:h-96">
             <iframe
-              src={`https://yandex.ru/map-widget/v1/?text=${encodeURIComponent([(p as any).city, p.address].filter(Boolean).join(', '))}&z=15`}
+              src={`https://yandex.ru/map-widget/v1/?text=${encodeURIComponent([p.city, p.address].filter(Boolean).join(', '))}&z=15`}
               width="100%"
               height="100%"
               frameBorder="0"

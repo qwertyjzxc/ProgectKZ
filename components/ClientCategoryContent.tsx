@@ -116,12 +116,11 @@ function CardSection({ title, children }: { title: string; children: React.React
 
 function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign, onComplete }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void; onComplete: () => void }) {
   const [activity, setActivity] = useState<import("@/lib/activity").ActivityEntry[]>([]);
-  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<import("@/lib/activity").ActivityEntry | null>(null);
   const clientTable = "clients_" + category;
 
   const loadActivity = useCallback(() => {
-    setActivityLoading(true);
     fetch("/api/activity?client_table=" + clientTable + "&client_id=" + client.id)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setActivity(data); })
@@ -999,7 +998,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {editClient && <ClientFormModal client={editClient} onClose={() => setEditClient(null)} onSave={handleEdit} />}
       {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
-      {completeClient && <CompleteDealModal client={completeClient} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}
+      {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}
 
       <ConfirmDialog
         open={confirmDelete}

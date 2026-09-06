@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useProfile } from "@/lib/profile-context";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const clientSubItems = [
   { href: "/clients", label: "Аренда", icon: Home },
@@ -41,7 +41,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [dealsOpen, setDealsOpen] = useState(() => pathname.startsWith("/deals"));
   const currentHref = pathname + (searchParams.toString() ? "?" + searchParams.toString() : "");
 
-  const fetchUnread = () => {
+  const fetchUnread = useCallback(() => {
     if (!currentProfile?.id) return;
     fetch("/api/notifications?profile_id=" + currentProfile.id)
       .then(res => res.json())
@@ -51,13 +51,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         }
       })
       .catch(() => {});
-  };
+  }, [currentProfile]);
 
   useEffect(() => {
     fetchUnread();
     const timer = setInterval(fetchUnread, 15000);
     return () => clearInterval(timer);
-  }, [currentProfile?.id, pathname]);
+  }, [fetchUnread, pathname]);
 
   const allItems = currentProfile?.role === "admin"
     ? [...navItems, { href: "/profiles", label: "Профили", icon: Shield }]
