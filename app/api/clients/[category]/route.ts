@@ -90,15 +90,19 @@ export async function DELETE(
     const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
     if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных клиентов" }, { status: 400 });
 
+    const { data: existing } = await supabase.from(table).select("id, name").in("id", ids);
+    const names = (existing ?? []).map((r: { name?: string }) => r.name || "").filter(Boolean);
+
     const { error } = await supabase.from(table).delete().in("id", ids);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    const nameList = names.length > 0 ? `: ${names.join(", ")}` : "";
     await logActivity({
       client_table: table,
       client_id: ids[0],
-      client_name: "",
+      client_name: names.join(", "),
       action: "delete",
-      message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}`,
+      message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}${nameList}`,
     });
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (e) {
