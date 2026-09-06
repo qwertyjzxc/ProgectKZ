@@ -694,14 +694,14 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         </div>
       )}
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           {onBack && (
-            <button onClick={onBack} className="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
+            <button onClick={onBack} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium mb-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
               <ArrowLeft className="w-4 h-4" />Назад к категориям
             </button>
           )}
-          <h1 className="text-2xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + (TYPE_LABELS[dealType] || dealType) : ""}</h1>
+          <h1 className="text-xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + (TYPE_LABELS[dealType] || dealType) : ""}</h1>
         </div>
         <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
           <Plus className="w-4 h-4" />Новая сделка
@@ -709,7 +709,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       </div>
 
       {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <div className="relative flex-1">
           <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по имени, телефону, району, брокеру..." className="pl-10 h-9 text-sm bg-white" />
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -828,7 +828,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       )}
 
       {/* Stats */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <div className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium">
           <span>Всего</span>
           <span className="font-bold">{filtered.length}</span>
@@ -850,7 +850,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
-            <div className="overflow-y-auto max-h-[60vh]">
+            <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
               <thead className="bg-gray-100">
                 <tr>
