@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe } from "lucide-react";
+import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useProfile } from "@/lib/profile-context";
 import { useState, useEffect } from "react";
 
@@ -26,7 +26,12 @@ const navItems = [
   { href: "/activity", label: "Журнал действий", icon: History },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currentProfile } = useProfile();
@@ -58,13 +63,20 @@ export default function Sidebar() {
     ? [...navItems, { href: "/profiles", label: "Профили", icon: Shield }]
     : navItems;
 
+  const expandAndOpen = (group: "clients" | "objects" | "deals") => {
+    if (collapsed) onToggle();
+    if (group === "clients") setClientsOpen(true);
+    if (group === "objects") setObjectsOpen(true);
+    if (group === "deals") setDealsOpen(true);
+  };
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r flex flex-col z-30">
+    <aside className={"fixed left-0 top-0 h-screen bg-white border-r flex flex-col z-30 transition-[width] duration-200 " + (collapsed ? "w-16" : "w-64")}>
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b bg-blue-600 text-white">
-        <LayoutDashboard className="w-5 h-5 mr-3" />
-        <span className="font-semibold text-base tracking-tight">kzproject</span>
-        {unreadCount > 0 && (
+      <div className={"h-16 flex items-center border-b bg-blue-600 text-white " + (collapsed ? "justify-center px-0" : "px-6")}>
+        <LayoutDashboard className={"shrink-0 " + (collapsed ? "w-5 h-5" : "w-5 h-5 mr-3")} />
+        {!collapsed && <span className="font-semibold text-base tracking-tight">kzproject</span>}
+        {!collapsed && unreadCount > 0 && (
           <span className="ml-auto w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
@@ -72,25 +84,28 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {/* Clients group with expandable sub-items */}
+      <nav className={"flex-1 overflow-y-auto overflow-x-hidden py-4 " + (collapsed ? "px-2 space-y-1" : "px-3 space-y-1")}>
+        {/* Clients group */}
         <div>
           <button
-            onClick={() => setClientsOpen(!clientsOpen)}
+            onClick={() => (collapsed ? expandAndOpen("clients") : setClientsOpen(!clientsOpen))}
+            title="Клиенты"
             className={
-              "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors "
+              "w-full flex items-center justify-between text-sm rounded-lg transition-colors "
+              + (collapsed ? "px-0 justify-center h-10 "
+              : "px-3 py-2.5 ")
               + (pathname.startsWith("/clients")
                 ? "bg-gray-100 text-gray-900 font-medium"
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
             }
           >
-            <span className="flex items-center gap-3">
-              <Users className="w-4 h-4" />
-              Клиенты
+            <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
+              <Users className="w-4 h-4 shrink-0" />
+              {!collapsed && <>Клиенты</>}
             </span>
-            <ChevronDown className={"w-4 h-4 transition-transform " + (clientsOpen ? "rotate-180" : "")} />
+            {!collapsed && <ChevronDown className={"w-4 h-4 transition-transform " + (clientsOpen ? "rotate-180" : "")} />}
           </button>
-          {clientsOpen && (
+          {!collapsed && clientsOpen && (
             <div className="ml-7 mt-1 space-y-1">
               {clientSubItems.map(sub => {
                 const isSubActive = pathname === sub.href;
@@ -115,24 +130,27 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Objects group with expandable sub-items */}
+        {/* Objects group */}
         <div>
           <button
-            onClick={() => setObjectsOpen(!objectsOpen)}
+            onClick={() => (collapsed ? expandAndOpen("objects") : setObjectsOpen(!objectsOpen))}
+            title="Объекты"
             className={
-              "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors "
+              "w-full flex items-center justify-between text-sm rounded-lg transition-colors "
+              + (collapsed ? "px-0 justify-center h-10 "
+              : "px-3 py-2.5 ")
               + (pathname.startsWith("/dashboard")
                 ? "bg-gray-100 text-gray-900 font-medium"
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
             }
           >
-            <span className="flex items-center gap-3">
-              <Building2 className="w-4 h-4" />
-              Объекты
+            <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
+              <Building2 className="w-4 h-4 shrink-0" />
+              {!collapsed && <>Объекты</>}
             </span>
-            <ChevronDown className={"w-4 h-4 transition-transform " + (objectsOpen ? "rotate-180" : "")} />
+            {!collapsed && <ChevronDown className={"w-4 h-4 transition-transform " + (objectsOpen ? "rotate-180" : "")} />}
           </button>
-          {objectsOpen && (
+          {!collapsed && objectsOpen && (
             <div className="ml-7 mt-1 space-y-1">
               {objectsSubItems.map(sub => {
                 const isSubActive = pathname === sub.href;
@@ -157,24 +175,27 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Deals group with expandable sub-items */}
+        {/* Deals group */}
         <div>
           <button
-            onClick={() => setDealsOpen(!dealsOpen)}
+            onClick={() => (collapsed ? expandAndOpen("deals") : setDealsOpen(!dealsOpen))}
+            title="Сделки"
             className={
-              "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors "
+              "w-full flex items-center justify-between text-sm rounded-lg transition-colors "
+              + (collapsed ? "px-0 justify-center h-10 "
+              : "px-3 py-2.5 ")
               + (pathname.startsWith("/deals")
                 ? "bg-gray-100 text-gray-900 font-medium"
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
             }
           >
-            <span className="flex items-center gap-3">
-              <Handshake className="w-4 h-4" />
-              Сделки
+            <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
+              <Handshake className="w-4 h-4 shrink-0" />
+              {!collapsed && <>Сделки</>}
             </span>
-            <ChevronDown className={"w-4 h-4 transition-transform " + (dealsOpen ? "rotate-180" : "")} />
+            {!collapsed && <ChevronDown className={"w-4 h-4 transition-transform " + (dealsOpen ? "rotate-180" : "")} />}
           </button>
-          {dealsOpen && (
+          {!collapsed && dealsOpen && (
             <div className="ml-7 mt-1 space-y-1">
               {dealCategories.map(cat => {
                 const href = "/deals?category=" + cat.id;
@@ -207,16 +228,19 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              title={collapsed ? item.label : undefined}
               className={
-                "flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors "
+                "flex items-center justify-between text-sm rounded-lg transition-colors "
+                + (collapsed ? "px-0 justify-center h-10 "
+                : "px-3 py-2.5 ")
                 + (isActive
                   ? "bg-gray-100 text-gray-900 font-medium"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
               }
             >
-              <span className="flex items-center gap-3">
-                <Icon className="w-4 h-4" />
-                {item.label}
+              <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
+                <Icon className="w-4 h-4 shrink-0" />
+                {!collapsed && <>{item.label}</>}
               </span>
             </Link>
           );
@@ -224,8 +248,15 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-4 text-xs text-gray-400">
-        © 2025 kzproject
+      <div className={"border-t flex items-center " + (collapsed ? "p-2 justify-center" : "p-4 justify-between")}>
+        <span className="text-xs text-gray-400">{collapsed ? "" : "© 2025 kzproject"}</span>
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Развернуть" : "Свернуть"}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+        >
+          {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+        </button>
       </div>
     </aside>
   );

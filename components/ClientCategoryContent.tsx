@@ -806,14 +806,21 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Всего</p><p className="text-2xl font-bold text-gray-900 mt-0.5">{categoryClients.length}</p></div>
-        {CLIENT_STATUSES.map(s => (
-          <div key={s} className="bg-white rounded-xl border p-4">
-            <p className="text-xs text-gray-500">{s}</p>
-            <p className={"text-2xl font-bold mt-0.5 " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{categoryClients.filter(c => c.completed === s).length}</p>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <div className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium">
+          <span>Всего</span>
+          <span className="font-bold">{categoryClients.length}</span>
+        </div>
+        {CLIENT_STATUSES.map(s => {
+          const count = categoryClients.filter(c => c.completed === s).length;
+          return (
+            <div key={s} className="flex items-center gap-1.5 rounded-full bg-white border border-gray-200 px-3 py-1 text-xs text-gray-500">
+              <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+              <span>{s}</span>
+              <span className={"font-bold " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{count}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Loading / Error */}

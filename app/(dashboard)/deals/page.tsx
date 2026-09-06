@@ -828,14 +828,21 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="bg-white rounded-xl border p-4"><p className="text-xs text-gray-500">Всего</p><p className="text-2xl font-bold text-gray-900 mt-0.5">{deals.length}</p></div>
-        {DEAL_STATUSES.slice(0, 3).map(s => (
-          <div key={s} className="bg-white rounded-xl border p-4">
-            <p className="text-xs text-gray-500">{s}</p>
-            <p className={"text-2xl font-bold mt-0.5 " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{deals.filter(d => d.completed === s).length}</p>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <div className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium">
+          <span>Всего</span>
+          <span className="font-bold">{filtered.length}</span>
+        </div>
+        {DEAL_STATUSES.map(s => {
+          const count = filtered.filter(d => d.completed === s).length;
+          return (
+            <div key={s} className="flex items-center gap-1.5 rounded-full bg-white border border-gray-200 px-3 py-1 text-xs text-gray-500">
+              <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+              <span>{s}</span>
+              <span className={"font-bold " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{count}</span>
+            </div>
+          );
+        })}
       </div>
 
       {loading && <div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Загрузка из Supabase...</p></div>}
