@@ -67,7 +67,7 @@ export default function AddTaskModal({ onClose, onAdd }: { onClose: () => void; 
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Дата и время создания</label>
+              <label className="text-xs text-gray-500 mb-1 block">Дата обращения</label>
               <Input type="datetime-local" value={createdDate} onChange={e => setCreatedDate(e.target.value)} className="text-sm" />
             </div>
             <div>

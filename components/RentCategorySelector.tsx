@@ -5,15 +5,15 @@ import { Home, Building2, Building, type LucideIcon } from "lucide-react";
 export type RentCategory = "houses" | "premises" | "apartments";
 
 export const RENT_CATEGORY_LABELS: Record<RentCategory, string> = {
-  houses: "Дома",
+  houses: "Земля",
   premises: "Помещения",
   apartments: "Квартиры",
 };
 
 export const RENT_CATEGORIES: { id: RentCategory; label: string; subtitle: string; icon: LucideIcon }[] = [
   { id: "apartments", label: "Квартиры", subtitle: "Квартиры в жилых комплексах", icon: Building },
-  { id: "houses", label: "Дома", subtitle: "Частные дома, коттеджи", icon: Home },
   { id: "premises", label: "Помещения", subtitle: "Коммерческие площади, офисы", icon: Building2 },
+  { id: "houses", label: "Земля", subtitle: "Земельные участки", icon: Home },
 ];
 
 export default function RentCategorySelector({

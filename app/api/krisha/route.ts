@@ -14,9 +14,11 @@ export async function GET(request: NextRequest) {
     dealType: sp.get("dealType") || "",
     propType: sp.get("propType") || "",
     district: sp.get("district") || "",
+    jc: sp.get("jc") || "",
     rooms: sp.get("rooms") || "",
     budgetFrom: sp.get("budgetFrom") || "",
     budgetTo: sp.get("budgetTo") || "",
+    owner: sp.get("owner") || "",
   };
   const page = Math.max(1, Math.min(MAX_KRISHA_PAGES, parseInt(sp.get("page") || "1", 10) || 1));
 

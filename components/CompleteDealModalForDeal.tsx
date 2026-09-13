@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/DatePicker";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 
 export default function CompleteDealModalForDeal({
   deal,
@@ -12,7 +13,7 @@ export default function CompleteDealModalForDeal({
   onClose,
   onDone,
 }: {
-  deal: { id: number; name: string; contract?: string; amount?: number; type?: string; category?: string };
+  deal: { id: number; name: string; contract?: string; amount?: number; type?: string; category?: string; completion_date?: string };
   dealType?: string;
   category?: string;
   onClose: () => void;
@@ -23,6 +24,9 @@ export default function CompleteDealModalForDeal({
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const needContract = !deal.contract;
+  const needAmount = !deal.amount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +46,7 @@ export default function CompleteDealModalForDeal({
           completed: "Завершено",
           stage: "Сделка закрыта",
           date: completionDate,
+          completion_date: deal.completion_date || new Date().toISOString().slice(0, 10),
           type: dealType || deal.type || "kvartiry",
           category: category || deal.category || "arenda",
           name: deal.name,
@@ -68,14 +73,23 @@ export default function CompleteDealModalForDeal({
             Сделка: <span className="font-medium text-gray-800">{deal.name || "Без имени"}</span>
           </p>
 
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
-            <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: ПК-2026-001" className="text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
-            <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="25000000" className="text-sm" />
-          </div>
+{needContract && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
+              <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: ПК-2026-001" className="text-sm" />
+            </div>
+          )}
+          {needAmount && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
+              <MoneyInput value={amount} onChange={setAmount} placeholder="25 000 000" />
+            </div>
+          )}
+
+          {!needContract && !needAmount && (
+            <p className="text-sm text-gray-500">Договор и сумма уже указаны. Сделка будет завершена.</p>
+          )}
+
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Дата завершения</label>
             <DatePicker value={completionDate} onChange={setCompletionDate} placeholder="Выберите дату" />

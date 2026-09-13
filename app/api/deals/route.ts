@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, DEAL_LABELS } from "@/lib/activity";
+import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
   const table = getTable(body.dealType || body.type);
-  const { data, error } = await supabase.from(table).insert({
+  const row: Record<string, unknown> = {
     name: body.name,
     client: body.client || body.name,
     amount: body.amount,
@@ -64,7 +65,9 @@ export async function POST(request: NextRequest) {
     relief: body.relief || "",
     documents: body.documents || "",
     restrictions: body.restrictions || "",
-  }).select().single();
+    completion_date: body.completion_date || "",
+  };
+  const { data, error } = await insertWithColumnFallback(supabase as any, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await logActivity({
     client_table: table,

@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2, Trash2, Plus, X, Filter, Square, CheckSquare } from "lucide-react";
 import AddPropertyForm from "@/components/AddPropertyForm";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { formatMoney } from "@/lib/format";
 
 interface Property {
   id: string; title: string; price: number; rooms: number | null;
   address: string; city?: string; building_type?: string; complex_name?: string;
   year_built?: number; area?: number; bathroom?: string; ceiling_height?: number;
   description: string; image_url: string; image_urls?: string[]; status?: string;
+  property_type?: string; contract_number?: string; payment_method?: string; contacts?: string; created_at?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -36,6 +38,8 @@ export default function OurObjectsTab() {
   const [filterAreaMax, setFilterAreaMax] = useState("");
   const [filterYearMin, setFilterYearMin] = useState("");
   const [filterYearMax, setFilterYearMax] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterNew, setFilterNew] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
   const [deleteMode, setDeleteMode] = useState(false);
@@ -57,6 +61,14 @@ export default function OurObjectsTab() {
   const del=async(id:string)=>{if(!confirm("Удалить?"))return;await window.fetch("/api/properties/"+id,{method:"DELETE"});setProps(p=>p.filter(x=>x.id!==id));};
   const copyLink=async(id:string)=>{await navigator.clipboard.writeText(`${location.origin}/p/${id}`);setCopiedId(id);setTimeout(()=>setCopiedId(null),2000);};
   const hasFilters = filterStatus||filterCity||filterBType||filterRooms||filterBath||filterPriceMin||filterPriceMax||filterAreaMin||filterAreaMax||filterYearMin||filterYearMax;
+
+  const matchType = (p: Property, type: string): boolean => {
+    if (type === "all") return true;
+    if (type === "Квартира") return p.property_type === "Квартира" || (!p.property_type && p.rooms != null);
+    if (type === "Участок") return p.property_type === "Участок";
+    if (type === "Дом") return p.property_type === "Дом" || (!p.property_type && p.rooms == null);
+    return false;
+  };
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -92,6 +104,11 @@ export default function OurObjectsTab() {
 
   const filtered = (() => {
     let r = props;
+    if (filterType !== "all") r = r.filter(p => matchType(p, filterType));
+    if (filterNew) {
+      const cutoff = Date.now() - Number(filterNew) * 86400000;
+      r = r.filter(p => p.created_at ? new Date(p.created_at).getTime() >= cutoff : false);
+    }
     if (filterStatus) r = r.filter(p => p.status === filterStatus);
     if (filterCity) r = r.filter(p => p.city === filterCity);
     if (filterBType) r = r.filter(p => p.building_type === filterBType);
@@ -166,6 +183,19 @@ export default function OurObjectsTab() {
       )}
       {loading&&<div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400"/></div>}
 
+      {/* Тип объекта */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {["all","Квартира","Дом","Участок"].map(t=>{
+          const count = t==="all" ? props.length : props.filter(p=>matchType(p,t)).length;
+          return (
+            <button key={t} onClick={()=>setFilterType(t)} className={"px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors " + (filterType===t?"bg-blue-600 text-white border-blue-600 shadow-sm":"bg-white text-gray-600 border-gray-200 hover:bg-gray-50")}>
+              {t==="all"?"Все":t}
+              <span className={"ml-1.5 text-xs " + (filterType===t?"text-blue-100":"text-gray-400")}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
         <div className="bg-white rounded-xl border p-3 text-center"><p className="text-xs text-gray-500">Всего</p><p className="text-xl font-bold text-gray-900">{props.length}</p></div>
@@ -178,6 +208,7 @@ export default function OurObjectsTab() {
       {/* Filter chips */}
       {showFilters&&(
         <div className="mb-4 p-4 bg-white rounded-xl border space-y-3">
+          <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500 w-16">Новые:</span>{[["","Все"],["7","7 дней"],["30","30 дней"],["90","90 дней"]].map(([v,label])=>(<button key={v||"all"} onClick={()=>setFilterNew(v)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${filterNew===v?"bg-blue-600 text-white border-blue-600":"bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>{label}</button>))}</div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500 w-16">Статус:</span>{["","Активно","Продано","Сдано","Неактивно"].map(s=>(<button key={s} onClick={()=>setFilterStatus(s)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${filterStatus===s?"bg-blue-600 text-white border-blue-600":"bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>{s||"Все"}</button>))}</div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500 w-16">Город:</span><select value={filterCity} onChange={e=>setFilterCity(e.target.value)} className="h-8 rounded-lg border px-2 text-xs"><option value="">Все</option>{[...new Set(props.map(p=>p.city).filter(Boolean))].sort().map(c=><option key={c}>{c}</option>)}</select></div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-gray-500 w-16">Тип дома:</span><select value={filterBType} onChange={e=>setFilterBType(e.target.value)} className="h-8 rounded-lg border px-2 text-xs"><option value="">Все</option>{[...new Set(props.map(p=>p.building_type).filter(Boolean))].sort().map(t=><option key={t}>{t}</option>)}</select></div>
@@ -221,10 +252,11 @@ export default function OurObjectsTab() {
               <div className="p-4 space-y-1.5">
                 <h3 className="font-semibold text-gray-900 line-clamp-1">{p.title}</h3>
                 <div className="flex items-center justify-between">
-                  <p className="text-xl font-bold text-blue-600">{Number(p.price).toLocaleString()} ₸</p>
+                  <p className="text-xl font-bold text-blue-600">{formatMoney(p.price)}</p>
                   {p.status&&<span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[p.status]||"bg-gray-100 text-gray-500"}`}>{p.status}</span>}
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                  {p.property_type&&<span className="text-blue-600 font-medium">{p.property_type}</span>}
                   {p.rooms!=null&&<span>{p.rooms}-комн.</span>}
                   {p.area!=null&&<span>{p.area} м²</span>}
                   {p.city&&<span>{p.city}</span>}
@@ -235,6 +267,13 @@ export default function OurObjectsTab() {
                   {p.ceiling_height&&<span>{p.ceiling_height} м</span>}
                   {p.address&&<span className="line-clamp-1 w-full">{p.address}</span>}
                 </div>
+                {(p.contract_number||p.payment_method||p.contacts)&&(
+                  <div className="pt-2 border-t mt-1.5 space-y-0.5 text-xs">
+                    {p.contract_number&&<p><span className="text-gray-400">Договор:</span> <span className="text-gray-700 font-medium">{p.contract_number}</span></p>}
+                    {p.payment_method&&<p><span className="text-gray-400">Оплата:</span> <span className="text-gray-700">{p.payment_method}</span></p>}
+                    {p.contacts&&<p><span className="text-gray-400">Контакты:</span> <span className="text-gray-700">{p.contacts}</span></p>}
+                  </div>
+                )}
                 {!deleteMode && (
                   <div className="flex gap-1 pt-2">
                     <Button variant="outline" size="icon-sm" className="h-7 w-7" onClick={(e)=>{e.stopPropagation();copyLink(p.id);}}>{copiedId===p.id?<Check className="w-3 h-3 text-green-500"/>:<Copy className="w-3 h-3"/>}</Button>

@@ -9,6 +9,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const formData = await request.formData();
   const title = formData.get("title")?.toString() || "";
   const price = parseFloat(formData.get("price")?.toString() || "0");
+  const propertyType = formData.get("property_type")?.toString() || "";
   const rooms = parseInt(formData.get("rooms")?.toString() || "0") || null;
   const address = formData.get("address")?.toString() || "";
   const city = formData.get("city")?.toString() || "";
@@ -20,6 +21,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const ceilingHeight = parseFloat(formData.get("ceiling_height")?.toString() || "0") || null;
   const description = formData.get("description")?.toString() || "";
   const status = formData.get("status")?.toString() || "Активно";
+  const contractNumber = formData.get("contract_number")?.toString() || "";
+  const paymentMethod = formData.get("payment_method")?.toString() || "";
+  const contacts = formData.get("contacts")?.toString() || "";
   const files = formData.getAll("images") as File[];
   const newUrls: string[] = [];
   for (const f of files) {
@@ -31,7 +35,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (!ue) { const { data: ud } = supabase.storage.from("property-images").getPublicUrl(fileName); newUrls.push(ud.publicUrl); }
     }
   }
-  const updateData: Record<string, string | number | null | string[]> = { title, price, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status };
+const updateData: Record<string, any> = { title, price, property_type: propertyType, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts };
   if (newUrls.length > 0) { updateData.image_url = newUrls[0]; updateData.image_urls = newUrls; }
   const { data, error } = await supabase.from("properties").update(updateData).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -160,7 +160,7 @@ function EditTaskModal({ task, onClose, onSave }: { task: EditableTask; onClose:
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Дата и время создания</label>
+              <label className="text-xs text-gray-500 mb-1 block">Дата обращения</label>
               <Input type="datetime-local" value={createdDate} onChange={e => setCreatedDate(e.target.value)} className="text-sm" />
             </div>
             <div>
@@ -208,6 +208,9 @@ function TasksContent() {
   const [filterPriority, setFilterPriority] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterAssignees, setFilterAssignees] = useState<number[]>([]);
+  const [filterDueDate, setFilterDueDate] = useState("");
+  const [filterCreatedFrom, setFilterCreatedFrom] = useState("");
+  const [filterCreatedTo, setFilterCreatedTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -294,6 +297,34 @@ function TasksContent() {
     }
     if (filterPriority) result = result.filter(t => t.priority === filterPriority);
     if (filterAssignees.length > 0) result = result.filter(t => t.assignee_ids.some(id => filterAssignees.includes(id)));
+    if (filterDueDate) {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const startOfWeek = startOfDay - (now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400000;
+      result = result.filter(t => {
+        const due = parseFlexibleDate(t.due_date);
+        if (isNaN(due)) return filterDueDate === "no-date";
+        if (filterDueDate === "no-date") return false;
+        if (filterDueDate === "today") return due >= startOfDay && due < startOfDay + 86400000;
+        if (filterDueDate === "tomorrow") return due >= startOfDay + 86400000 && due < startOfDay + 2 * 86400000;
+        if (filterDueDate === "this-week") return due >= startOfWeek && due < startOfWeek + 7 * 86400000;
+        return true;
+      });
+    }
+    if (filterCreatedFrom) {
+      const from = new Date(filterCreatedFrom + "T00:00:00").getTime();
+      result = result.filter(t => {
+        const c = parseFlexibleDate(t.created_date);
+        return !isNaN(c) && c >= from;
+      });
+    }
+    if (filterCreatedTo) {
+      const to = new Date(filterCreatedTo + "T23:59:59").getTime();
+      result = result.filter(t => {
+        const c = parseFlexibleDate(t.created_date);
+        return !isNaN(c) && c <= to;
+      });
+    }
     if (filterStatus) {
       if (filterStatus === "Просрочено") {
         result = result.filter(isTaskOverdue);
@@ -306,7 +337,7 @@ function TasksContent() {
       result = result.filter(t => t.status !== "Завершено");
     }
     return result;
-  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap, showCompleted]);
+  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap, showCompleted, filterDueDate, filterCreatedFrom, filterCreatedTo]);
 
   const [confirmComplete, setConfirmComplete] = useState<{ id: number; currentStatus: string } | null>(null);
 
@@ -397,8 +428,8 @@ function TasksContent() {
 
   const overdueCount = tasks.filter(isTaskOverdue).length;
 
-  const hasFilters = !!(searchQuery || filterPriority || filterStatus || filterAssignees.length > 0);
-  const resetFilters = () => { setSearchQuery(""); setFilterPriority(""); setFilterStatus(""); setFilterAssignees([]); };
+  const hasFilters = !!(searchQuery || filterPriority || filterStatus || filterAssignees.length > 0 || filterDueDate || filterCreatedFrom || filterCreatedTo);
+  const resetFilters = () => { setSearchQuery(""); setFilterPriority(""); setFilterStatus(""); setFilterAssignees([]); setFilterDueDate(""); setFilterCreatedFrom(""); setFilterCreatedTo(""); };
 
   return (
     <div>
@@ -419,7 +450,7 @@ function TasksContent() {
           <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Поиск по названию, клиенту, описанию..." className="pl-10 h-9 text-sm bg-white" />
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
-        <Button variant={showFilters || hasFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{(hasFilters && (filterPriority || filterStatus || filterAssignees.length > 0)) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
+        <Button variant={showFilters || hasFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{(hasFilters && (filterPriority || filterStatus || filterAssignees.length > 0 || filterDueDate || filterCreatedFrom || filterCreatedTo)) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
         <Button variant={showCompleted ? "default" : "outline"} size="sm" onClick={() => setShowCompleted(!showCompleted)} className="gap-1">
           <CheckSquare className="w-4 h-4" />Архив
         </Button>
@@ -473,6 +504,24 @@ function TasksContent() {
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ответственные</span>
             <div className="w-64">
               <AssigneePicker value={filterAssignees} onChange={setFilterAssignees} placeholder="Все" />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Срок</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[{ value: "", label: "Все" }, { value: "today", label: "Сегодня" }, { value: "tomorrow", label: "Завтра" }, { value: "this-week", label: "На этой неделе" }, { value: "no-date", label: "Без срока" }].map(opt => (
+                <button key={opt.value} onClick={() => setFilterDueDate(opt.value)}
+                  className={"px-3 py-1.5 rounded-full text-xs font-medium border transition-all " + (filterDueDate === opt.value ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50")}
+                >{opt.label}{filterDueDate === opt.value && <Check className="w-3 h-3 inline ml-1" />}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Создана</span>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={filterCreatedFrom} onChange={e => setFilterCreatedFrom(e.target.value)} className="w-40 text-sm h-8" />
+              <span className="text-xs text-gray-400">—</span>
+              <Input type="date" value={filterCreatedTo} onChange={e => setFilterCreatedTo(e.target.value)} className="w-40 text-sm h-8" />
             </div>
           </div>
           {hasFilters && (

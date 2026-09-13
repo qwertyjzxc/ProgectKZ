@@ -7,6 +7,7 @@ import { Loader2, ExternalLink, Building2, RefreshCw } from "lucide-react";
 
 interface KrishaItem {
   krisha_id: number;
+  owner_id?: number | null;
   deal_type: string;
   prop_type: string;
   title: string;
@@ -24,6 +25,7 @@ interface KrishaItem {
 interface InactiveItem {
   id: number;
   krisha_id: number;
+  owner_id?: number | null;
   deal_type: string;
   prop_type: string;
   title: string;
@@ -60,6 +62,8 @@ const EMPTY_FILTERS: SearchFilters = {
 };
 
 const PER_PAGE = 30;
+
+const OWN_PROFILE_ID = 10800559;
 
 const formatPrice = (price: number) =>
   price ? new Intl.NumberFormat("ru-RU").format(price) + " ₸" : "";
@@ -171,6 +175,7 @@ function ObjectCard({ o, removed }: { o: KrishaItem | InactiveItem; removed?: bo
 
 export default function KrishaObjectsTab() {
   const [mode, setMode] = useState<"live" | "inactive">("live");
+  const [scope, setScope] = useState<"all" | "own">("all");
 
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -184,16 +189,19 @@ export default function KrishaObjectsTab() {
   const [inactiveLoading, setInactiveLoading] = useState(false);
 
   const loadPage = useCallback(
-    (dealType: string, propType: string, district: string, rooms: string, budgetFrom: string, budgetTo: string, p: number) => {
-      const qs = new URLSearchParams({
+    (dealType: string, propType: string, district: string, jc: string, rooms: string, budgetFrom: string, budgetTo: string, p: number, owner?: string) => {
+      const params: Record<string, string> = {
         dealType,
         propType,
         district,
+        jc,
         rooms,
         budgetFrom,
         budgetTo,
         page: String(p),
-      });
+      };
+      if (owner) params.owner = owner;
+      const qs = new URLSearchParams(params);
       fetch(`/api/krisha?${qs.toString()}`)
         .then((res) => res.json())
         .then((d) => {
@@ -216,12 +224,14 @@ export default function KrishaObjectsTab() {
       filters.dealType,
       filters.propType,
       filters.district,
+      filters.jc,
       filters.rooms ?? "",
       filters.budgetFrom,
       filters.budgetTo,
-      page
+      page,
+      scope === "own" ? String(OWN_PROFILE_ID) : undefined
     );
-  }, [loadPage, mode, page, filters.dealType, filters.propType, filters.district, filters.rooms, filters.budgetFrom, filters.budgetTo]);
+  }, [loadPage, mode, page, scope, filters.dealType, filters.propType, filters.district, filters.jc, filters.rooms, filters.budgetFrom, filters.budgetTo]);
 
   const loadInactive = useCallback((p: number) => {
     fetch(`/api/objects?status=inactive&page=${p}&perPage=${PER_PAGE}`)
@@ -256,21 +266,40 @@ export default function KrishaObjectsTab() {
   const inactiveTotalPages = inactiveData?.totalPages ?? 1;
   const inactivePageNumbers = getPageNumbers(inactivePage, inactiveTotalPages);
 
+  const visibleItems = items;
+  const visibleInactive = scope === "own" ? (inactiveData?.items || []).filter(o => o.owner_id === OWN_PROFILE_ID) : (inactiveData?.items || []);
+
   return (
     <div>
-      <div className="flex items-center rounded-lg border bg-white p-0.5 w-fit">
-        <button
-          onClick={() => switchMode("live")}
-          className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (mode === "live" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
-        >
-          Активные
-        </button>
-        <button
-          onClick={() => switchMode("inactive")}
-          className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (mode === "inactive" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
-        >
-          Снятые
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-lg border bg-white p-0.5 w-fit">
+          <button
+            onClick={() => switchMode("live")}
+            className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (mode === "live" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+          >
+            Активные
+          </button>
+          <button
+            onClick={() => switchMode("inactive")}
+            className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (mode === "inactive" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+          >
+            Снятые
+          </button>
+        </div>
+        <div className="flex items-center rounded-lg border bg-white p-0.5 w-fit">
+          <button
+            onClick={() => setScope("all")}
+            className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (scope === "all" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+          >
+            Все
+          </button>
+          <button
+            onClick={() => setScope("own")}
+            className={"px-3 py-1.5 rounded-md text-sm font-medium transition-colors " + (scope === "own" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100")}
+          >
+            Свои
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -289,7 +318,7 @@ export default function KrishaObjectsTab() {
               <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
               Загружаем объявления с Krisha.kz…
             </div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div className="mt-6 bg-white rounded-xl shadow-sm border p-12 text-center text-gray-400">
               <Building2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
               <p className="text-lg">Ничего не найдено</p>
@@ -297,7 +326,7 @@ export default function KrishaObjectsTab() {
             </div>
           ) : (
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {items.map((o) => (
+              {visibleItems.map((o) => (
                 <ObjectCard key={o.krisha_id} o={o} />
               ))}
             </div>
@@ -323,15 +352,15 @@ export default function KrishaObjectsTab() {
               <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
               Загрузка…
             </div>
-          ) : !inactiveData || inactiveData.items.length === 0 ? (
+          ) : visibleInactive.length === 0 ? (
             <div className="mt-4 bg-white rounded-xl shadow-sm border p-12 text-center text-gray-400">
               <Building2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
               <p className="text-lg">Снятых объектов нет</p>
-              <p className="text-sm mt-1">Снятые появятся здесь после полного синка</p>
+              <p className="text-sm mt-1">{scope === "own" ? "Своих снятых объектов нет" : "Снятые появятся здесь после полного синка"}</p>
             </div>
           ) : (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {inactiveData.items.map((o) => (
+              {visibleInactive.map((o) => (
                 <ObjectCard key={o.krisha_id} o={o} removed />
               ))}
             </div>

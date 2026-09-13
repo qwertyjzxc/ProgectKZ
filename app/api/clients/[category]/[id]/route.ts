@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
+import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -19,31 +20,38 @@ export async function PUT(
     const supabase = await createClient();
     const body = await request.json();
     const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
-    const { data, error } = await supabase
-      .from(table)
-      .update({
-        type: body.type,
-        area: body.area,
-        address: body.address,
-        jk: body.jk,
-        contract: body.contract,
-        date: body.date,
-        name: body.name,
-        rooms: body.rooms,
-        district: body.district,
-        amount: body.amount,
-        furniture: body.furniture,
-        rental_period: body.rental_period,
-        phone: body.phone,
-        who_lives: body.who_lives,
-        people_count: body.people_count,
-        notes: body.notes,
-        completed: body.completed,
-        broker: body.broker,
-      })
-      .eq("id", id)
-      .select()
-      .single();
+    const updateRow: Record<string, unknown> = {
+      type: body.type,
+      area: body.area,
+      address: body.address,
+      jk: body.jk,
+      contract: body.contract,
+      date: body.date,
+      name: body.name,
+      rooms: body.rooms,
+      district: body.district,
+      amount: body.amount,
+      furniture: body.furniture,
+      rental_period: body.rental_period,
+      phone: body.phone,
+      who_lives: body.who_lives,
+      people_count: body.people_count,
+      notes: body.notes,
+      completed: body.completed,
+      broker: body.broker,
+      documents: body.documents,
+    };
+    if (body.type === "Земля" || body.type === "Дома") {
+      updateRow.area_unit = body.area_unit;
+      updateRow.plot_type = body.plot_type;
+      updateRow.purpose = body.purpose;
+      updateRow.communications = body.communications;
+      updateRow.access = body.access;
+      updateRow.plot_shape = body.plot_shape;
+      updateRow.relief = body.relief;
+      updateRow.restrictions = body.restrictions;
+    }
+    const { data, error } = await updateWithColumnFallback(supabase as any, table, updateRow, id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const changes = buildChanges(existing || {}, data);
     if (changes.length > 0) {

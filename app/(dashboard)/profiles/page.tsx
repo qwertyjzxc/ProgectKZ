@@ -7,6 +7,7 @@ import { useProfile, profileName, profileInitials } from "@/lib/profile-context"
 import { useRouter } from "next/navigation";
 import { adminCreateUser, adminDeleteUser, adminUpdateProfile, getAllProfiles, getProfilePassword } from "./actions";
 import { UserPlus, Trash2, Edit3, Shield, X, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { maskKzPhone } from "@/components/PhoneInput";
 
 interface Profile {
   id: number;
@@ -265,7 +266,7 @@ function ProfileCard({ profile, onEdit, onDelete }: { profile: Profile; onEdit: 
 
       <div className="space-y-1 text-sm text-gray-600 mb-4">
         {profile.username && <p>🔑 Логин: {profile.username}</p>}
-        {profile.phone && <p>📱 {profile.phone}</p>}
+        {profile.phone && <p>📱 {maskKzPhone(profile.phone)}</p>}
         {profile.has_password && (
           <p className="flex items-center gap-1.5">
             🔒 Пароль:{" "}

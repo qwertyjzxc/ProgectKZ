@@ -56,6 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     relief: body.relief,
     documents: body.documents,
     restrictions: body.restrictions,
+    completion_date: body.completion_date,
   }).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

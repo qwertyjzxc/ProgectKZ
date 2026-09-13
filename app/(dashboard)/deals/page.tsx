@@ -15,6 +15,9 @@ import DealCategorySelector from "@/components/DealCategorySelector";
 import DealTypeSelector, { DEAL_CATEGORY_LABELS } from "@/components/DealTypeSelector";
 import AssignTaskModal from "@/components/AssignTaskModal";
 import CompleteDealModalForDeal from "@/components/CompleteDealModalForDeal";
+import MoneyInput from "@/components/MoneyInput";
+import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
+import { formatMoney } from "@/lib/format";
 import type { ActivityEntry } from "@/lib/activity";
 
 interface Deal {
@@ -53,8 +56,9 @@ interface Deal {
   documents?: string;
   restrictions?: string;
   finishing?: string;
-  premise_type?: string;
+premise_type?: string;
   dealType?: string;
+  completion_date?: string;
   created_at: string;
 }
 
@@ -132,7 +136,7 @@ function DetailItem({ icon: Icon, label, value }: { icon: React.ComponentType<{ 
       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{(value || value === 0) ? (typeof value === 'number' ? value.toLocaleString() : value) : "—"}</p>
+        <p className="text-sm font-medium text-gray-900">{(value || value === 0) ? (typeof value === 'number' ? value.toLocaleString("ru-RU") : value) : "—"}</p>
       </div>
     </div>
   );
@@ -184,20 +188,21 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
   const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
   const [rooms, setRooms] = useState(deal?.rooms || "");
   const [amount, setAmount] = useState(deal?.amount ? String(deal.amount) : "");
-  const [furniture, setFurniture] = useState(deal?.furniture || "");
-  const [rentalPeriod, setRentalPeriod] = useState(deal?.rental_period || "");
-  const [whoLives, setWhoLives] = useState(deal?.who_lives || "");
-  const [peopleCount, setPeopleCount] = useState(deal?.people_count ? String(deal.people_count) : "1");
-  const [notes, setNotes] = useState(deal?.notes || "");
-  const [completed, setCompleted] = useState(deal?.completed || "В процессе");
-  const [broker, setBroker] = useState(deal?.broker || "");
-  const [layout, setLayout] = useState(deal?.layout || "");
-  const [renterType, setRenterType] = useState(deal?.renter_type || "");
-  const [payment, setPayment] = useState(deal?.payment || "");
-  const [finishing, setFinishing] = useState(deal?.finishing || "");
-  const [premiseType, setPremiseType] = useState(deal?.premise_type || "Отдельно стоящее здание");
-  const [plotType, setPlotType] = useState(deal?.plot_type || "");
-  const [purpose, setPurpose] = useState(deal?.purpose || "");
+const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
+  const [rentalPeriod, setRentalPeriod] = useState((deal as any)?.rental_period || "");
+  const [whoLives, setWhoLives] = useState((deal as any)?.who_lives || "");
+  const [peopleCount, setPeopleCount] = useState((deal as any)?.people_count ? String((deal as any).people_count) : "1");
+  const [notes, setNotes] = useState((deal as any)?.notes || "");
+  const [completed, setCompleted] = useState((deal as any)?.completed || "В процессе");
+  const [completionDate, setCompletionDate] = useState((deal as any)?.completion_date || "");
+  const [broker, setBroker] = useState((deal as any)?.broker || "");
+  const [layout, setLayout] = useState((deal as any)?.layout || "");
+  const [renterType, setRenterType] = useState((deal as any)?.renter_type || "");
+  const [payment, setPayment] = useState((deal as any)?.payment || "");
+  const [finishing, setFinishing] = useState((deal as any)?.finishing || "");
+  const [premiseType, setPremiseType] = useState((deal as any)?.premise_type || "Отдельно стоящее здание");
+  const [plotType, setPlotType] = useState((deal as any)?.plot_type || "");
+  const [purpose, setPurpose] = useState((deal as any)?.purpose || "");
   const [communications, setCommunications] = useState<string[]>(() => {
     const raw = deal?.communications;
     return raw ? String(raw).split(",").map((s: string) => s.trim()).filter(Boolean) : [];
@@ -254,7 +259,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
       who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker,
       layout, renter_type: renterType, payment, finishing, premise_type: premiseType,
       plot_type: plotType, purpose, communications: communications.join(", "), access, plot_shape: plotShape, relief, documents: JSON.stringify(documents), restrictions,
-      area_unit: areaUnit,
+      area_unit: areaUnit, completion_date: completionDate,
       stage: "Первичный контакт",
       category: dealCategory, dealType: dealType || "kvartiry",
     });
@@ -270,7 +275,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
         <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div><label className="text-xs text-gray-500 mb-1 block">Имя</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Фамилия Имя" required className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7..." className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} className="h-9" /></div>
             <div>
               {isZemlya ? (
                 <div>
@@ -289,7 +294,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
                 </div>
               )}
             </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Дата и время создания</label><Input value={date} readOnly className="text-sm bg-gray-50 cursor-not-allowed" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Дата и время обращения</label><Input value={date} readOnly className="text-sm bg-gray-50 cursor-not-allowed" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Район</label><Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="ул., дом, кв." className="text-sm" /></div>
             {!isPomescheniya && !isZemlya && <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите ЖК" /></div>}
@@ -308,7 +313,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
             ) : (
               <div><label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="120" className="text-sm" /></div>
             )}
-            <div><label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label><Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="25000000" className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸</label><MoneyInput value={amount} onChange={setAmount} placeholder="25000000" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
             {isZemlya ? (
               <>
@@ -416,6 +421,7 @@ function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: D
               <label className="text-xs text-gray-500 mb-1 block">Статус</label>
               <select value={completed} onChange={e => setCompleted(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Без статуса</option>{DEAL_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
             </div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Дата завершения</label><Input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)} className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Брокер</label><Input value={broker} onChange={e => setBroker(e.target.value)} placeholder="Имя брокера" className="text-sm" /></div>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Заметки</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Заметки..." className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
@@ -462,7 +468,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const totalCols = (isZemlya ? 11 : isPomescheniya ? 14 : 12) + (deleteMode ? 1 : 0);
+  const totalCols = (isZemlya ? 12 : isPomescheniya ? 15 : 13) + (deleteMode ? 1 : 0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -698,9 +704,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
           )}
           <h1 className="text-xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + (TYPE_LABELS[dealType] || dealType) : ""}</h1>
         </div>
-        <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
-          <Plus className="w-4 h-4" />Новая сделка
-        </Button>
+        <p className="text-sm text-gray-500 mt-1">Сделки создаются автоматически при завершении клиента</p>
       </div>
 
       {/* Search + Filters */}
@@ -795,15 +799,15 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label>
+              <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸</label>
               <div className="flex items-center gap-2">
-                <Input value={filterAmountMin} onChange={e => setFilterAmountMin(e.target.value)} placeholder="От" type="number" className="h-9 w-full text-sm" />
+                <MoneyInput value={filterAmountMin} onChange={setFilterAmountMin} placeholder="От" className="w-full h-9" />
                 <span className="text-xs text-gray-400">—</span>
-                <Input value={filterAmountMax} onChange={e => setFilterAmountMax(e.target.value)} placeholder="До" type="number" className="h-9 w-full text-sm" />
+                <MoneyInput value={filterAmountMax} onChange={setFilterAmountMax} placeholder="До" className="w-full h-9" />
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Дата создания</label>
+              <label className="text-xs text-gray-500 mb-1 block">Дата обращения</label>
               <div className="flex items-center gap-2">
                 <DatePicker value={filterDateFrom} onChange={setFilterDateFrom} placeholder="От" />
                 <span className="text-xs text-gray-400">—</span>
@@ -885,9 +889,10 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     </>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата создания</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Сумма сделки</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата завершения</th>
                   <th className="px-4 py-3 w-12 sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300 rounded-tr-xl"></th>
                 </tr>
               </thead>
@@ -931,7 +936,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
                       {d.phone ? (
                         <a
-                          href={`https://wa.me/${d.phone.replace(/[^0-9]/g, "").replace(/^8/, "7")}`}
+                          href={`https://wa.me/${phoneToWa(d.phone)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
@@ -948,7 +953,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.name || "—"}</td>
                     {isZemlya ? (
                       <>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.phone || "—"}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{d.phone ? maskKzPhone(d.phone) : "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.plot_type || "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.district || "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " " + (d.area_unit || "сот") : "—"}</td>
@@ -975,7 +980,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     )}
                     <td className="px-4 py-3 text-sm text-gray-600">{d.broker || "—"}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {d.amount ? d.amount.toLocaleString() + " ₸" : "—"}
+                      {d.amount ? formatMoney(d.amount) : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.date || "—"}</td>
                     <td className="px-4 py-3">
@@ -983,6 +988,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                         {d.completed || "—"}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.completion_date || "—"}</td>
                     <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                       {!deleteMode && (
                         <DropdownMenu>
@@ -1120,12 +1126,14 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                 </CardSection>
                 <CardSection title="Договор и бюджет">
                   <DetailItem icon={FileText} label="Номер договора" value={viewDeal.contract} />
-                  <DetailItem icon={Banknote} label="Бюджет" value={viewDeal.amount ? viewDeal.amount.toLocaleString() + " ₸" : null} />
+                  <DetailItem icon={Banknote} label="Сумма сделки" value={viewDeal.amount ? formatMoney(viewDeal.amount) : null} />
                   <DetailItem icon={Home} label="Стадия" value={viewDeal.stage} />
+                  <DetailItem icon={CalendarDays} label="Дата обращения" value={viewDeal.date} />
+                  <DetailItem icon={CalendarDays} label="Дата завершения" value={viewDeal.completion_date} />
                   {isPomescheniya && <DetailItem icon={Briefcase} label="Меблировка" value={viewDeal.furniture} />}
                 </CardSection>
                 <CardSection title="Контакт">
-                  <DetailItem icon={Phone} label="Телефон" value={viewDeal.phone} />
+                  <DetailItem icon={Phone} label="Телефон" value={viewDeal.phone ? maskKzPhone(viewDeal.phone) : null} />
                   <DetailItem icon={User} label="Кто будет проживать" value={viewDeal.who_lives} />
                   <DetailItem icon={Users} label="Кол-во человек" value={viewDeal.people_count} />
                   <DetailItem icon={User} label="Брокер" value={viewDeal.broker} />

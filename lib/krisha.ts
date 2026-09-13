@@ -1,5 +1,6 @@
 export interface KrishaListing {
   krisha_id: number;
+  owner_id: number | null;
   deal_type: string;
   prop_type: string;
   title: string;
@@ -18,9 +19,11 @@ export interface KrishaParams {
   dealType?: string;
   propType?: string;
   district?: string;
+  jc?: string;
   rooms?: string;
   budgetFrom?: string;
   budgetTo?: string;
+  owner?: string;
 }
 
 export interface KrishaBatch {
@@ -82,9 +85,10 @@ export function buildKrishaUrl(params: KrishaParams, page = 1): string {
   }
   if (params.budgetFrom) search.set("das[price][from]", params.budgetFrom);
   if (params.budgetTo) search.set("das[price][to]", params.budgetTo);
+  if (params.jc) search.set("das[words]", params.jc);
 
   const districtSlug = DISTRICTS[params.district || ""];
-  const base = `https://krisha.kz/${section}/${category}/${CITY}/`;
+  const base = `https://krisha.kz/${section}/${category}/${params.owner ? params.owner + "/" : ""}${CITY}/`;
   const path = districtSlug ? base + districtSlug + "/" : base;
   const qs = search.toString();
   return qs ? path + "?" + qs : path;
@@ -119,6 +123,7 @@ export function parseKrishaListings(
     const descMatch = chunk.match(/class="a-card__text-preview">([\s\S]*?)<\/div>/);
     const imageMatch = chunk.match(/data-full-src="([^"]+)"/);
     const urlMatch = chunk.match(/href="(\/a\/show\/\d+)"/);
+    const ownerMatch = chunk.match(/href="[^"]*\/a\/users\/(\d+)"/) || chunk.match(/data-user-id="(\d+)"/);
 
     const title = titleMatch ? titleMatch[1].trim() : "";
     const priceRaw = priceMatch
@@ -137,6 +142,7 @@ export function parseKrishaListings(
 
     results.push({
       krisha_id: parseInt(idMatch[1], 10),
+      owner_id: ownerMatch ? parseInt(ownerMatch[1], 10) : null,
       deal_type: dealType,
       prop_type: propType,
       title,

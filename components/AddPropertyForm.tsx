@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImagePlus, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 
 export interface Property {
   id: string;
@@ -21,12 +22,17 @@ export interface Property {
   status?: string;
   image_url?: string;
   image_urls?: string[];
+  property_type?: string;
+  contract_number?: string;
+  payment_method?: string;
+  contacts?: string;
 }
 
 export default function AddPropertyForm({ property, onSuccess }: { property?: Property; onSuccess?: () => void }) {
   const isEdit = !!property;
   const [title, setTitle] = useState(property?.title || "");
   const [price, setPrice] = useState(property?.price ? String(property.price) : "");
+  const [propType, setPropType] = useState(property?.property_type || "");
   const [rooms, setRooms] = useState(property?.rooms ? String(property.rooms) : "");
   const [address, setAddress] = useState(property?.address || "");
   const [city, setCity] = useState(property?.city || "");
@@ -36,6 +42,9 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: Pr
   const [area, setArea] = useState(property?.area ? String(property.area) : "");
   const [bath, setBath] = useState(property?.bathroom || "");
   const [ceil, setCeil] = useState(property?.ceiling_height ? String(property.ceiling_height) : "");
+  const [contractNumber, setContractNumber] = useState(property?.contract_number || "");
+  const [paymentMethod, setPaymentMethod] = useState(property?.payment_method || "");
+  const [contacts, setContacts] = useState(property?.contacts || "");
   const [desc, setDesc] = useState(property?.description || "");
   const [propStatus, setPropStatus] = useState(property?.status || "Активно");
   const [files, setFiles] = useState<File[]>([]);
@@ -56,16 +65,17 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: Pr
     e.preventDefault(); if (!title || !price) return;
     setLoading(true); setStatus("idle");
     const fd = new FormData();
-    fd.append("title",title);fd.append("price",price);fd.append("rooms",rooms);
+    fd.append("title",title);fd.append("price",price);fd.append("property_type",propType);fd.append("rooms",rooms);
     fd.append("address",address);fd.append("city",city);fd.append("building_type",bType);
     fd.append("complex_name",complex);fd.append("year_built",year);fd.append("area",area);
     fd.append("bathroom",bath);fd.append("ceiling_height",ceil);fd.append("description",desc);fd.append("status",propStatus);
+    fd.append("contract_number",contractNumber);fd.append("payment_method",paymentMethod);fd.append("contacts",contacts);
     files.forEach(f=>fd.append("images",f));
     const url = isEdit ? `/api/properties/${property.id}` : "/api/properties";
     try {
       const res = await fetch(url, { method: isEdit ? "PUT" : "POST", body: fd });
       const data = await res.json();
-      if (res.ok) { setStatus("success"); setMsg(isEdit ? "Обновлено!" : "Добавлено!"); if (!isEdit) { setTitle(""); setPrice(""); setRooms(""); setAddress(""); setCity(""); setBType(""); setComplex(""); setYear(""); setArea(""); setBath(""); setCeil(""); setDesc(""); setFiles([]); setPreviews([]); if (fileRef.current) fileRef.current.value = ""; } onSuccess?.(); }
+      if (res.ok) { setStatus("success"); setMsg(isEdit ? "Обновлено!" : "Добавлено!"); if (!isEdit) { setTitle(""); setPrice(""); setPropType(""); setRooms(""); setAddress(""); setCity(""); setBType(""); setComplex(""); setYear(""); setArea(""); setBath(""); setCeil(""); setContractNumber(""); setPaymentMethod(""); setContacts(""); setDesc(""); setFiles([]); setPreviews([]); if (fileRef.current) fileRef.current.value = ""; } onSuccess?.(); }
       else { setStatus("error"); setMsg(data.error || "Ошибка"); }
     } catch { setStatus("error"); setMsg("Сетевая ошибка"); }
     finally { setLoading(false); }
@@ -76,7 +86,11 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: Pr
       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><ImagePlus className="w-5 h-5 text-blue-600" />{isEdit?"Редактировать":"Добавить объект"}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Название *</label><Input value={title} onChange={e=>setTitle(e.target.value)} placeholder="2-к квартира, ЖК Комфорт" required className="text-sm" /></div>
-        <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸ *</label><Input value={price} onChange={e=>setPrice(e.target.value)} type="number" placeholder="25000000" required className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Тип объекта</label><select value={propType} onChange={e=>setPropType(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбрано</option><option>Квартира</option><option>Дом</option><option>Участок</option></select></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contractNumber} onChange={e=>setContractNumber(e.target.value)} placeholder="Д-0001" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Способ оплаты</label><Input value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} placeholder="Наличные / Рассрочка / Ипотека" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Контакты</label><Input value={contacts} onChange={e=>setContacts(e.target.value)} placeholder="+7 700 000 00 00" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸ *</label><MoneyInput value={price} onChange={setPrice} placeholder="25 000 000" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e=>setRooms(e.target.value)} type="number" placeholder="2" className="text-sm" /></div>
         <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e=>setAddress(e.target.value)} placeholder="ул. Абая, 42" className="text-sm" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Статус</label><select value={propStatus} onChange={e=>setPropStatus(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>Активно</option><option>Продано</option><option>Сдано</option><option>Неактивно</option></select></div>
@@ -88,6 +102,7 @@ export default function AddPropertyForm({ property, onSuccess }: { property?: Pr
         <div><label className="text-xs text-gray-500 mb-1 block">Санузел</label><select value={bath} onChange={e=>setBath(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбрано</option><option>Совмещённый</option><option>Раздельный</option></select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Высота потолков, м</label><Input value={ceil} onChange={e=>setCeil(e.target.value)} type="number" step="0.1" placeholder="2.7" className="text-sm" /></div>
       </div>
+      <p className="text-xs text-gray-400 -mt-1">Номер договора, способ оплаты и контакты видны только в системе и не отображаются на странице для клиентов.</p>
       <div><label className="text-xs text-gray-500 mb-1 block">Описание</label><textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3} placeholder="Описание..." className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
       <div>
         <label className="text-xs text-gray-500 mb-2 block">Фото</label>

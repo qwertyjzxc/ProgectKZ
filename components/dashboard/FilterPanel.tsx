@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 
 export interface SearchFilters {
   dealType: string;
@@ -32,6 +32,20 @@ export default function FilterPanel({
   const [budgetTo, setBudgetTo] = useState("");
   const [areaFrom, setAreaFrom] = useState("");
   const [areaTo, setAreaTo] = useState("");
+
+  const [districtOptions, setDistrictOptions] = useState<string[]>([]);
+  const [complexOptions, setComplexOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/districts")
+      .then((res) => res.json())
+      .then((d) => setDistrictOptions(Array.isArray(d) ? d.map((x: { name: string }) => x.name) : []))
+      .catch(() => setDistrictOptions([]));
+    fetch("/api/residential-complexes")
+      .then((res) => res.json())
+      .then((d) => setComplexOptions(Array.isArray(d) ? d.map((x: { name: string }) => x.name) : []))
+      .catch(() => setComplexOptions([]));
+  }, []);
 
   const onSearchRef = useRef(onSearch);
   const firstRender = useRef(true);
@@ -96,9 +110,10 @@ export default function FilterPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-4">
         <div><label className="text-xs text-gray-500 mb-1.5 block">Тип сделки</label><select value={dealType} onChange={e => setDealType(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Все</option><option>Продажа</option><option>Аренда</option></select></div>
         <div><label className="text-xs text-gray-500 mb-1.5 block">Тип недвижимости</label><select value={propType} onChange={e => setPropType(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Все</option><option>Квартира</option><option>Помещение</option><option>Участок</option><option>Дом</option></select></div>
-        <div><label className="text-xs text-gray-500 mb-1.5 block">Район</label><Input value={district} onChange={e => setDistrict(e.target.value)} placeholder="Любой" className="h-9 text-sm bg-gray-50" /></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">Район</label><select value={district} onChange={e => setDistrict(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Любой</option>{districtOptions.map(d => <option key={d}>{d}</option>)}</select></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">Жилой комплекс</label><select value={jc} onChange={e => setJc(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Любой</option>{complexOptions.map(c => <option key={c}>{c}</option>)}</select></div>
         <div><label className="text-xs text-gray-500 mb-1.5 block">Кол-во комнат</label><div className="flex gap-1">{["1","2","3","4","5+"].map(v => (<button key={v} type="button" onClick={() => setRooms(rooms === v ? null : v)} className={"flex-1 h-9 rounded-lg border text-sm font-medium transition-colors " + (rooms === v ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50")}>{v}</button>))}</div></div>
-        <div className="flex gap-2"><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">Бюджет от</label><Input value={budgetFrom} onChange={e => setBudgetFrom(e.target.value)} placeholder="От, ₸" type="number" className="h-9 text-sm bg-gray-50" /></div><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">до</label><Input value={budgetTo} onChange={e => setBudgetTo(e.target.value)} placeholder="До, ₸" type="number" className="h-9 text-sm bg-gray-50" /></div></div>
+        <div className="flex gap-2"><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">Бюджет от</label><MoneyInput value={budgetFrom} onChange={setBudgetFrom} placeholder="От, ₸" className="bg-gray-50" /></div><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">до</label><MoneyInput value={budgetTo} onChange={setBudgetTo} placeholder="До, ₸" className="bg-gray-50" /></div></div>
       </div>
       {autoApply ? (
         <p className="text-xs text-gray-400 mt-4">Объявления обновляются автоматически при изменении фильтров.</p>

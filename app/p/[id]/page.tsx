@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import PropertyGallery from "@/components/PropertyGallery";
+import { formatMoney } from "@/lib/format";
 
 interface PublicProperty {
   title: string;
@@ -33,8 +34,9 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-5 order-2 lg:order-1">
           <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 leading-tight">{p.title}</h1>
-          <p className="text-3xl font-bold text-gray-900">{Number(p.price).toLocaleString()} ₸</p>
+          <p className="text-3xl font-bold text-gray-900">{formatMoney(p.price)}</p>
           <div className="space-y-2 text-base text-gray-700">
+            {(p as any).property_type && <p><span className="text-gray-400 w-36 inline-block">Тип объекта:</span> {(p as any).property_type}</p>}
             {p.rooms != null && <p><span className="text-gray-400 w-36 inline-block">Кол-во комнат:</span> {p.rooms}</p>}
             {p.address && <p><span className="text-gray-400 w-36 inline-block">Адрес:</span> {p.address}</p>}
             {p.city && <p><span className="text-gray-400 w-36 inline-block">Город:</span> {p.city}</p>}

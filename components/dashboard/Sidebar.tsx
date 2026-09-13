@@ -14,6 +14,7 @@ const clientSubItems = [
 const objectsSubItems = [
   { href: "/dashboard/krisha", label: "С Krisha.kz", icon: Globe },
   { href: "/dashboard/ours", label: "Наши объекты", icon: Building2 },
+  { href: "/dashboard/owners", label: "Собственники", icon: Users },
 ];
 
 const dealCategories = [

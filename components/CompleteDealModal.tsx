@@ -4,16 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/DatePicker";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 
-const TYPE_TO_DEAL_TYPE: Record<string, string> = {
+const DEAL_TYPE_MAP: Record<string, string> = {
   "Квартира": "kvartiry",
   "Помещения": "pomescheniya",
+  "Земля": "zemlya",
   "Дома": "zemlya",
-};
-
-const CATEGORY_TO_DEAL_CATEGORY: Record<string, string> = {
-  arenda: "arenda",
-  prodaja: "pokupka",
 };
 
 export default function CompleteDealModal({
@@ -23,7 +20,35 @@ export default function CompleteDealModal({
   onClose,
   onDone,
 }: {
-  client: { id: number; name: string; contract: string; amount: number; phone?: string; district?: string; rooms?: string; area?: string; address?: string; jk?: string; broker?: string; type?: string; furniture?: string; rental_period?: string; who_lives?: string; people_count?: number; notes?: string; };
+  client: {
+    id: number;
+    name: string;
+    contract: string;
+    amount: number;
+    type?: string;
+    phone?: string;
+    district?: string;
+    address?: string;
+    jk?: string;
+    rooms?: string;
+    area?: string;
+    area_unit?: string;
+    furniture?: string;
+    rental_period?: string;
+    who_lives?: string;
+    people_count?: number;
+    notes?: string;
+    completed?: string;
+    broker?: string;
+    date?: string;
+    plot_type?: string;
+    purpose?: string;
+    communications?: string;
+    access?: string;
+    plot_shape?: string;
+    relief?: string;
+    restrictions?: string;
+  };
   category: string;
   propertyType?: string;
   onClose: () => void;
@@ -34,6 +59,12 @@ export default function CompleteDealModal({
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const needContract = !client.contract;
+  const needAmount = !client.amount;
+
+  const dealType = DEAL_TYPE_MAP[client.type || propertyType || ""] || "kvartiry";
+  const dealCategory = category === "prodaja" ? "pokupka" : "arenda";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,28 +80,31 @@ export default function CompleteDealModal({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          type: client.type || "",
           contract: contract,
           amount: parseFloat(amount) || 0,
           completed: "Завершено",
         }),
       });
-      if (!updRes.ok) throw new Error("Не удалось обновить клиента");
+      if (!updRes.ok) {
+        const updErr = await updRes.json().catch(() => ({}));
+        throw new Error(updErr.error || "Не удалось обновить клиента");
+      }
 
-      // 2. Create deal with all client data in the correct table
-      const dealType = TYPE_TO_DEAL_TYPE[client.type || propertyType || ""] || "kvartiry";
-      const dealCategory = CATEGORY_TO_DEAL_CATEGORY[category] || "arenda";
+// 2. Create deal with client data (dealType/dealCategory рассчитаны выше)
       const dealRes = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dealType: dealType,
+dealType,
+          category: dealCategory,
+          type: client.type || "",
           name: client.name || "Сделка",
           client: client.name || "",
           amount: parseFloat(amount) || client.amount || 0,
           stage: "Сделка закрыта",
           completed: "Завершено",
           date: completionDate,
-          category: dealCategory,
           contract: contract,
           phone: client.phone || "",
           district: client.district || "",
@@ -79,15 +113,26 @@ export default function CompleteDealModal({
           address: client.address || "",
           jk: client.jk || "",
           broker: client.broker || "",
+          area_unit: client.area_unit || "сот",
           furniture: client.furniture || "",
           rental_period: client.rental_period || "",
           who_lives: client.who_lives || "",
           people_count: client.people_count || 1,
           notes: client.notes || "",
-          type: client.type || "",
+          plot_type: client.plot_type || "",
+          purpose: client.purpose || "",
+          communications: client.communications || "",
+          access: client.access || "",
+          plot_shape: client.plot_shape || "",
+          relief: client.relief || "",
+          restrictions: client.restrictions || "",
+          completion_date: new Date().toISOString().slice(0, 10),
         }),
       });
-      if (!dealRes.ok) throw new Error("Не удалось создать сделку");
+      if (!dealRes.ok) {
+        const errData = await dealRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Не удалось создать сделку");
+      }
 
       onDone();
     } catch (err) {
@@ -109,14 +154,23 @@ export default function CompleteDealModal({
             Клиент: <span className="font-medium text-gray-800">{client.name || "Без имени"}</span>
           </p>
 
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
-            <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: АР-2026-001" className="text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
-            <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="25000000" className="text-sm" />
-          </div>
+{needContract && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
+              <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: АР-2026-001" className="text-sm" />
+            </div>
+          )}
+          {needAmount && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
+              <MoneyInput value={amount} onChange={setAmount} placeholder="25 000 000" />
+            </div>
+          )}
+
+          {!needContract && !needAmount && (
+            <p className="text-sm text-gray-500">Договор и сумма уже указаны. Сделка будет закрыта.</p>
+          )}
+
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Дата завершения</label>
             <DatePicker value={completionDate} onChange={setCompletionDate} placeholder="Выберите дату" />

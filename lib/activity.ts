@@ -49,15 +49,25 @@ const FIELD_LABELS: Record<string, string> = {
   notes: "Заметки",
   completed: "Статус",
   broker: "Брокер",
-  date: "Дата создания",
+  date: "Дата обращения",
+  completion_date: "Дата завершения",
+  area_unit: "Единицы площади",
+  plot_type: "Участок под",
+  purpose: "Назначение",
+  communications: "Коммуникации",
+  access: "Подъездные пути",
+  plot_shape: "Форма участка",
+  relief: "Рельеф",
+  restrictions: "Ограничения",
 };
 
 export const DEAL_LABELS: Record<string, string> = {
   name: "Название",
   client: "Клиент",
-  amount: "Сумма",
+  amount: "Сумма сделки",
   stage: "Этап",
-  date: "Дата создания",
+  date: "Дата обращения",
+  completion_date: "Дата завершения",
   category: "Категория",
 };
 
@@ -65,7 +75,7 @@ export const TASK_LABELS: Record<string, string> = {
   title: "Название",
   client: "Клиент",
   description: "Описание",
-  created_date: "Дата создания",
+  created_date: "Дата обращения",
   due_date: "Срок",
   priority: "Приоритет",
   status: "Статус",
