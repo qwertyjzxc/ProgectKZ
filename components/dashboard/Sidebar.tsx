@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Building2, Users, ListTodo, Handshake, LayoutDashboard, Shield, ChevronDown, Home, Banknote, History, Globe, PanelLeftClose, PanelLeftOpen, BarChart3 } from "lucide-react";
 import { useProfile } from "@/lib/profile-context";
 import { useState, useEffect, useCallback } from "react";
 
@@ -23,6 +23,7 @@ const dealCategories = [
 ];
 
 const navItems = [
+  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
   { href: "/tasks", label: "Задачи", icon: ListTodo },
   { href: "/activity", label: "Журнал действий", icon: History },
 ];
