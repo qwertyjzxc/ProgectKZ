@@ -7,16 +7,22 @@ function stripMissingColumn(row: Record<string, unknown>, message: string): bool
   return true;
 }
 
+function firstRow<T = any>(data: unknown): T | null {
+  if (Array.isArray(data) && data.length > 0) return data[0] as T;
+  return null;
+}
+
 export async function insertWithColumnFallback<T = any, E = any>(
   supabase: { from: (table: string) => any },
   table: string,
   row: Record<string, unknown>
 ): Promise<{ data: T | null; error: E | null }> {
-  let res = await supabase.from(table).insert(row).select().single();
+  let res = await supabase.from(table).insert(row).select("*");
   while (res.error && stripMissingColumn(row, res.error?.message || "")) {
-    res = await supabase.from(table).insert(row).select().single();
+    res = await supabase.from(table).insert(row).select("*");
   }
-  return res;
+  if (res.error) return { data: null, error: res.error };
+  return { data: firstRow<T>(res.data), error: null };
 }
 
 export async function updateWithColumnFallback<T = any, E = any>(
@@ -25,9 +31,10 @@ export async function updateWithColumnFallback<T = any, E = any>(
   row: Record<string, unknown>,
   id: string | number
 ): Promise<{ data: T | null; error: E | null }> {
-  let res = await supabase.from(table).update(row).eq("id", id).select().single();
+  let res = await supabase.from(table).update(row).eq("id", id).select("*");
   while (res.error && stripMissingColumn(row, res.error?.message || "")) {
-    res = await supabase.from(table).update(row).eq("id", id).select().single();
+    res = await supabase.from(table).update(row).eq("id", id).select("*");
   }
-  return res;
+  if (res.error) return { data: null, error: res.error };
+  return { data: firstRow<T>(res.data), error: null };
 }

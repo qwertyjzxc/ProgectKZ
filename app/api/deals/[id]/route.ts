@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { logActivity, buildChanges, buildUpdateMessage, DEAL_LABELS } from "@/lib/activity";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 
@@ -21,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
 
-  const { data, error } = await supabase.from(table).update({
+  const updateRow: Record<string, unknown> = {
     name: body.name,
     client: body.client,
     amount: body.amount,
@@ -46,6 +47,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     layout: body.layout,
     renter_type: body.renter_type,
     payment: body.payment,
+    commission: body.commission,
+    owner_name: body.owner_name,
     finishing: body.finishing,
     premise_type: body.premise_type,
     plot_type: body.plot_type,
@@ -58,7 +61,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     documents: body.documents,
     restrictions: body.restrictions,
     completion_date: body.completion_date,
-  }).eq("id", id).select().single();
+  };
+  const { data, error } = await updateWithColumnFallback(
+    supabase as unknown as { from: (table: string) => unknown },
+    table,
+    updateRow,
+    id
+  );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const changes = buildChanges(existing || {}, data || {}, DEAL_LABELS);

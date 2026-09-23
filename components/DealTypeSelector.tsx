@@ -13,6 +13,10 @@ export const DEAL_CATEGORY_LABELS: Record<string, string> = {
   pokupka: "Покупка",
 };
 
+export function getDealTypeLabel(id: string, category: string): string {
+  return id === "zemlya" && category === "arenda" ? "Дома" : (DEAL_TYPES.find(t => t.id === id)?.label || id);
+}
+
 export default function DealTypeSelector({
   category,
   onSelect,
@@ -46,8 +50,8 @@ export default function DealTypeSelector({
             <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
               <Icon className="w-8 h-8" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{label}</h2>
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{getDealTypeLabel(id, category)}</h2>
+            <p className="text-sm text-gray-500 mt-1">{id === "zemlya" && category === "arenda" ? "Частные дома, таунхаусы" : subtitle}</p>
           </button>
         ))}
       </div>

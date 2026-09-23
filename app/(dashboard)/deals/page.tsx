@@ -48,6 +48,8 @@ interface Deal {
   layout?: string;
   renter_type?: string;
   payment?: string;
+  commission?: number;
+  owner_name?: string;
   plot_type?: string;
   purpose?: string;
   communications?: string;
@@ -101,6 +103,37 @@ const TYPE_LABELS: Record<string, string> = {
   pomescheniya: "Помещения",
   zemlya: "Земля",
 };
+
+function getDealTypeLabel(id: string, category?: string): string {
+  return id === "zemlya" && category === "arenda" ? "Дома" : TYPE_LABELS[id] || id;
+}
+
+function getDealTypeCardLabel(storedType: string | undefined, dealType: string | undefined, category?: string): string {
+  if (storedType === "Дома") return "Дом";
+  if (storedType === "Дом") return "Дом";
+  if (dealType === "zemlya" && category === "arenda") return "Дом";
+  if (storedType === "Земля") return "Земля";
+  if (storedType === "Участок") return "Участок";
+  if (dealType === "pomescheniya") return storedType === "Помещения" ? "Помещение" : storedType || "Помещение";
+  return storedType || getDealTypeLabel(dealType || "", category);
+}
+
+const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
+
+function objectTypeLabel(type?: string): string {
+  if (type === "Квартира" || type === "Квартиры") return "Квартира";
+  if (type === "Помещение" || type === "Помещения") return "Помещение";
+  if (type === "Дома" || type === "Дом") return "Дом";
+  if (type === "Земля" || type === "Участок") return "Участок";
+  return type || "—";
+}
+
+function dealKindLabel(category?: string): string {
+  if (!category) return "—";
+  if (category === "arenda") return "Аренда";
+  if (category === "prodaja" || category === "pokupka") return "Продажа";
+  return category;
+}
 
 const STATUS_STAT_COLORS: Record<string, string> = {
   "В процессе": "text-yellow-600",
@@ -200,6 +233,8 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
   const [layout, setLayout] = useState((deal as any)?.layout || "");
   const [renterType, setRenterType] = useState((deal as any)?.renter_type || "");
   const [payment, setPayment] = useState((deal as any)?.payment || "");
+  const [commission, setCommission] = useState((deal as any)?.commission ? String((deal as any).commission) : "");
+  const [ownerName, setOwnerName] = useState((deal as any)?.owner_name || "");
   const [finishing, setFinishing] = useState((deal as any)?.finishing || "");
   const [premiseType, setPremiseType] = useState((deal as any)?.premise_type || "Отдельно стоящее здание");
   const [plotType, setPlotType] = useState((deal as any)?.plot_type || "");
@@ -258,7 +293,7 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
       type, area, address, jk, contract, date, name, phone, district, rooms,
       amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod,
       who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker,
-      layout, renter_type: renterType, payment, finishing, premise_type: premiseType,
+      layout, renter_type: renterType, payment, commission: parseInt(commission) || 0, owner_name: ownerName, finishing, premise_type: premiseType,
       plot_type: plotType, purpose, communications: communications.join(", "), access, plot_shape: plotShape, relief, documents: JSON.stringify(documents), restrictions,
       area_unit: areaUnit, completion_date: completionDate,
       stage: "Первичный контакт",
@@ -291,7 +326,7 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
               ) : (
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Тип недвижимости</label>
-                  <select value={type} onChange={e => setType(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>Квартира</option><option>Дома</option><option>Помещения</option></select>
+                  <select value={type} onChange={e => setType(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>Квартира</option><option>Дома</option><option>Помещение</option></select>
                 </div>
               )}
             </div>
@@ -316,6 +351,12 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
             )}
             <div><label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸</label><MoneyInput value={amount} onChange={setAmount} placeholder="25000000" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Комиссия агентства, ₸</label><MoneyInput value={commission} onChange={setCommission} placeholder="500 000" /></div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Способ оплаты</label>
+              <select value={payment} onChange={e => setPayment(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не указано</option>{PAYMENT_OPTIONS.map(o => <option key={o}>{o}</option>)}</select>
+            </div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Собственник</label><Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Имя собственника" className="text-sm" /></div>
             {isZemlya ? (
               <>
                 <div>
@@ -399,10 +440,6 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
                   <label className="text-xs text-gray-500 mb-1 block">Кто арендует</label>
                   <select value={renterType} onChange={e => setRenterType(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не указано</option><option>Физ лицо</option><option>Юр лицо</option></select>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Способ оплаты</label>
-                  <select value={payment} onChange={e => setPayment(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не указано</option><option>Наличные</option><option>Перевод</option></select>
-                </div>
               </>
             ) : (
               <>
@@ -470,7 +507,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const totalCols = (isZemlya ? 12 : isPomescheniya ? 15 : 13) + (deleteMode ? 1 : 0);
+  const totalCols = (isZemlya ? 11 : isPomescheniya ? 14 : 12) + (deleteMode ? 1 : 0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -704,7 +741,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
               <ArrowLeft className="w-4 h-4" />Назад к категориям
             </button>
           )}
-          <h1 className="text-xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + (TYPE_LABELS[dealType] || dealType) : ""}</h1>
+          <h1 className="text-xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + getDealTypeLabel(dealType, category) : ""}</h1>
         </div>
         <p className="text-sm text-gray-500 mt-1">Сделки создаются автоматически при завершении клиента</p>
       </div>
@@ -886,12 +923,10 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     <>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Телефон</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Участок под</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                     </>
                   ) : isPomescheniya ? (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Планировка</th>
@@ -901,7 +936,6 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     </>
                   ) : (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
@@ -975,12 +1009,9 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                       <>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.phone ? maskKzPhone(d.phone) : "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.plot_type || "—"}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.district || "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " " + (d.area_unit || "сот") : "—"}</td>
                       </>
-                    ) : (
-                      <td className="px-4 py-3 text-sm text-gray-600">{d.district || "—"}</td>
-                    )}
+                    ) : null}
                     {isZemlya ? null : isPomescheniya ? (
                       <>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " м²" : "—"}</td>
@@ -1124,7 +1155,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
               </div>
               <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
                 <CardSection title="Объект">
-                  <DetailItem icon={Home} label="Тип недвижимости" value={viewDeal.type || TYPE_LABELS[dealType || ""]} />
+                  <DetailItem icon={Home} label="Тип недвижимости" value={getDealTypeCardLabel(viewDeal.type, dealType, category)} />
                   <DetailItem icon={MapPin} label="Район" value={viewDeal.district} />
                   <DetailItem icon={MapPin} label="Адрес" value={viewDeal.address} />
                   {!isZemlya && <DetailItem icon={Building2} label="Жилой комплекс" value={viewDeal.jk} />}

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, Paperclip, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, Square, CheckSquare, CheckCircle2, type LucideIcon } from "lucide-react";
-import { RENT_CATEGORY_LABELS, type RentCategory } from "@/components/RentCategorySelector";
+import { RENT_CATEGORY_LABELS, getRentCategoryLabel, type RentCategory } from "@/components/RentCategorySelector";
 import AssignTaskModal from "@/components/AssignTaskModal";
 import CompleteDealModal from "@/components/CompleteDealModal";
 import Combobox from "@/components/Combobox";
@@ -41,7 +41,7 @@ async function fetchReference(table: string): Promise<string[]> {
 
 const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
   houses: "Земля",
-  premises: "Помещения",
+  premises: "Помещение",
   apartments: "Квартира",
 };
 
@@ -98,6 +98,7 @@ const CLIENT_STATUSES = [
   "Подготовка к сделке",
   "Сделка в процессе",
   "Сделка завершена",
+  "Заморожен",
   "Приостановлен",
   "Закрыт без сделки",
 ];
@@ -112,6 +113,7 @@ const completedColors: Record<string, string> = {
   "Подготовка к сделке": "bg-orange-100 text-orange-800",
   "Сделка в процессе": "bg-yellow-100 text-yellow-800",
   "Сделка завершена": "bg-green-100 text-green-800",
+  "Заморожен": "bg-blue-100 text-blue-800",
   "Приостановлен": "bg-gray-100 text-gray-700",
   "Закрыт без сделки": "bg-red-100 text-red-800",
   // старые статусы из данных — чтобы не были чёрными
@@ -138,6 +140,7 @@ const STATUS_STAT_COLORS: Record<string, string> = {
   "Подготовка к сделке": "text-orange-600",
   "Сделка в процессе": "text-yellow-600",
   "Сделка завершена": "text-green-600",
+  "Заморожен": "text-blue-600",
   "Приостановлен": "text-gray-500",
   "Закрыт без сделки": "text-red-500",
   // старые статусы из данных — чтобы не были чёрными
@@ -276,7 +279,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
           </div>
           <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
             <CardSection title="Объект">
-              <DetailItem icon={Home} label="Тип недвижимости" value={client.type} />
+              <DetailItem icon={Home} label="Тип недвижимости" value={client.type === "Земля" ? client.type : client.type === "Дома" ? "Дом" : client.type === "Помещения" ? "Помещение" : client.type} />
               <DetailItem icon={MapPin} label="Район" value={client.district} />
               <DetailItem icon={MapPin} label="Адрес" value={client.address} />
               <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
@@ -429,7 +432,7 @@ function getInitials(name: string): string {
 }
 
 // ====== FORM MODAL ======
-function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string }) {
+function ClientFormModal({ client, onClose, onSave, defaultType, category }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string; category?: "arenda" | "prodaja" }) {
   const { currentProfile, allProfiles } = useProfile();
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
   const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
@@ -548,7 +551,7 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Тип недвижимости</label>
-              <Select label="Не указано" value={type} onChange={setType} options={["Земля", "Помещения", "Квартира"]} />
+              <Select label="Не указано" value={type} onChange={setType} options={["Земля", "Дом", "Помещение", "Квартира"]} />
             </div>
             <div><label className="text-xs text-gray-500 mb-1 block">Дата обращения</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Имя</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Фамилия Имя" className="text-sm" /></div>
@@ -667,16 +670,18 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
               <label className="text-xs text-gray-500 mb-1 block">Категория клиента</label>
               <Select label="Не указано" value={clientCategory} onChange={setClientCategory} options={[...CLIENT_CATEGORIES]} />
             </div>
-            {type === "Помещения" && (
+            {type === "Помещение" || type === "Помещения" ? (
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Тип помещения</label>
                 <Select label="Не указано" value={premiseType} onChange={setPremiseType} options={[...PREMISE_TYPES]} />
               </div>
+            ) : null}
+            {!(category === "arenda" && (type === "Квартира" || type === "Квартиры")) && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
+                <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
+              </div>
             )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
-              <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
-            </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
               <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
@@ -830,7 +835,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const categoryClients = useMemo(() => {
     if (!propertyType) return clients;
     const label = RENT_TYPE_SINGULAR[propertyType];
-    if (label === "Земля") return clients.filter(c => c.type === "Земля" || c.type === "Дома");
+    if (label === "Земля") return clients.filter(c => c.type === "Земля" || c.type === "Дома" || c.type === "Дом");
+    if (label === "Помещение") return clients.filter(c => c.type === "Помещение" || c.type === "Помещения");
     return clients.filter(c => c.type === label);
   }, [clients, propertyType]);
 
@@ -985,6 +991,11 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const categoryLabel = CATEGORY_LABELS[category] || category;
 
+  const isHouses = propertyType === "houses";
+  const isZemlyaSell = isHouses && category === "prodaja";
+  const showRoomsCol = !isZemlyaSell;
+  const showJkCol = !isHouses;
+
   return (
     <div>
       {saveError && (
@@ -1009,7 +1020,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <ArrowLeft className="w-4 h-4" />Назад к категориям
             </button>
           )}
-          <h1 className="text-xl font-bold text-gray-900">Клиенты · {categoryLabel}{propertyType ? " · " + RENT_CATEGORY_LABELS[propertyType] : ""}</h1>
+          <h1 className="text-xl font-bold text-gray-900">Клиенты · {categoryLabel}{propertyType ? " · " + getRentCategoryLabel(propertyType, category) : ""}</h1>
         </div>
         <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
           <UserPlus className="w-4 h-4" />Добавить клиента
@@ -1207,11 +1218,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <colgroup>
               <col className="w-[4%]" />
               <col className="w-[15%]" />
-              <col className="w-[9%]" />
-              <col className="w-[7%]" />
+              {showRoomsCol && <col className="w-[7%]" />}
               <col className="w-[8%]" />
               <col className="w-[9%]" />
-              <col className="w-[8%]" />
+              {showJkCol && <col className="w-[8%]" />}
               <col className="w-[8%]" />
               <col className="w-[8%]" />
               <col className="w-[8%]" />
@@ -1222,11 +1232,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <tr className="bg-gray-100">
                 <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
+                {showRoomsCol && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Предпочтения</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
+                {showJkCol && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
@@ -1295,11 +1304,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-600 break-words">{c.district || "—"}</td>
-                  <td className="px-3 py-3 text-sm text-gray-600">{c.rooms || "—"}</td>
+                  {showRoomsCol && <td className="px-3 py-3 text-sm text-gray-600">{c.rooms || "—"}</td>}
                   <td className="px-3 py-3 text-sm text-gray-600">{c.area ? c.area + (c.type === "Земля" ? " " + (c.area_unit || "сот") : " м²") : "—"}</td>
                   <td className="px-3 py-3 text-sm text-gray-500 break-words"><span className="line-clamp-2" title={c.preferences || ""}>{c.preferences || "—"}</span></td>
-                  <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.jk || "—"}</td>
+                  {showJkCol && <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.jk || "—"}</td>}
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
                     {c.amount ? formatMoney(c.amount) : "—"}
@@ -1357,8 +1365,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       )}
 
       {/* Modals */}
-      {showAdd && <ClientFormModal defaultType={propertyType ? RENT_TYPE_SINGULAR[propertyType] : ""} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
-      {editClient && <ClientFormModal client={editClient} onClose={() => setEditClient(null)} onSave={handleEdit} />}
+      {showAdd && <ClientFormModal defaultType={propertyType ? (propertyType === "houses" && category === "arenda" ? "Дом" : RENT_TYPE_SINGULAR[propertyType]) : ""} category={category} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
+      {editClient && <ClientFormModal client={editClient} category={category} onClose={() => setEditClient(null)} onSave={handleEdit} />}
       {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
       {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}

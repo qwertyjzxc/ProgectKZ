@@ -10,10 +10,10 @@ const TABLE_MAP: Record<string, string> = {
 };
 
 const COLUMNS: Record<string, string[]> = {
-  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","contract_kind","status","condition","notes","broker"],
-  pomescheniya: ["name","phone","district","address","area","price","contract_type","contract_kind","status","condition","location_line","notes","broker"],
-  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","contract_kind","status","condition","notes","broker"],
-  doma: ["name","phone","district","address","rooms","house_area","land_area","price","contract_type","contract_kind","status","condition","notes","broker"],
+  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","contract_kind","status","condition","notes","broker","documents","date"],
+  pomescheniya: ["name","phone","district","address","area","premise_type","finishing","location_line","price","contract_type","contract_kind","status","condition","notes","broker","documents","date"],
+  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","contract_kind","status","condition","notes","broker","documents","date"],
+  doma: ["name","phone","district","address","rooms","house_area","land_area","price","contract_type","contract_kind","status","condition","notes","broker","documents","date"],
 };
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -10,6 +10,10 @@ export const RENT_CATEGORY_LABELS: Record<RentCategory, string> = {
   apartments: "Квартиры",
 };
 
+export function getRentCategoryLabel(id: RentCategory, category: "arenda" | "prodaja" = "arenda"): string {
+  return id === "houses" && category === "arenda" ? "Дома" : RENT_CATEGORY_LABELS[id];
+}
+
 export const RENT_CATEGORIES: { id: RentCategory; label: string; subtitle: string; icon: LucideIcon }[] = [
   { id: "apartments", label: "Квартиры", subtitle: "Квартиры в жилых комплексах", icon: Building },
   { id: "premises", label: "Помещения", subtitle: "Коммерческие площади, офисы", icon: Building2 },
@@ -33,19 +37,22 @@ export default function RentCategorySelector({
         <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {RENT_CATEGORIES.map(({ id, label, subtitle, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => onSelect(id)}
-            className="group flex flex-col items-center justify-center text-center p-8 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:border-blue-500 transition-all duration-200 outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
-              <Icon className="w-8 h-8" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{label}</h2>
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
-          </button>
-        ))}
+        {RENT_CATEGORIES.map(({ id, label, subtitle, icon: Icon }) => {
+          const displayLabel = getRentCategoryLabel(id, category);
+          return (
+            <button
+              key={id}
+              onClick={() => onSelect(id)}
+              className="group flex flex-col items-center justify-center text-center p-8 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-lg hover:-translate-y-1.5 hover:border-blue-500 transition-all duration-200 outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
+                <Icon className="w-8 h-8" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{displayLabel}</h2>
+              <p className="text-sm text-gray-500 mt-1">{id === "houses" && category === "arenda" ? "Частные дома, таунхаусы" : subtitle}</p>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
