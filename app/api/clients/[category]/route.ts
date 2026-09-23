@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
+import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -28,7 +29,9 @@ export async function GET(
       .select("*")
       .order("created_at", { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    // Телефоны видит только тот, кто добавил клиента; админу видны все.
+    const vis = await getPhoneVisibility();
+    return NextResponse.json(maskRowsPhones(data || [], vis));
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }

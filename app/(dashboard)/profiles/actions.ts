@@ -181,5 +181,7 @@ export async function getProfilePassword(profileId: number) {
     .single();
 
   if (!profile) return { error: "Пользователь не найден" };
-  return { password: decryptSecret((profile.password_enc as string) || "") };
+  const pwd = decryptSecret((profile.password_enc as string) || "");
+  if (!pwd) return { error: "Сохранённый пароль не расшифровывается текущим ключом APP_PASSWORD_KEY. Задайте пароль заново через редактирование профиля." };
+  return { password: pwd };
 }

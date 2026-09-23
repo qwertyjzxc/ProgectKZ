@@ -61,12 +61,6 @@ export default function LoginForm() {
       <Button type='submit' disabled={loading} className='w-full'>
         {loading ? 'Загрузка...' : 'Войти'}
       </Button>
-      <p className='mt-4 text-center text-sm text-gray-500'>
-        Нет аккаунта?{' '}
-        <a href='/signup' className='text-blue-600 hover:underline'>
-          Зарегистрироваться
-        </a>
-      </p>
     </form>
   );
 }

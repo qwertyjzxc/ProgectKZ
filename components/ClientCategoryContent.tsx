@@ -55,6 +55,7 @@ interface Client {
   furniture: string;
   rental_period: string;
   phone: string;
+  phone_masked?: boolean;
   who_lives: string;
   people_count: number;
   notes: string;
@@ -297,7 +298,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
               <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
             </CardSection>
             <CardSection title="Контакт">
-              <DetailItem icon={Phone} label="Телефон" value={client.phone ? maskKzPhone(client.phone) : null} />
+              <DetailItem icon={Phone} label="Телефон" value={client.phone_masked ? "Скрыт" : client.phone ? maskKzPhone(client.phone) : null} />
               <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
               <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
               <DetailItem icon={User} label="Брокер" value={client.broker} />
@@ -332,7 +333,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
-            <ClientDeals phone={client.phone || ""} name={client.name || ""} />
+            {!client.phone_masked && <ClientDeals phone={client.phone || ""} name={client.name || ""} />}
             {(client.documents || "").trim() && ((() => {
               try {
                 const docs = JSON.parse(client.documents || "[]");
@@ -1265,7 +1266,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                   }
                 >
                   <td className="px-1 py-3" onClick={e => e.stopPropagation()}>
-                    {c.phone ? (
+                    {c.phone && !c.phone_masked ? (
                       <a
                         href={`https://wa.me/${phoneToWa(c.phone)}`}
                         target="_blank"
@@ -1289,7 +1290,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       <div className="min-w-0 text-left">
                         <div className="text-sm font-medium text-gray-900">{c.name || "—"}</div>
                         <div className="text-xs text-gray-400 flex items-center gap-1">
-                          <Phone className="w-3 h-3 shrink-0" />{c.phone ? maskKzPhone(c.phone) : "—"}
+                          <Phone className="w-3 h-3 shrink-0" />{c.phone_masked ? "Скрыт" : c.phone ? maskKzPhone(c.phone) : "—"}
                         </div>
                       </div>
                     </div>

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
+import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -21,6 +22,12 @@ export async function PUT(
     const supabase = await createClient();
     const body = await request.json();
     const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
+
+    // Телефоны видит только тот, кто добавил клиента; админу видны все.
+    // Чужой номер не показываем в ответе и не даём перезаписывать.
+    const vis = await getPhoneVisibility();
+    const canEditPhone = vis.isAdmin || canSeePhone(existing?.broker as string | undefined, vis);
+
     const updateRow: Record<string, unknown> = {
       type: body.type,
       area: body.area,
@@ -34,7 +41,7 @@ export async function PUT(
       amount: body.amount,
       furniture: body.furniture,
       rental_period: body.rental_period,
-      phone: body.phone,
+      phone: canEditPhone ? body.phone : existing?.phone,
       who_lives: body.who_lives,
       people_count: body.people_count,
       notes: body.notes,
@@ -83,6 +90,10 @@ export async function PUT(
       });
       // ТЗ §5: «Приостановлен» с датой → автозадача на повторный контакт
       await maybeCreateResumeTask(supabase, data);
+    }
+    // Чужой клиент: телефон в ответе скрываем, чтобы он не утёк в клиентский стейт
+    if (!canEditPhone) {
+      return NextResponse.json({ ...data, phone: "", phone_masked: true });
     }
     return NextResponse.json(data);
   } catch (e) {

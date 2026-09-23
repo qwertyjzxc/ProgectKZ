@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import DatePicker from "@/components/DatePicker";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
 
 const DEAL_TYPE_MAP: Record<string, string> = {
   "Квартира": "kvartiry",
+  "Квартиры": "kvartiry",
   "Помещения": "pomescheniya",
   "Земля": "zemlya",
   "Дома": "zemlya",
@@ -15,12 +15,11 @@ const DEAL_TYPE_MAP: Record<string, string> = {
   "Участок": "zemlya",
 };
 
-const DEAL_OBJECTS = ["Квартира", "Помещения", "Дом", "Участок"];
-const DEAL_KINDS = [
-  { id: "arenda", label: "Аренда" },
-  { id: "pokupka", label: "Продажа" },
-];
-const PAYMENT_METHODS = ["Наличные", "Перечисление", "QR", "Удалённо"];
+const PROPERTY_TYPE_TO_DEAL: Record<string, string> = {
+  houses: "zemlya",
+  premises: "pomescheniya",
+  apartments: "kvartiry",
+};
 
 export default function CompleteDealModal({
   client,
@@ -64,28 +63,20 @@ export default function CompleteDealModal({
   onDone: () => void;
 }) {
   const [contract, setContract] = useState(client.contract || "");
-  const [amount, setAmount] = useState(client.amount ? String(client.amount) : "");
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
-  const [commission, setCommission] = useState("");
-  const [payment, setPayment] = useState("");
-  const [dealObject, setDealObject] = useState(client.type || "");
-  const [dealKind, setDealKind] = useState(category === "prodaja" ? "pokupka" : "arenda");
-  const [ownerName, setOwnerName] = useState("");
+  const [budget, setBudget] = useState(client.amount ? String(client.amount) : "");
+  const [completionDate] = useState(new Date().toISOString().slice(0, 10));
+  const dealKind = category === "prodaja" ? "pokupka" : "arenda";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const needContract = !client.contract;
-  const needAmount = !client.amount;
-
-  const dealType = DEAL_TYPE_MAP[dealObject || client.type || propertyType || ""] || "kvartiry";
+  // Клиент попадает в свою категорию: из id вкладки (houses/premises/apartments) или типа клиента
+  const dealType = PROPERTY_TYPE_TO_DEAL[propertyType || ""] || DEAL_TYPE_MAP[client.type || ""] || "kvartiry";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Проверяем только наличие договора и бюджета клиента
     if (!contract.trim()) return setError("Укажите номер договора");
-    if (!amount) return setError("Укажите сумму сделки");
-    if (!commission) return setError("Укажите комиссию агентства");
-    if (!dealObject) return setError("Выберите объект сделки");
-    if (!payment) return setError("Выберите способ оплаты");
+    if (!budget) return setError("Укажите бюджет");
 
     setLoading(true);
     setError("");
@@ -98,7 +89,7 @@ export default function CompleteDealModal({
         body: JSON.stringify({
           type: client.type || "",
           contract: contract,
-          amount: parseFloat(amount) || 0,
+          amount: parseFloat(budget) || 0,
           completed: "Сделка завершена",
         }),
       });
@@ -107,20 +98,17 @@ export default function CompleteDealModal({
         throw new Error(updErr.error || "Не удалось обновить клиента");
       }
 
-// 2. Create deal with client data (dealType/dealCategory рассчитаны выше)
+      // 2. Create deal with client data (dealType рассчитан выше)
       const dealRes = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dealType,
           category: dealKind,
-          type: dealObject || client.type || "",
+          type: client.type || "",
           name: client.name || "Сделка",
           client: client.name || "",
-          amount: parseFloat(amount) || client.amount || 0,
-          commission: parseFloat(commission) || 0,
-          payment,
-          owner_name: ownerName,
+          amount: parseFloat(budget) || 0,
           stage: "Сделка закрыта",
           completed: "Завершено",
           date: completionDate,
@@ -145,7 +133,7 @@ export default function CompleteDealModal({
           plot_shape: client.plot_shape || "",
           relief: client.relief || "",
           restrictions: client.restrictions || "",
-          completion_date: new Date().toISOString().slice(0, 10),
+          completion_date: completionDate,
         }),
       });
       if (!dealRes.ok) {
@@ -173,56 +161,20 @@ export default function CompleteDealModal({
             Клиент: <span className="font-medium text-gray-800">{client.name || "Без имени"}</span>
           </p>
 
-{needContract && (
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
-              <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: АР-2026-001" className="text-sm" />
-            </div>
-          )}
-          {needAmount && (
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
-              <MoneyInput value={amount} onChange={setAmount} placeholder="25 000 000" />
-            </div>
-          )}
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Комиссия агентства, ₸ *</label>
-            <MoneyInput value={commission} onChange={setCommission} placeholder="500 000" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Объект сделки *</label>
-              <select value={dealObject} onChange={e => setDealObject(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
-                <option value="">Выберите</option>
-                {DEAL_OBJECTS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Тип сделки *</label>
-              <select value={dealKind} onChange={e => setDealKind(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
-                {DEAL_KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
-              </select>
-            </div>
+            <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
+            <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: АР-2026-001" className="text-sm" />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Способ оплаты *</label>
-            <select value={payment} onChange={e => setPayment(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
-              <option value="">Выберите</option>
-              {PAYMENT_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸ *</label>
+            <MoneyInput value={budget} onChange={setBudget} placeholder="25 000 000" />
           </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Собственник объекта</label>
-            <Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="ФИО собственника" className="text-sm" />
-          </div>
-
-          {!needContract && !needAmount && (
-            <p className="text-sm text-gray-500">Договор и сумма уже указаны. Сделка будет закрыта.</p>
-          )}
 
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Дата завершения</label>
-            <DatePicker value={completionDate} onChange={setCompletionDate} placeholder="Выберите дату" />
+            <div className="h-9 rounded-lg border px-3 flex items-center text-sm text-gray-700 bg-gray-50">
+              {new Date(completionDate).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            </div>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

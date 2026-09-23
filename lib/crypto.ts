@@ -26,8 +26,14 @@ export function decryptSecret(token: string): string {
   const key = getKey();
   const [ivB64, tagB64, dataB64] = token.split(":");
   if (!ivB64 || !tagB64 || !dataB64) return "";
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
-  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
-  const decrypted = Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]);
-  return decrypted.toString("utf8");
+  try {
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
+    decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+    const decrypted = Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]);
+    return decrypted.toString("utf8");
+  } catch {
+    // Ключ не совпадает или данные повреждены (например, пароль зашифрован
+    // в другом окружении другим APP_PASSWORD_KEY) — не должно ронять приложение.
+    return "";
+  }
 }
