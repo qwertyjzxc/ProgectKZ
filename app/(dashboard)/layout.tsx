@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false);
   return (
     <ProfileProvider>
-      <div className="flex h-screen bg-gray-100">
+      <div className="flex min-h-screen bg-gray-100">
         <Suspense>
           <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
         </Suspense>
@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Suspense>
             <DashboardHeader />
           </Suspense>
-          <main className="flex-1 overflow-y-auto px-5 pt-4 pb-6">
+          <main className="flex-1 px-5 pt-4 pb-6">
             {children}
           </main>
         </div>

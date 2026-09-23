@@ -542,7 +542,7 @@ function TasksContent() {
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
-          <div className="overflow-y-auto max-h-[60vh]">
+          <div className="table-scroll overflow-y-auto max-h-[60vh]">
           <table className="w-full table-fixed text-center">
             <colgroup>
               <col className="w-[4%]" />

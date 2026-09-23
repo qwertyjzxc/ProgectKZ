@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -40,6 +41,16 @@ export async function PUT(
       completed: body.completed,
       broker: body.broker,
       documents: body.documents,
+      preferences: body.preferences,
+      client_category: body.client_category,
+      tags: body.tags,
+      premise_type: body.premise_type,
+      finishing: body.finishing,
+      contract_type: body.contract_type,
+      contract_kind: body.contract_kind,
+      reason: body.reason,
+      status_comment: body.status_comment,
+      resume_date: body.resume_date,
     };
     if (body.type === "Земля" || body.type === "Дома") {
       updateRow.area_unit = body.area_unit;
@@ -51,7 +62,7 @@ export async function PUT(
       updateRow.relief = body.relief;
       updateRow.restrictions = body.restrictions;
     }
-    const { data, error } = await updateWithColumnFallback(supabase as any, table, updateRow, id);
+    const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, updateRow, id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const changes = buildChanges(existing || {}, data);
     if (changes.length > 0) {
@@ -63,6 +74,15 @@ export async function PUT(
         message: buildUpdateMessage(changes),
         changes,
       });
+      await notifyAll({
+        key: "clients_update",
+        message: "Изменён клиент: «" + (data.name || existing?.name || "") + "»",
+        related_to: "/clients",
+        related_id: data.id,
+        actorUserId: await getActorUserId(supabase),
+      });
+      // ТЗ §5: «Приостановлен» с датой → автозадача на повторный контакт
+      await maybeCreateResumeTask(supabase, data);
     }
     return NextResponse.json(data);
   } catch (e) {
@@ -91,6 +111,12 @@ export async function DELETE(
         action: "delete",
         message: "Удалил клиента",
         changes: buildChanges(existing, {}),
+      });
+      await notifyAll({
+        key: "clients_delete",
+        message: "Удалён клиент: «" + (existing.name || "") + "»",
+        related_to: "/clients",
+        actorUserId: await getActorUserId(supabase),
       });
     }
     return NextResponse.json({ success: true });

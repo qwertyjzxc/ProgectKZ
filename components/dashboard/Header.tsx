@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile, profileName, profileInitials, type Profile } from "@/lib/profile-context";
 import AddProfileModal from "./AddProfileModal";
 import TaskModal from "./TaskModal";
+import GlobalSearch from "./GlobalSearch";
 import { detachProfile } from "@/lib/profile-actions";
 
 interface Notification {
@@ -58,6 +59,7 @@ export default function DashboardHeader() {
   const markAsRead = async (id: number) => {
     // Оптимистично помечаем прочитанным сразу
     applyNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+    window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       if (!res.ok) throw new Error("Ошибка");
@@ -69,6 +71,7 @@ export default function DashboardHeader() {
   const markAllAsRead = async () => {
     if (!currentProfile?.id) return;
     applyNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
       if (!res.ok) throw new Error("Ошибка");
@@ -125,7 +128,8 @@ export default function DashboardHeader() {
   const profileAvatarClass = colorMap[avatarColor] || colorMap.blue;
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b h-16 flex items-center px-6 gap-3">
+    <header className="relative z-20 bg-white border-b h-16 flex items-center px-6 gap-3 shrink-0">
+      <GlobalSearch />
       <div className="flex items-center gap-2 ml-auto">
         {/* Notifications */}
         <div className="relative">
@@ -145,7 +149,7 @@ export default function DashboardHeader() {
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowNotifications(false)} />
               <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-xl border z-40 p-2 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between px-3 py-2 border-b mb-1 sticky top-0 bg-white rounded-t-xl z-10">
+                <div className="flex items-center justify-between px-3 py-2 border-b mb-1 bg-white rounded-t-xl">
                   <span className="font-semibold text-sm">Уведомления</span>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
@@ -165,7 +169,15 @@ export default function DashboardHeader() {
                 {notifications.map(n => (
                   <div
                     key={n.id}
-                    onClick={() => { markAsRead(n.id); if (n.related_id) setTaskModal(n.related_id); }}
+                    onClick={() => {
+                      markAsRead(n.id);
+                      if (n.related_to === "/tasks" && n.related_id) {
+                        setTaskModal(n.related_id);
+                      } else if (n.related_to && n.related_to !== "/tasks") {
+                        setShowNotifications(false);
+                        router.push(n.related_to);
+                      }
+                    }}
                     className={
                       "px-3 py-3 rounded-lg cursor-pointer transition-colors mb-0.5 " +
                       (n.is_read

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage, DEAL_LABELS } from "@/lib/activity";
+import { notifyAll, getActorUserId } from "@/lib/notify";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -70,6 +71,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       message: buildUpdateMessage(changes),
       changes,
     });
+    await notifyAll({
+      key: "deals_update",
+      message: "Изменена сделка: «" + (data.name || existing?.name || "") + "»",
+      related_to: "/deals",
+      related_id: data.id,
+      actorUserId: await getActorUserId(supabase),
+    });
   }
   return NextResponse.json(data);
 }
@@ -90,6 +98,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       action: "delete",
       message: "Удалил сделку",
       changes: buildChanges(existing, {}, DEAL_LABELS),
+    });
+    await notifyAll({
+      key: "deals_delete",
+      message: "Удалена сделка: «" + (existing.name || "") + "»",
+      related_to: "/deals",
+      actorUserId: await getActorUserId(supabase),
     });
   }
   return NextResponse.json({ success: true });

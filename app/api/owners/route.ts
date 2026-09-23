@@ -6,12 +6,14 @@ const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
   pomescheniya: "owners_pomescheniya",
   zemlya: "owners_zemlya",
+  doma: "owners_doma",
 };
 
 const COLUMNS: Record<string, string[]> = {
-  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","status","notes","broker","documents"],
-  pomescheniya: ["name","phone","district","address","area","price","contract_type","status","notes","broker","documents"],
-  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","status","notes","broker","documents"],
+  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","contract_kind","status","condition","notes","broker","documents"],
+  pomescheniya: ["name","phone","district","address","area","price","contract_type","contract_kind","status","condition","location_line","notes","broker","documents"],
+  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","contract_kind","status","condition","notes","broker","documents"],
+  doma: ["name","phone","district","address","rooms","house_area","land_area","price","contract_type","contract_kind","status","condition","notes","broker","documents"],
 };
 
 export async function GET(request: NextRequest) {
@@ -33,13 +35,13 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
   const allowed = COLUMNS[category];
-  const row: Record<string, any> = {};
+  const row: Record<string, unknown> = {};
   for (const col of allowed) {
     if (body[col] !== undefined && body[col] !== null) row[col] = body[col];
   }
   if (!row.name) return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
 
-  const { data, error } = await insertWithColumnFallback(supabase as any, table, row);
+  const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

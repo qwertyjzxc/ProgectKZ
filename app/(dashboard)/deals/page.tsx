@@ -19,6 +19,7 @@ import MoneyInput from "@/components/MoneyInput";
 import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import { formatMoney } from "@/lib/format";
 import type { ActivityEntry } from "@/lib/activity";
+import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 
 interface Deal {
   id: number;
@@ -447,6 +448,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStage, setFilterStage] = useState("");
+  const dealPillVis = usePillVisibility("deals");
   const [filterClient, setFilterClient] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
   const [filterRooms, setFilterRooms] = useState("");
@@ -586,7 +588,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
-  const filtered = useMemo(() => {
+  const stageBase = useMemo(() => {
     let result = deals;
     if (searchQuery) {
       result = result.filter(d =>
@@ -613,11 +615,6 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     }
     if (filterAmountMin) result = result.filter(d => d.amount >= Number(filterAmountMin));
     if (filterAmountMax) result = result.filter(d => d.amount <= Number(filterAmountMax));
-    if (filterStage) {
-      result = result.filter(d => d.completed === filterStage);
-    } else {
-      result = result.filter(d => d.completed !== "Завершено");
-    }
     if (filterDateFrom) {
       const t = parseDateStr(filterDateFrom);
       if (!isNaN(t)) result = result.filter(d => parseDateStr(d.date) >= t);
@@ -627,7 +624,12 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       if (!isNaN(t)) result = result.filter(d => parseDateStr(d.date) <= t);
     }
     return result;
-  }, [deals, searchQuery, filterClient, filterDistrict, filterRooms, filterAreaMin, filterAreaMax, filterAddress, filterJk, filterBroker, filterAmountMin, filterAmountMax, filterStage, filterDateFrom, filterDateTo]);
+  }, [deals, searchQuery, filterClient, filterDistrict, filterRooms, filterAreaMin, filterAreaMax, filterAddress, filterJk, filterBroker, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
+
+  const filtered = useMemo(() => {
+    if (filterStage) return stageBase.filter(d => d.completed === filterStage);
+    return stageBase.filter(d => d.completed !== "Завершено");
+  }, [stageBase, filterStage]);
 
   const handleAdd = async (data: DealFormValues) => {
     setSaveError(null);
@@ -826,20 +828,38 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — клик по статусу фильтрует таблицу, повторный клик снимает */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <div className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium">
+        <PillSettingsGear statuses={DEAL_STATUSES} hidden={dealPillVis.hidden} onToggle={dealPillVis.toggle} onReset={dealPillVis.reset} />
+        <button
+          type="button"
+          onClick={() => setFilterStage("")}
+          title="Показать все, кроме завершённых"
+          className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 transition-colors"
+        >
           <span>Всего</span>
           <span className="font-bold">{filtered.length}</span>
-        </div>
-        {DEAL_STATUSES.map(s => {
-          const count = filtered.filter(d => d.completed === s).length;
+        </button>
+        {DEAL_STATUSES.filter(s => !dealPillVis.hidden.includes(s) || filterStage === s).map(s => {
+          const count = stageBase.filter(d => d.completed === s).length;
+          const active = filterStage === s;
           return (
-            <div key={s} className="flex items-center gap-1.5 rounded-full bg-white border border-gray-200 px-3 py-1 text-xs text-gray-500">
+            <button
+              key={s}
+              type="button"
+              onClick={() => setFilterStage(active ? "" : s)}
+              title={active ? "Снять фильтр" : "Показать только «" + s + "»"}
+              className={
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors "
+                + (active
+                  ? "bg-blue-50 border border-blue-300 text-blue-700 font-medium"
+                  : "bg-white border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-gray-800")
+              }
+            >
               <span className="w-2 h-2 rounded-full bg-gray-300"></span>
               <span>{s}</span>
               <span className={"font-bold " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{count}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -849,7 +869,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
-            <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
+            <div className="table-scroll overflow-y-auto max-h-[calc(100vh-280px)]">
             <table className="w-full">
               <thead className="bg-gray-100">
                 <tr>

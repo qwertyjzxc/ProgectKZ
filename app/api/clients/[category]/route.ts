@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -61,6 +62,16 @@ export async function POST(
       completed: body.completed || "",
       broker: body.broker || "",
       documents: body.documents || "[]",
+      preferences: body.preferences || "",
+      client_category: body.client_category || "",
+      tags: body.tags || "[]",
+      premise_type: body.premise_type || "",
+      finishing: body.finishing || "",
+      contract_type: body.contract_type || "",
+      contract_kind: body.contract_kind || "",
+      reason: body.reason || "",
+      status_comment: body.status_comment || "",
+      resume_date: body.resume_date || "",
     };
     if (body.type === "Земля") {
       insertRow.area_unit = body.area_unit || "сот";
@@ -72,8 +83,29 @@ export async function POST(
       insertRow.relief = body.relief || "";
       insertRow.restrictions = body.restrictions || "";
     }
-    const { data, error } = await insertWithColumnFallback(supabase as any, table, insertRow);
+    const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, insertRow);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Проверка на дубли по телефону (в обеих клиентских таблицах)
+    let duplicateWarning: Array<{ id: number; name: string; where: string }> = [];
+    try {
+      const digits = String(body.phone || "").replace(/\D/g, "").slice(-10);
+      if (digits.length >= 7) {
+        const found: Array<{ id: number; name: string; where: string }> = [];
+        const tables: Array<{ t: string; label: string }> = [
+          { t: "clients_arenda", label: "Аренда" },
+          { t: "clients_prodaja", label: "Покупка" },
+        ];
+        for (const ct of tables) {
+          const { data: dups } = await supabase.from(ct.t).select("id,name").ilike("phone", "%" + digits + "%").neq("id", data.id).limit(3);
+          for (const d of dups || []) {
+            found.push({ id: d.id as number, name: (d.name || "") as string, where: ct.label });
+          }
+        }
+        duplicateWarning = found;
+      }
+    } catch {
+      // проверка дублей не должна мешать созданию
+    }
     await logActivity({
       client_table: table,
       client_id: data.id,
@@ -82,7 +114,15 @@ export async function POST(
       message: "Добавил клиента",
       changes: buildChanges({}, data),
     });
-    return NextResponse.json(data, { status: 201 });
+    await notifyAll({
+      key: "clients_create",
+      message: "Новый клиент: «" + (data.name || "") + "»",
+      related_to: "/clients",
+      related_id: data.id,
+      actorUserId: await getActorUserId(supabase),
+    });
+    await maybeCreateResumeTask(supabase, data);
+    return NextResponse.json({ ...data, duplicateWarning }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }
@@ -112,6 +152,14 @@ export async function DELETE(
       client_name: names.join(", "),
       action: "delete",
       message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}${nameList}`,
+    });
+    await notifyAll({
+      key: "clients_delete",
+      message: ids.length === 1 && names[0]
+        ? "Удалён клиент: «" + names[0] + "»"
+        : `Удалено клиентов: ${ids.length}`,
+      related_to: "/clients",
+      actorUserId: await getActorUserId(supabase),
     });
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (e) {

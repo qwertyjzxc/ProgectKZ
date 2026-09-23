@@ -16,7 +16,14 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
 import FileUploader, { type AttachmentFile } from "@/components/FileUploader";
+import ClientDeals from "@/components/ClientDeals";
+import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney } from "@/lib/format";
+import {
+  CLIENT_FUNNEL_STATUSES, reasonsFor, needsReason, needsResumeDate,
+  CLIENT_CATEGORIES, CLIENT_TAGS, PREMISE_TYPES, FINISHING_TYPES, CONTRACT_KINDS,
+  parseTags,
+} from "@/lib/client-status";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
 
@@ -67,23 +74,46 @@ interface Client {
   relief?: string;
   restrictions?: string;
   documents?: string;
+  preferences?: string;
+  client_category?: string;
+  tags?: string;
+  premise_type?: string;
+  finishing?: string;
+  contract_type?: string;
+  contract_kind?: string;
+  reason?: string;
+  status_comment?: string;
+  resume_date?: string;
   created_at: string;
 }
 
 const CLIENT_STATUSES = [
-  "В процессе",
-  "Завершено",
-  "Отказ",
-  "Заморожено",
-  "Подписание договора",
-  "Оплата",
-  "VIP Клиент",
-  "Перспективный",
-  "Думает",
-  "Проблемный",
+  "Новый Клиент",
+  "Запрос уточняется",
+  "Подбор объектов",
+  "Варианты отправлены",
+  "Просмотр",
+  "Переговоры",
+  "Подготовка к сделке",
+  "Сделка в процессе",
+  "Сделка завершена",
+  "Приостановлен",
+  "Закрыт без сделки",
 ];
 
 const completedColors: Record<string, string> = {
+  "Новый Клиент": "bg-sky-100 text-sky-800",
+  "Запрос уточняется": "bg-cyan-100 text-cyan-800",
+  "Подбор объектов": "bg-blue-100 text-blue-800",
+  "Варианты отправлены": "bg-indigo-100 text-indigo-800",
+  "Просмотр": "bg-violet-100 text-violet-800",
+  "Переговоры": "bg-amber-100 text-amber-800",
+  "Подготовка к сделке": "bg-orange-100 text-orange-800",
+  "Сделка в процессе": "bg-yellow-100 text-yellow-800",
+  "Сделка завершена": "bg-green-100 text-green-800",
+  "Приостановлен": "bg-gray-100 text-gray-700",
+  "Закрыт без сделки": "bg-red-100 text-red-800",
+  // старые статусы из данных — чтобы не были чёрными
   "В процессе": "bg-yellow-100 text-yellow-800",
   "Завершено": "bg-green-100 text-green-800",
   "Отказ": "bg-red-100 text-red-800",
@@ -94,9 +124,22 @@ const completedColors: Record<string, string> = {
   "Перспективный": "bg-emerald-100 text-emerald-800",
   "Думает": "bg-orange-100 text-orange-800",
   "Проблемный": "bg-rose-100 text-rose-800",
+  "Без статуса": "bg-gray-100 text-gray-500",
 };
 
 const STATUS_STAT_COLORS: Record<string, string> = {
+  "Новый Клиент": "text-sky-600",
+  "Запрос уточняется": "text-cyan-600",
+  "Подбор объектов": "text-blue-600",
+  "Варианты отправлены": "text-indigo-600",
+  "Просмотр": "text-violet-600",
+  "Переговоры": "text-amber-600",
+  "Подготовка к сделке": "text-orange-600",
+  "Сделка в процессе": "text-yellow-600",
+  "Сделка завершена": "text-green-600",
+  "Приостановлен": "text-gray-500",
+  "Закрыт без сделки": "text-red-500",
+  // старые статусы из данных — чтобы не были чёрными
   "В процессе": "text-yellow-600",
   "Завершено": "text-green-600",
   "Отказ": "text-red-500",
@@ -107,6 +150,7 @@ const STATUS_STAT_COLORS: Record<string, string> = {
   "Перспективный": "text-emerald-600",
   "Думает": "text-orange-600",
   "Проблемный": "text-rose-600",
+  "Без статуса": "text-gray-400",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -165,6 +209,9 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
                 <Badge className={"text-sm px-3 py-1 " + (completedColors[client.completed] || "bg-gray-100 text-gray-700")}>
                   {client.completed || "Без статуса"}
                 </Badge>
+                {client.client_category && (
+                  <Badge className="text-sm px-3 py-1 bg-violet-100 text-violet-800">{client.client_category}</Badge>
+                )}
                 <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{client.date}</span>
               </div>
             </div>
@@ -254,13 +301,38 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
               <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
               <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
               <DetailItem icon={User} label="Брокер" value={client.broker} />
+              {client.premise_type && <DetailItem icon={Building} label="Тип помещения" value={client.premise_type} />}
+              {client.finishing && <DetailItem icon={Home} label="Отделка" value={client.finishing} />}
+              {client.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={client.contract_kind} />}
             </CardSection>
+            {(client.reason || client.status_comment || client.resume_date) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-xs text-amber-700 mb-1 font-medium">Причина закрытия / приостановки</p>
+                {client.reason && <p className="text-sm text-gray-800">{client.reason}</p>}
+                {client.status_comment && <p className="text-sm text-gray-600 mt-0.5">{client.status_comment}</p>}
+                {client.resume_date && <p className="text-xs text-gray-500 mt-1">Повторный контакт: {client.resume_date}</p>}
+              </div>
+            )}
+            {parseTags(client.tags).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {parseTags(client.tags).map(tag => (
+                  <span key={tag} className="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs text-blue-700">{tag}</span>
+                ))}
+              </div>
+            )}
+            {client.preferences && (
+              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Предпочтения</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.preferences}</p>
+              </div>
+            )}
             {client.notes && (
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
+            <ClientDeals phone={client.phone || ""} name={client.name || ""} />
             {(client.documents || "").trim() && ((() => {
               try {
                 const docs = JSON.parse(client.documents || "[]");
@@ -336,12 +408,14 @@ function fromDateInputValue(v: string): string {
 }
 
 function DetailItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: React.ReactNode }) {
+  // ТЗ: незаполненные поля не показываем вообще (без прочерков)
+  if (value === null || value === undefined || value === "") return null;
   return (
     <div className="flex items-start gap-3">
       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{(value || value === 0) ? (typeof value === 'number' ? value.toLocaleString("ru-RU") : value) : "—"}</p>
+        <p className="text-sm font-medium text-gray-900">{typeof value === 'number' ? value.toLocaleString("ru-RU") : value}</p>
       </div>
     </div>
   );
@@ -393,6 +467,21 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
   const [plotShape, setPlotShape] = useState(client?.plot_shape || "");
   const [relief, setRelief] = useState(client?.relief || "");
   const [restrictions, setRestrictions] = useState(client?.restrictions || "");
+  const [preferences, setPreferences] = useState(client?.preferences || "");
+  const [clientCategory, setClientCategory] = useState(client?.client_category || "");
+  const [tags, setTags] = useState<string[]>(() => parseTags(client?.tags));
+  const [premiseType, setPremiseType] = useState(client?.premise_type || "");
+  const [finishing, setFinishing] = useState(client?.finishing || "");
+  const [contractType, setContractType] = useState(client?.contract_type || "");
+  const [contractKind, setContractKind] = useState(client?.contract_kind || "");
+  const [reason, setReason] = useState(client?.reason || "");
+  const [statusComment, setStatusComment] = useState(client?.status_comment || "");
+  const [resumeDate, setResumeDate] = useState(client?.resume_date || "");
+  const [formError, setFormError] = useState("");
+
+  const toggleTag = (tag: string) => {
+    setTags(prev => (prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]));
+  };
 
   const toggleCommunicationsClient = (opt: string) => {
     setCommunications(prev => {
@@ -408,11 +497,31 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // ТЗ §5: причина обязательна для Приостановлен / Закрыт без сделки
+    if (needsReason(completed) && !reason) {
+      setFormError("Укажите причину: без неё сохранить статус «" + completed + "» нельзя");
+      return;
+    }
+    if (needsReason(completed) && reason === "Другое" && !statusComment.trim()) {
+      setFormError("Для причины «Другое» заполните комментарий");
+      return;
+    }
+    if (needsResumeDate(completed) && !resumeDate) {
+      setFormError("Укажите дату повторного контакта");
+      return;
+    }
+    setFormError("");
     const payload: ClientFormData = {
       type, area, address, jk, contract, date: fromDateInputValue(date), name, phone, district, rooms,
       amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod, who_lives: whoLives,
       people_count: parseInt(peopleCount) || 1, notes, completed, broker,
       documents: JSON.stringify(documents),
+      preferences, client_category: clientCategory, tags: JSON.stringify(tags),
+      premise_type: premiseType, finishing,
+      contract_type: contractType, contract_kind: contractKind,
+      reason: needsReason(completed) ? reason : "",
+      status_comment: needsReason(completed) ? statusComment : "",
+      resume_date: needsResumeDate(completed) ? resumeDate : "",
     };
     if (type === "Земля") {
       payload.area_unit = areaUnit;
@@ -532,7 +641,48 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
             )}
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Статус</label>
-              <Select label="Без статуса" value={completed} onChange={setCompleted} options={CLIENT_STATUSES} />
+              <Select label="Без статуса" value={completed} onChange={v => { setCompleted(v); setReason(""); setStatusComment(""); }} options={[...CLIENT_FUNNEL_STATUSES]} />
+            </div>
+            {needsReason(completed) && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Причина *</label>
+                <Select label="Выберите причину" value={reason} onChange={setReason} options={reasonsFor(completed)} />
+              </div>
+            )}
+            {needsReason(completed) && reason === "Другое" && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Комментарий *</label>
+                <Input value={statusComment} onChange={e => setStatusComment(e.target.value)} placeholder="Уточните причину" className="text-sm" />
+              </div>
+            )}
+            {needsResumeDate(completed) && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Дата повторного контакта *</label>
+                <DatePicker value={resumeDate} onChange={setResumeDate} placeholder="Выберите дату" />
+                <p className="text-[11px] text-gray-400 mt-1">CRM создаст задачу на эту дату автоматически</p>
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Категория клиента</label>
+              <Select label="Не указано" value={clientCategory} onChange={setClientCategory} options={[...CLIENT_CATEGORIES]} />
+            </div>
+            {type === "Помещения" && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Тип помещения</label>
+                <Select label="Не указано" value={premiseType} onChange={setPremiseType} options={[...PREMISE_TYPES]} />
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
+              <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
+              <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Вид договора</label>
+              <Select label="Не указано" value={contractKind} onChange={setContractKind} options={[...CONTRACT_KINDS]} />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Брокер</label>
@@ -540,6 +690,29 @@ function ClientFormModal({ client, onClose, onSave, defaultType }: { client?: Cl
             </div>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Заметки</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Дополнительная информация..." rows={2} className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Предпочтения</label>
+            <textarea value={preferences} onChange={e => setPreferences(e.target.value)} placeholder="Что важно клиенту: этаж, вид из окна, школа рядом..." rows={2} className="w-full rounded-lg border px-3 py-2 text-sm resize-y" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Теги</label>
+            <div className="flex flex-wrap gap-1.5">
+              {CLIENT_TAGS.map(tag => {
+                const checked = tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={"px-2.5 py-1.5 rounded-lg border text-xs transition-colors " + (checked ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-300")}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
           <FileUploader title="Документы" files={documents} onChange={setDocuments} />
         </form>
         <div className="shrink-0 flex items-center justify-end gap-2 p-4 border-t bg-white">
@@ -583,6 +756,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [assignClient, setAssignClient] = useState<Client | null>(null);
   const [completeClient, setCompleteClient] = useState<Client | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [dupWarning, setDupWarning] = useState<Array<{ id: number; name: string; where: string }> | null>(null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -691,7 +865,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
-  const filtered = useMemo(() => {
+  const stageBase = useMemo(() => {
     let result = categoryClients;
     if (searchQuery) {
       result = result.filter(c =>
@@ -701,7 +875,6 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     if (filterName) {
       result = result.filter(c => smartMatch(c.name, filterName));
     }
-    if (filterCompleted) result = result.filter(c => c.completed === filterCompleted);
     if (filterDistrict) result = result.filter(c => c.district === filterDistrict);
     if (filterBroker) result = result.filter(c => c.broker === filterBroker);
     if (filterRooms) result = result.filter(c => (c.rooms || "").trim().startsWith(filterRooms));
@@ -722,7 +895,25 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       if (!isNaN(t)) result = result.filter(c => parseDateStr(c.date) <= t);
     }
     return result;
-  }, [categoryClients, searchQuery, filterName, filterCompleted, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
+  }, [categoryClients, searchQuery, filterName, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
+
+  const filtered = useMemo(() => {
+    // ТЗ §7: по умолчанию только активные; завершённые — через пилюлю «Сделка завершена»
+    if (filterCompleted) return stageBase.filter(c => (c.completed || "Без статуса") === filterCompleted);
+    return stageBase.filter(c => c.completed !== "Сделка завершена");
+  }, [stageBase, filterCompleted]);
+
+  const clientStatusList = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of categoryClients) {
+      const s = c.completed || "Без статуса";
+      m.set(s, (m.get(s) || 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }, [categoryClients]);
+
+  const pillVis = usePillVisibility("clients");
+  const visibleStatuses = clientStatusList.filter(s => !pillVis.hidden.includes(s) || filterCompleted === s);
 
   const handleAdd = async (data: ClientFormData) => {
     setShowAdd(false);
@@ -734,6 +925,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       if (!res.ok) throw new Error((await res.json()).error || "Ошибка сохранения");
       const newClient = await res.json();
       setClients(prev => prev.map(c => c.id === temp.id ? newClient : c));
+      if (Array.isArray(newClient.duplicateWarning) && newClient.duplicateWarning.length > 0) {
+        setDupWarning(newClient.duplicateWarning);
+      }
     } catch (err) {
       setClients(prev => prev.filter(c => c.id !== temp.id));
       setSaveError(err instanceof Error ? err.message : "Ошибка сохранения");
@@ -796,6 +990,14 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         <div className="mb-4 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
           <span>Не удалось сохранить: {saveError}</span>
           <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-700 shrink-0"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+      {dupWarning && dupWarning.length > 0 && (
+        <div className="mb-4 flex items-start justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+          <span>
+            Похоже на дубль: такой телефон уже есть у {dupWarning.map(d => "«" + (d.name || "без имени") + "» (" + d.where + ")").join(", ")}. Клиент всё равно создан — проверьте и удалите лишнего при необходимости.
+          </span>
+          <button onClick={() => setDupWarning(null)} className="text-amber-500 hover:text-amber-700 shrink-0"><X className="w-4 h-4" /></button>
         </div>
       )}
       {/* Header */}
@@ -946,20 +1148,38 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — клик по статусу фильтрует таблицу, повторный клик снимает */}
 <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <div className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium">
+        <PillSettingsGear statuses={clientStatusList} hidden={pillVis.hidden} onToggle={pillVis.toggle} onReset={pillVis.reset} />
+        <button
+          type="button"
+          onClick={() => setFilterCompleted("")}
+          title="Снять фильтр по статусу"
+          className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 transition-colors"
+        >
           <span>Всего</span>
           <span className="font-bold">{categoryClients.length}</span>
-        </div>
-        {CLIENT_STATUSES.map(s => {
-          const count = categoryClients.filter(c => c.completed === s).length;
+        </button>
+        {visibleStatuses.map(s => {
+          const count = stageBase.filter(c => (c.completed || "Без статуса") === s).length;
+          const active = filterCompleted === s;
           return (
-            <div key={s} className="flex items-center gap-1.5 rounded-full bg-white border border-gray-200 px-3 py-1 text-xs text-gray-500">
+            <button
+              key={s}
+              type="button"
+              onClick={() => setFilterCompleted(active ? "" : s)}
+              title={active ? "Снять фильтр" : "Показать только «" + s + "»"}
+              className={
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors "
+                + (active
+                  ? "bg-blue-50 border border-blue-300 text-blue-700 font-medium"
+                  : "bg-white border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-gray-800")
+              }
+            >
               <span className="w-2 h-2 rounded-full bg-gray-300"></span>
               <span>{s}</span>
               <span className={"font-bold " + (STATUS_STAT_COLORS[s] || "text-gray-900")}>{count}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -981,30 +1201,30 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Clients table */}
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
-          <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
+          <div className="table-scroll overflow-y-auto max-h-[calc(100vh-280px)]">
           <table className="w-full table-fixed text-center">
             <colgroup>
-              <col className="w-[3%]" />
+              <col className="w-[4%]" />
               <col className="w-[15%]" />
               <col className="w-[9%]" />
               <col className="w-[7%]" />
               <col className="w-[8%]" />
-              <col className="w-[12%]" />
               <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[11%]" />
               <col className="w-[8%]" />
-              <col className="w-[9%]" />
-              <col className="w-[3%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[12%]" />
+              <col className="w-[4%]" />
             </colgroup>
             <thead>
               <tr className="bg-gray-100">
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide rounded-tl-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Предпочтения</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
@@ -1044,7 +1264,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     "transition-colors group"
                   }
                 >
-                  <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-1 py-3" onClick={e => e.stopPropagation()}>
                     {c.phone ? (
                       <a
                         href={`https://wa.me/${phoneToWa(c.phone)}`}
@@ -1077,7 +1297,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                   <td className="px-3 py-3 text-sm text-gray-600 break-words">{c.district || "—"}</td>
                   <td className="px-3 py-3 text-sm text-gray-600">{c.rooms || "—"}</td>
                   <td className="px-3 py-3 text-sm text-gray-600">{c.area ? c.area + (c.type === "Земля" ? " " + (c.area_unit || "сот") : " м²") : "—"}</td>
-                  <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.address || "—"}</td>
+                  <td className="px-3 py-3 text-sm text-gray-500 break-words"><span className="line-clamp-2" title={c.preferences || ""}>{c.preferences || "—"}</span></td>
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.jk || "—"}</td>
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
@@ -1089,7 +1309,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       {c.completed || "—"}
                     </Badge>
                   </td>
-                  <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-1 py-3" onClick={e => e.stopPropagation()}>
                     {deleteMode ? (
                       <button
                         onPointerDown={e => e.stopPropagation()}

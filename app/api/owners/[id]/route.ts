@@ -6,12 +6,14 @@ const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
   pomescheniya: "owners_pomescheniya",
   zemlya: "owners_zemlya",
+  doma: "owners_doma",
 };
 
 const COLUMNS: Record<string, string[]> = {
-  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","status","notes","broker"],
-  pomescheniya: ["name","phone","district","address","area","price","contract_type","status","notes","broker"],
-  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","status","notes","broker"],
+  kvartiry: ["name","phone","district","address","jk","rooms","area","price","contract_type","contract_kind","status","condition","notes","broker"],
+  pomescheniya: ["name","phone","district","address","area","price","contract_type","contract_kind","status","condition","location_line","notes","broker"],
+  zemlya: ["name","phone","district","address","area","area_unit","price","contract_type","contract_kind","status","condition","notes","broker"],
+  doma: ["name","phone","district","address","rooms","house_area","land_area","price","contract_type","contract_kind","status","condition","notes","broker"],
 };
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,12 +25,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const supabase = await createClient();
   const body = await request.json();
   const allowed = COLUMNS[category];
-  const row: Record<string, any> = {};
+  const row: Record<string, unknown> = {};
   for (const col of allowed) {
     if (body[col] !== undefined) row[col] = body[col];
   }
 
-  const { data, error } = await updateWithColumnFallback(supabase as any, table, row, parseInt(id, 10));
+  const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row, parseInt(id, 10));
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

@@ -58,7 +58,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   useEffect(() => {
     fetchUnread();
     const timer = setInterval(fetchUnread, 15000);
-    return () => clearInterval(timer);
+    // Мгновенная синхронизация: шапка сообщает, что уведомления прочитаны
+    const onUpdated = () => fetchUnread();
+    window.addEventListener("notifications-updated", onUpdated);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("notifications-updated", onUpdated);
+    };
   }, [fetchUnread, pathname]);
 
   const allItems = currentProfile?.role === "admin"
@@ -76,8 +82,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <aside className={"fixed left-0 top-0 h-screen bg-white border-r flex flex-col z-30 transition-[width] duration-200 " + (collapsed ? "w-16" : "w-64")}>
       {/* Logo */}
       <div className={"h-16 flex items-center border-b bg-blue-600 text-white " + (collapsed ? "justify-center px-0" : "px-4")}>
-        <LayoutDashboard className={"shrink-0 " + (collapsed ? "w-5 h-5" : "w-5 h-5 mr-3")} />
-        {!collapsed && <span className="font-semibold text-base tracking-tight">kzproject</span>}
+        <Link
+          href="/overview"
+          title="На главную"
+          className={"flex items-center rounded-lg hover:bg-blue-700/60 transition-colors " + (collapsed ? "p-2" : "p-1.5 -ml-1.5 mr-1")}
+        >
+          <LayoutDashboard className="w-5 h-5 shrink-0" />
+          {!collapsed && <span className="font-semibold text-base tracking-tight ml-3">kzproject</span>}
+        </Link>
         {!collapsed && unreadCount > 0 && (
           <span className="ml-auto w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -94,6 +106,22 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className={"flex-1 overflow-y-auto overflow-x-hidden py-4 " + (collapsed ? "px-2 space-y-1" : "px-3 space-y-1")}>
+        {/* Главная — отдельная заметная кнопка */}
+        <Link
+          href="/overview"
+          title="Главная"
+          className={
+            "flex items-center gap-3 text-sm rounded-xl transition-colors mb-2 "
+            + (collapsed ? "justify-center h-10 "
+            : "px-3 py-2.5 ")
+            + (pathname === "/overview"
+              ? "bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-700"
+              : "bg-blue-50 text-blue-700 font-medium hover:bg-blue-100")
+          }
+        >
+          <Home className="w-4 h-4 shrink-0" />
+          {!collapsed && <>Главная</>}
+        </Link>
         {/* Clients group */}
         <div>
           <button

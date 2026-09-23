@@ -11,7 +11,16 @@ const DEAL_TYPE_MAP: Record<string, string> = {
   "Помещения": "pomescheniya",
   "Земля": "zemlya",
   "Дома": "zemlya",
+  "Дом": "zemlya",
+  "Участок": "zemlya",
 };
+
+const DEAL_OBJECTS = ["Квартира", "Помещения", "Дом", "Участок"];
+const DEAL_KINDS = [
+  { id: "arenda", label: "Аренда" },
+  { id: "pokupka", label: "Продажа" },
+];
+const PAYMENT_METHODS = ["Наличные", "Перечисление", "QR", "Удалённо"];
 
 export default function CompleteDealModal({
   client,
@@ -57,19 +66,26 @@ export default function CompleteDealModal({
   const [contract, setContract] = useState(client.contract || "");
   const [amount, setAmount] = useState(client.amount ? String(client.amount) : "");
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [commission, setCommission] = useState("");
+  const [payment, setPayment] = useState("");
+  const [dealObject, setDealObject] = useState(client.type || "");
+  const [dealKind, setDealKind] = useState(category === "prodaja" ? "pokupka" : "arenda");
+  const [ownerName, setOwnerName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const needContract = !client.contract;
   const needAmount = !client.amount;
 
-  const dealType = DEAL_TYPE_MAP[client.type || propertyType || ""] || "kvartiry";
-  const dealCategory = category === "prodaja" ? "pokupka" : "arenda";
+  const dealType = DEAL_TYPE_MAP[dealObject || client.type || propertyType || ""] || "kvartiry";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contract.trim()) return setError("Укажите номер договора");
     if (!amount) return setError("Укажите сумму сделки");
+    if (!commission) return setError("Укажите комиссию агентства");
+    if (!dealObject) return setError("Выберите объект сделки");
+    if (!payment) return setError("Выберите способ оплаты");
 
     setLoading(true);
     setError("");
@@ -83,7 +99,7 @@ export default function CompleteDealModal({
           type: client.type || "",
           contract: contract,
           amount: parseFloat(amount) || 0,
-          completed: "Завершено",
+          completed: "Сделка завершена",
         }),
       });
       if (!updRes.ok) {
@@ -96,12 +112,15 @@ export default function CompleteDealModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-dealType,
-          category: dealCategory,
-          type: client.type || "",
+          dealType,
+          category: dealKind,
+          type: dealObject || client.type || "",
           name: client.name || "Сделка",
           client: client.name || "",
           amount: parseFloat(amount) || client.amount || 0,
+          commission: parseFloat(commission) || 0,
+          payment,
+          owner_name: ownerName,
           stage: "Сделка закрыта",
           completed: "Завершено",
           date: completionDate,
@@ -166,6 +185,36 @@ dealType,
               <MoneyInput value={amount} onChange={setAmount} placeholder="25 000 000" />
             </div>
           )}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Комиссия агентства, ₸ *</label>
+            <MoneyInput value={commission} onChange={setCommission} placeholder="500 000" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Объект сделки *</label>
+              <select value={dealObject} onChange={e => setDealObject(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
+                <option value="">Выберите</option>
+                {DEAL_OBJECTS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Тип сделки *</label>
+              <select value={dealKind} onChange={e => setDealKind(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
+                {DEAL_KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Способ оплаты *</label>
+            <select value={payment} onChange={e => setPayment(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
+              <option value="">Выберите</option>
+              {PAYMENT_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Собственник объекта</label>
+            <Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="ФИО собственника" className="text-sm" />
+          </div>
 
           {!needContract && !needAmount && (
             <p className="text-sm text-gray-500">Договор и сумма уже указаны. Сделка будет закрыта.</p>

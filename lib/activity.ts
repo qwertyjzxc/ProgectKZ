@@ -59,6 +59,19 @@ const FIELD_LABELS: Record<string, string> = {
   plot_shape: "Форма участка",
   relief: "Рельеф",
   restrictions: "Ограничения",
+  preferences: "Предпочтения",
+  client_category: "Категория клиента",
+  tags: "Теги",
+  premise_type: "Тип помещения",
+  finishing: "Отделка",
+  contract_type: "Тип договора",
+  contract_kind: "Вид договора",
+  reason: "Причина закрытия / приостановки",
+  status_comment: "Комментарий к причине",
+  resume_date: "Дата повторного контакта",
+  commission: "Комиссия",
+  payment: "Способ оплаты",
+  owner_name: "Собственник",
 };
 
 export const DEAL_LABELS: Record<string, string> = {

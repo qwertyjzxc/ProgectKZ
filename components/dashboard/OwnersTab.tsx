@@ -20,9 +20,14 @@ interface Owner {
   rooms?: string;
   area?: string;
   area_unit?: string;
+  house_area?: string;
+  land_area?: string;
   price?: number;
   contract_type?: string;
+  contract_kind?: string;
   status?: string;
+  condition?: string;
+  location_line?: string;
   notes?: string;
   broker?: string;
   documents?: string;
@@ -32,7 +37,12 @@ const CATEGORIES = [
   { id: "kvartiry", label: "Квартиры" },
   { id: "pomescheniya", label: "Помещения" },
   { id: "zemlya", label: "Земельные участки" },
+  { id: "doma", label: "Дома" },
 ];
+
+const CONDITIONS = ["Новое", "Хорошее", "Требует ремонта"];
+const LOCATION_LINES = ["1 линия (вдоль главной дороги)", "2 линия (второстепенная дорога, во дворе)"];
+const CONTRACT_KINDS = ["Эксклюзивный", "Стандартный"];
 
 const STATUSES = ["Новый собственник", "Оценка объекта", "Заключение договора", "Упаковка + Маркетинг", "Сделка"];
 
@@ -59,6 +69,11 @@ function OwnerForm({ owner, category, onClose, onSaved }: { owner: Owner | null;
   const [price, setPrice] = useState(owner?.price ? String(owner.price) : "");
   const [contractType, setContractType] = useState(owner?.contract_type || "");
   const [status, setStatus] = useState(owner?.status || "Новый собственник");
+  const [condition, setCondition] = useState(owner?.condition || "");
+  const [locationLine, setLocationLine] = useState(owner?.location_line || "");
+  const [contractKind, setContractKind] = useState(owner?.contract_kind || "");
+  const [houseArea, setHouseArea] = useState(owner?.house_area || "");
+  const [landArea, setLandArea] = useState(owner?.land_area || "");
   const [notes, setNotes] = useState(owner?.notes || "");
   const [broker, setBroker] = useState(owner?.broker || "");
   const [documents, setDocuments] = useState<AttachmentFile[]>(() => {
@@ -75,7 +90,7 @@ function OwnerForm({ owner, category, onClose, onSaved }: { owner: Owner | null;
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    const body = { name, phone, district, address, jk, rooms, area, area_unit: areaUnit, price, contract_type: contractType, status, notes, broker, documents: JSON.stringify(documents) };
+    const body = { name, phone, district, address, jk, rooms, area, area_unit: areaUnit, house_area: houseArea, land_area: landArea, price, contract_type: contractType, contract_kind: contractKind, status, condition, location_line: locationLine, notes, broker, documents: JSON.stringify(documents) };
     const url = isEdit ? `/api/owners/${owner.id}?category=${category}` : `/api/owners?category=${category}`;
     try {
       const res = await fetch(url, { method: isEdit ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -102,6 +117,17 @@ function OwnerForm({ owner, category, onClose, onSaved }: { owner: Owner | null;
         {showAreaUnit && <div><label className="text-xs text-gray-500 mb-1 block">Ед. изм.</label><select value={areaUnit} onChange={e => setAreaUnit(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>сот</option><option>га</option><option>м²</option></select></div>}
         <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸</label><MoneyInput value={price} onChange={setPrice} placeholder="20 000 000" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Тип договора</label><Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский" className="text-sm" /></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Вид договора</label><select value={contractKind} onChange={e => setContractKind(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбран</option>{CONTRACT_KINDS.map(k => <option key={k}>{k}</option>)}</select></div>
+        <div><label className="text-xs text-gray-500 mb-1 block">Состояние</label><select value={condition} onChange={e => setCondition(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не указано</option>{CONDITIONS.map(k => <option key={k}>{k}</option>)}</select></div>
+        {category === "pomescheniya" && (
+          <div><label className="text-xs text-gray-500 mb-1 block">Расположение коммерции</label><select value={locationLine} onChange={e => setLocationLine(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не указано</option>{LOCATION_LINES.map(k => <option key={k}>{k}</option>)}</select></div>
+        )}
+        {category === "doma" && (
+          <>
+            <div><label className="text-xs text-gray-500 mb-1 block">Площадь дома, м²</label><Input value={houseArea} onChange={e => setHouseArea(e.target.value)} placeholder="120" className="text-sm" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Площадь участка, сот</label><Input value={landArea} onChange={e => setLandArea(e.target.value)} placeholder="10" className="text-sm" /></div>
+          </>
+        )}
         <div><label className="text-xs text-gray-500 mb-1 block">Статус</label><select value={status} onChange={e => setStatus(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">{STATUSES.map(s => <option key={s}>{s}</option>)}</select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Брокер</label><select value={broker} onChange={e => setBroker(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбран</option>{AUTHORS.map(a => <option key={a}>{a}</option>)}</select></div>
       </div>
@@ -140,6 +166,7 @@ export default function OwnersTab() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; setState происходит после await
   useEffect(() => { load(category); }, [category]);
 
   const filtered = useMemo(() => {
@@ -191,19 +218,19 @@ export default function OwnersTab() {
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
-          <div className="overflow-x-auto">
+          <div className="table-scroll overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-100 text-left text-xs text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-3 font-semibold">Собственник</th>
-                  <th className="px-4 py-3 font-semibold">Объект</th>
-                  <th className="px-4 py-3 font-semibold">ЖК/Район</th>
-                  <th className="px-4 py-3 font-semibold">Площадь</th>
-                  <th className="px-4 py-3 font-semibold">Цена</th>
-                  <th className="px-4 py-3 font-semibold">Договор</th>
-                  <th className="px-4 py-3 font-semibold">Статус</th>
-                  <th className="px-4 py-3 font-semibold">Брокер</th>
-                  <th className="px-4 py-3 font-semibold text-right">Действия</th>
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Собственник</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Объект</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК/Район</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Цена</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Договор</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
+                  <th className="px-4 py-3 font-semibold text-right sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Действия</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,10 +268,24 @@ export default function OwnersTab() {
                       {o.district && <span className="block text-xs text-gray-500">{o.district}</span>}
                       {!o.jk && !o.district && <span className="text-gray-400">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{o.area ? o.area + (category === "zemlya" ? " " + (o.area_unit || "сот") : " м²") : "—"}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {category === "doma"
+                        ? <>
+                          {o.house_area && <span className="block">Дом: {o.house_area} м²</span>}
+                          {o.land_area && <span className="block text-xs text-gray-500">Участок: {o.land_area} сот</span>}
+                          {!o.house_area && !o.land_area && <span className="text-gray-400">—</span>}
+                        </>
+                        : (o.area ? o.area + (category === "zemlya" ? " " + (o.area_unit || "сот") : " м²") : "—")}
+                    </td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{o.price ? formatMoney(o.price) : "—"}</td>
-                    <td className="px-4 py-3 text-gray-700">{o.contract_type || "—"}</td>
-                    <td className="px-4 py-3">{o.status && <span className={"text-xs px-2 py-0.5 rounded-full " + (statusColors[o.status] || "bg-gray-100 text-gray-500")}>{o.status}</span>}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {o.contract_type || "—"}
+                      {o.contract_kind && <span className="block text-xs text-gray-500">{o.contract_kind}</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {o.status && <span className={"text-xs px-2 py-0.5 rounded-full " + (statusColors[o.status] || "bg-gray-100 text-gray-500")}>{o.status}</span>}
+                      {o.condition && <span className="block text-xs text-gray-500 mt-1">{o.condition}</span>}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{o.broker || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">

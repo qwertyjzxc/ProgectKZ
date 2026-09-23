@@ -47,17 +47,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Авторизованный на /login или /signup → /dashboard
+  // 2. Авторизованный на /login или /signup → /overview
   if (session && publicRoutes.includes(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/overview";
     return NextResponse.redirect(url);
   }
 
-  // 3. Авторизованный на корне → /dashboard
+  // 3. Авторизованный на корне → /overview
   if (session && pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/overview";
     return NextResponse.redirect(url);
   }
 
