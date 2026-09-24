@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -499,6 +500,31 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
   const [viewOwner, setViewOwner] = useState<Owner | null>(null);
   const [completeOwner, setCompleteOwner] = useState<Owner | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Глубокая ссылка из уведомления: ?view=<id> открывает карточку собственника
+  const viewParam = searchParams.get("view");
+  const [lastViewParam, setLastViewParam] = useState<string | null>(null);
+  if (viewParam && viewParam !== lastViewParam && owners.length > 0) {
+    setLastViewParam(viewParam);
+    const target = owners.find(o => o.id === Number(viewParam));
+    if (target) setViewOwner(target);
+  }
+
+  const closeViewOwner = useCallback(() => {
+    setViewOwner(null);
+    setLastViewParam(null);
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.has("view")) {
+      params.delete("view");
+      const qs = params.toString();
+      router.replace(pathname + (qs ? "?" + qs : ""));
+    }
+  }, [searchParams, pathname, router]);
+  useEscapeKey(closeViewOwner, viewOwner !== null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -1004,7 +1030,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
       {/* Modals */}
       {showAdd && <OwnerFormModal category={category} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
       {editOwner && <OwnerFormModal owner={editOwner} category={category} onClose={() => setEditOwner(null)} onSave={handleEdit} />}
-      {viewOwner && <ViewOwnerModal owner={viewOwner} category={category} onClose={() => setViewOwner(null)} onEdit={() => { setEditOwner(viewOwner); setViewOwner(null); }} onComplete={() => setCompleteOwner(viewOwner)} />}
+      {viewOwner && <ViewOwnerModal owner={viewOwner} category={category} onClose={closeViewOwner} onEdit={() => { setEditOwner(viewOwner); setViewOwner(null); }} onComplete={() => setCompleteOwner(viewOwner)} />}
       {completeOwner && <OwnerCompleteDealModal owner={completeOwner} category={category} onClose={() => setCompleteOwner(null)} onDone={handleComplete} />}
     </div>
   );

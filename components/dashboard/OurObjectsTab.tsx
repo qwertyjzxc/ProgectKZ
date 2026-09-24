@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2, Trash2, Plus, X, Filter, Square, CheckSquare } from "lucide-react";
 import AddPropertyForm from "@/components/AddPropertyForm";
@@ -29,7 +30,6 @@ export default function OurObjectsTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [editProp, setEditProp] = useState<Property | null>(null);
   useEscapeKey(() => setShowAdd(false), showAdd);
-  useEscapeKey(() => setEditProp(null), editProp !== null);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCity, setFilterCity] = useState("");
   const [filterBType, setFilterBType] = useState("");
@@ -50,6 +50,31 @@ export default function OurObjectsTab() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const dragRef = useRef(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Глубокая ссылка из уведомления: ?view=<uuid> открывает карточку объекта
+  const viewParam = searchParams.get("view");
+  const [lastViewParam, setLastViewParam] = useState<string | null>(null);
+  if (viewParam && viewParam !== lastViewParam && props.length > 0) {
+    setLastViewParam(viewParam);
+    const target = props.find(p => String(p.id) === viewParam);
+    if (target) setEditProp(target);
+  }
+
+  const closeEdit = () => {
+    setEditProp(null);
+    setLastViewParam(null);
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.has("view")) {
+      params.delete("view");
+      const qs = params.toString();
+      router.replace(pathname + (qs ? "?" + qs : ""));
+    }
+  };
+  useEscapeKey(() => closeEdit(), editProp !== null);
 
   useEffect(() => {
     const up = () => { dragRef.current = false; };
@@ -290,7 +315,7 @@ export default function OurObjectsTab() {
         </div>
       )}
       {showAdd&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={()=>setShowAdd(false)}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={()=>setShowAdd(false)} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm onSuccess={()=>{load();setShowAdd(false);}}/></div></div>)}
-      {editProp&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={()=>setEditProp(null)}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={()=>setEditProp(null)} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm property={editProp} onSuccess={()=>{load();setEditProp(null);}}/></div></div>)}
+      {editProp&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeEdit}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={closeEdit} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm property={editProp} onSuccess={()=>{load();closeEdit();}}/></div></div>)}
 
       <ConfirmDialog
         open={confirmDelete}

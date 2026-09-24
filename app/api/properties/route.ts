@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAll, getActorUserId } from "@/lib/notify";
+import { propertyListLink } from "@/lib/notify-links";
 
 export async function GET() {
   const supabase = await createClient();
@@ -82,8 +83,9 @@ export async function POST(request: NextRequest) {
     await notifyAll({
       key: "objects_create",
       message: "Новый объект: «" + (data.title || "") + "»",
-      related_to: "/dashboard/ours",
-      related_id: data.id,
+      related_to: propertyListLink(data.id),
+      // id объекта — UUID, в related_id (int) не влезает
+      related_id: null,
       actorUserId: await getActorUserId(supabase),
     });
     return NextResponse.json(data, { status: 201 });

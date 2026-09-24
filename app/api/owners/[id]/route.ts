@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
+import { ownerListLink } from "@/lib/notify-links";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   await notifyAll({
     key: "objects_update",
     message: "Изменён собственник: «" + (data.name || "") + "»",
-    related_to: "/dashboard/owners",
+    related_to: ownerListLink(category, data.id),
     related_id: data.id,
     actorUserId: await getActorUserId(supabase),
   });
@@ -56,7 +57,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   await notifyAll({
     key: "objects_delete",
     message: "Удалён собственник: «" + (existing?.name || "") + "»",
-    related_to: "/dashboard/owners",
+    related_to: ownerListLink(category),
     actorUserId: await getActorUserId(supabase),
   });
   return NextResponse.json({ success: true });

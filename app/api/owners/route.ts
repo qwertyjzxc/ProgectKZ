@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
+import { ownerListLink } from "@/lib/notify-links";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
   await notifyAll({
     key: "objects_create",
     message: "Новый собственник: «" + (data.name || "") + "»",
-    related_to: "/dashboard/owners",
+    related_to: ownerListLink(category, data.id),
     related_id: data.id,
     actorUserId: await getActorUserId(supabase),
   });

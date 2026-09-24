@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAll } from "@/lib/notify";
+import { propertyListLink } from "@/lib/notify-links";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -43,8 +44,8 @@ const updateData: Record<string, any> = { title, price, property_type: propertyT
   await notifyAll({
     key: "objects_update",
     message: "Изменён объект: «" + (data.title || "") + "»",
-    related_to: "/dashboard/ours",
-    related_id: data.id,
+    related_to: propertyListLink(data.id),
+    related_id: null,
     actorUserId: user.id,
   });
   return NextResponse.json(data);
