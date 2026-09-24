@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
+import { useEscapeKey } from "@/lib/use-escape";
 
 const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
 
@@ -59,8 +60,8 @@ export default function CompleteDealModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [objectType, setObjectType] = useState<string>(() => normalizeObjectType(client.type, propertyType));
-  const [dealKind, setDealKind] = useState<string>(() => (category === "prodaja" ? "Продажа" : "Аренда"));
+  useEscapeKey(onClose);
+  const [objectType, setObjectType] = useState<string>(() => normalizeObjectType(client.type, propertyType));  const [dealKind, setDealKind] = useState<string>(() => (category === "prodaja" ? "Продажа" : "Аренда"));
   const [amount, setAmount] = useState(client.amount ? String(client.amount) : "");
   const [commission, setCommission] = useState("");
   const [contract, setContract] = useState(client.contract || "");

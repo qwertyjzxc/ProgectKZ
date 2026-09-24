@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
+import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
 
 const TABLE_MAP: Record<string, string> = {
@@ -120,7 +121,7 @@ export async function POST(
     await notifyAll({
       key: "clients_create",
       message: "Новый клиент: «" + (data.name || "") + "»",
-      related_to: "/clients",
+      related_to: clientListLink(category, data.type || body.type, data.id),
       related_id: data.id,
       actorUserId: await getActorUserId(supabase),
     });
@@ -161,7 +162,7 @@ export async function DELETE(
       message: ids.length === 1 && names[0]
         ? "Удалён клиент: «" + names[0] + "»"
         : `Удалено клиентов: ${ids.length}`,
-      related_to: "/clients",
+      related_to: clientListLink(category, undefined),
       actorUserId: await getActorUserId(supabase),
     });
     return NextResponse.json({ success: true, deleted: ids.length });

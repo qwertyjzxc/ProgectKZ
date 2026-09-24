@@ -4,7 +4,8 @@ import { serviceClient } from "@/lib/supabase/service";
 export type NotifyKey =
   | "clients_create" | "clients_update" | "clients_delete"
   | "deals_create" | "deals_update" | "deals_delete"
-  | "tasks_create" | "tasks_update" | "tasks_delete";
+  | "tasks_create" | "tasks_update" | "tasks_delete"
+  | "objects_create" | "objects_update" | "objects_delete";
 
 interface NotifyOpts {
   key: NotifyKey;
@@ -23,7 +24,7 @@ export async function notifyAll(opts: NotifyOpts): Promise<void> {
   try {
     const { data: profiles, error } = await serviceClient
       .from("profiles")
-      .select("id, user_id, notification_settings");
+      .select("id, user_id, role, notification_settings");
     if (error || !profiles) {
       if (error) console.error("notifyAll profiles:", error.message);
       return;
@@ -41,8 +42,10 @@ export async function notifyAll(opts: NotifyOpts): Promise<void> {
       for (const l of links || []) ownIds.add(l.profile_id as number);
     }
 
-    const targets = (profiles as Array<{ id: number; notification_settings: Record<string, boolean> | null }>).filter(p => {
+    const targets = (profiles as Array<{ id: number; role: string | null; notification_settings: Record<string, boolean> | null }>).filter(p => {
       if (ownIds.has(p.id)) return false;
+      // Уведомления о сделках — только админам
+      if (opts.key.startsWith("deals_") && p.role !== "admin") return false;
       const s = p.notification_settings || {};
       return s[opts.key] !== false;
     });

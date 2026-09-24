@@ -190,11 +190,13 @@ export async function logActivity(entry: {
     const entityLabel = NOTIFICATION_ENTITY_LABELS[entity] || entity;
     const { data: targets } = await serviceClient
       .from("profiles")
-      .select("id, notification_settings")
+      .select("id, role, notification_settings")
       .eq("is_active", true);
     const rows = (targets || [])
       .filter(p => !skipIds.has(p.id))
       .filter(p => {
+        // Ветка сделок видна только админам — и в журнале уведомлений тоже
+        if (entity === "deals" && (p as { role?: string }).role !== "admin") return false;
         const s = (p.notification_settings as Record<string, boolean> | null) || {};
         return s[key] === true;
       })
@@ -202,7 +204,8 @@ export async function logActivity(entry: {
         profile_id: p.id,
         message: `${actorName || "Сотрудник"} · ${entityLabel}: ${entry.message}${entry.client_name ? " — " + entry.client_name : ""}`,
         type: "activity",
-        related_to: entity === "clients" ? "/clients" : "/" + entity,
+        related_to: `/activity?table=${entry.client_table}&client=${entry.client_id}`,
+        related_id: entry.client_id,
       }));
     if (rows.length > 0) {
       await serviceClient.from("notifications").insert(rows);

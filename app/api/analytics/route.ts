@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/admin";
 
 const TABLES = [
   { key: "kvartiry", table: "deals_kvartiry", label: "Квартиры" },
@@ -42,6 +43,10 @@ function median(sorted: number[]): number {
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser(user.id))) {
+    return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
+  }
   const monthsParam = request.nextUrl.searchParams.get("months") || "12";
   const categoryParam = request.nextUrl.searchParams.get("category") || "";
   const months = monthsParam === "all" ? null : Math.max(1, parseInt(monthsParam, 10) || 12);

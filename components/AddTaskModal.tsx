@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Save, ChevronDown } from "lucide-react";
 import AssigneePicker from "@/components/AssigneePicker";
+import { useEscapeKey } from "@/lib/use-escape";
 
 export interface NewTaskData {
   title: string;
@@ -22,6 +23,7 @@ function nowLocalDateTime(): string {
 }
 
 export default function AddTaskModal({ onClose, onAdd }: { onClose: () => void; onAdd: (t: NewTaskData) => void }) {
+  useEscapeKey(onClose);
   const [title, setTitle] = useState("");
   const [client, setClient] = useState("");
   const [description, setDescription] = useState("");

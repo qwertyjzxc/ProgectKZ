@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -175,6 +177,7 @@ function CardSection({ title, children }: { title: string; children: React.React
 }
 
 function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign, onComplete }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void; onComplete: () => void }) {
+  useEscapeKey(onClose);
   const [activity, setActivity] = useState<import("@/lib/activity").ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<import("@/lib/activity").ActivityEntry | null>(null);
@@ -220,9 +223,11 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={onComplete}>
-                <CheckCircle2 className="w-4 h-4 mr-1" />Завершить сделку
-              </Button>
+              {isAdmin && (
+                <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={onComplete}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" />Завершить сделку
+                </Button>
+              )}
               <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={onAssign}>
                 <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
               </Button>
@@ -434,6 +439,7 @@ function getInitials(name: string): string {
 // ====== FORM MODAL ======
 function ClientFormModal({ client, onClose, onSave, defaultType, category }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string; category?: "arenda" | "prodaja" }) {
   const { currentProfile, allProfiles } = useProfile();
+  useEscapeKey(onClose);
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
   const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
   const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
@@ -763,6 +769,30 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [completeClient, setCompleteClient] = useState<Client | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dupWarning, setDupWarning] = useState<Array<{ id: number; name: string; where: string }> | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Глубокая ссылка из уведомления: ?view=<id> открывает карточку клиента
+  const viewParam = searchParams.get("view");
+  const [lastViewParam, setLastViewParam] = useState<string | null>(null);
+  if (viewParam && viewParam !== lastViewParam && clients.length > 0) {
+    setLastViewParam(viewParam);
+    const target = clients.find(c => c.id === Number(viewParam));
+    if (target) setViewClient(target);
+  }
+
+  const closeViewClient = useCallback(() => {
+    setViewClient(null);
+    setLastViewParam(null);
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.has("view")) {
+      params.delete("view");
+      const qs = params.toString();
+      router.replace(pathname + (qs ? "?" + qs : ""));
+    }
+  }, [searchParams, pathname, router]);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -1367,7 +1397,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Modals */}
       {showAdd && <ClientFormModal defaultType={propertyType ? (propertyType === "houses" && category === "arenda" ? "Дом" : RENT_TYPE_SINGULAR[propertyType]) : ""} category={category} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
       {editClient && <ClientFormModal client={editClient} category={category} onClose={() => setEditClient(null)} onSave={handleEdit} />}
-      {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={() => setViewClient(null)} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
+      {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={closeViewClient} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
       {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}
 

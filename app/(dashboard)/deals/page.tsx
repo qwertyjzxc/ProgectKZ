@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useEscapeKey } from "@/lib/use-escape";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
@@ -20,6 +21,7 @@ import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import { formatMoney } from "@/lib/format";
 import type { ActivityEntry } from "@/lib/activity";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
+import { useProfile } from "@/lib/profile-context";
 
 interface Deal {
   id: number;
@@ -209,6 +211,7 @@ function smartMatch(field: string | undefined | null, query: string): boolean {
 
 function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: Deal; onClose: () => void; onSave: (d: DealFormValues) => void; dealType?: string; category?: string }) {
   const [type, setType] = useState(deal?.type || "Квартира");
+  useEscapeKey(onClose);
   const [area, setArea] = useState(deal?.area || "");
   const [areaUnit, setAreaUnit] = useState(deal?.area_unit || "сот");
   const [address, setAddress] = useState(deal?.address || "");
@@ -482,6 +485,30 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [showAdd, setShowAdd] = useState(false);
   const [editDeal, setEditDeal] = useState<Deal | null>(null);
   const [viewDeal, setViewDeal] = useState<Deal | null>(null);
+
+  const dealsRouter = useRouter();
+  const dealsPathname = usePathname();
+  const dealsSearchParams = useSearchParams();
+
+  // Глубокая ссылка из уведомления: ?view=<id> открывает карточку сделки
+  const dealViewParam = dealsSearchParams.get("view");
+  const [lastDealViewParam, setLastDealViewParam] = useState<string | null>(null);
+  if (dealViewParam && dealViewParam !== lastDealViewParam && deals.length > 0) {
+    setLastDealViewParam(dealViewParam);
+    const target = deals.find(d => d.id === Number(dealViewParam));
+    if (target) setViewDeal(target);
+  }
+
+  const closeViewDeal = useCallback(() => {
+    setViewDeal(null);
+    setLastDealViewParam(null);    const params = new URLSearchParams(dealsSearchParams.toString());
+    if (params.has("view")) {
+      params.delete("view");
+      const qs = params.toString();
+      dealsRouter.replace(dealsPathname + (qs ? "?" + qs : ""));
+    }
+  }, [dealsSearchParams, dealsPathname, dealsRouter]);
+  useEscapeKey(closeViewDeal, viewDeal !== null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStage, setFilterStage] = useState("");
@@ -875,7 +902,12 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
           className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 transition-colors"
         >
           <span>Всего</span>
-          <span className="font-bold">{filtered.length}</span>
+          <span className="font-bold">
+            {filtered.length}
+            {stageBase.length !== filtered.length && (
+              <span className="font-normal opacity-70"> из {stageBase.length}</span>
+            )}
+          </span>
         </button>
         {DEAL_STATUSES.filter(s => !dealPillVis.hidden.includes(s) || filterStage === s).map(s => {
           const count = stageBase.filter(d => d.completed === s).length;
@@ -1082,7 +1114,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       {editDeal && <DealFormModal deal={editDeal} onClose={() => setEditDeal(null)} onSave={handleEdit} />}
 
       {viewDeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={e => { if (e.target === e.currentTarget) setViewDeal(null); }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={e => { if (e.target === e.currentTarget) closeViewDeal(); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
               <div className="flex items-start justify-between gap-4">
@@ -1104,8 +1136,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={() => setShowTask(true)}>
                     <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => { setViewDeal(null); setEditDeal({ ...viewDeal }); }}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
-                  <Button variant="ghost" size="icon" onClick={() => setViewDeal(null)}><X className="w-4 h-4" /></Button>
+                  <Button variant="outline" size="sm" onClick={() => { closeViewDeal(); setEditDeal({ ...viewDeal }); }}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
+                  <Button variant="ghost" size="icon" onClick={() => closeViewDeal()}><X className="w-4 h-4" /></Button>
                 </div>
               </div>
             </div>
@@ -1235,7 +1267,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
           dealType={dealType}
           category={category}
           onClose={() => setCompleteDealTarget(null)}
-          onDone={() => { setCompleteDealTarget(null); setViewDeal(null); fetchDeals(); }}
+          onDone={() => { setCompleteDealTarget(null); closeViewDeal(); fetchDeals(); }}
         />
       )}
 
@@ -1266,7 +1298,15 @@ const VALID_TYPES = ["kvartiry", "pomescheniya", "zemlya"];
 
 function DealsPageInner() {
   const router = useRouter();
+  const { currentProfile } = useProfile();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (currentProfile && currentProfile.role !== "admin") router.replace("/overview");
+  }, [currentProfile, router]);
+
+  if (currentProfile && currentProfile.role !== "admin") return null;
+
   const categoryParam = searchParams.get("category");
   const typeParam = searchParams.get("type");
 

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/DatePicker";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
+import { useEscapeKey } from "@/lib/use-escape";
 
 export default function CompleteDealModalForDeal({
   deal,
@@ -19,6 +20,7 @@ export default function CompleteDealModalForDeal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  useEscapeKey(onClose);
   const [contract, setContract] = useState(deal.contract || "");
   const [amount, setAmount] = useState(deal.amount ? String(deal.amount) : "");
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));

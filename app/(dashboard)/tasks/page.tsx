@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useEscapeKey } from "@/lib/use-escape";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, Calendar, CheckCircle2, AlertCircle, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Clock, Square, CheckSquare } from "lucide-react";
 import AddTaskModal, { type NewTaskData } from "@/components/AddTaskModal";
@@ -127,6 +128,7 @@ function AssigneeStack({ assigneeIds, profileMap }: { assigneeIds: number[]; pro
 }
 
 function EditTaskModal({ task, onClose, onSave }: { task: EditableTask; onClose: () => void; onSave: (t: EditableTask) => void }) {
+  useEscapeKey(onClose);
   const [title, setTitle] = useState(task.title);
   const [client, setClient] = useState(task.client);
   const [description, setDescription] = useState(task.description);

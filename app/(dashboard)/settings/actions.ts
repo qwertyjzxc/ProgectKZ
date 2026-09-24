@@ -102,6 +102,9 @@ const NOTIFICATION_KEYS = [
   "tasks_create",
   "tasks_update",
   "tasks_delete",
+  "objects_create",
+  "objects_update",
+  "objects_delete",
 ];
 
 export async function updateNotificationSettings(profileId: number, settings: Record<string, boolean>) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,16 @@ function Details({ entry }: { entry: ActivityEntry }) {
 }
 
 export default function ActivityPage() {
+  return (
+    <Suspense>
+      <ActivityContent />
+    </Suspense>
+  );
+}
+
+function ActivityContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentProfile } = useProfile();
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +116,36 @@ export default function ActivityPage() {
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
+  // Переход из уведомления: ?table=<таблица>&client=<id> — фильтруем ветку
+  // клиента и раскрываем первое событие, плюс плашка с кнопкой сброса.
+  const [fromNotif, setFromNotif] = useState(false);
+  const [lastNotifKey, setLastNotifKey] = useState<string | null>(null);
+  const notifTable = searchParams.get("table");
+  const notifClient = searchParams.get("client");
+  const notifKey = notifTable && notifClient ? notifTable + "|" + notifClient : null;
+  if (notifKey && notifKey !== lastNotifKey && !loading && entries.length > 0) {
+    setLastNotifKey(notifKey);
+    setTableFilter(notifTable!);
+    setFromNotif(true);
+    const target = entries.find(e => e.client_table === notifTable && String(e.client_id) === String(Number(notifClient)));
+    if (target) {
+      setExpandedId(target.id);
+      const tid = target.id;
+      setTimeout(() => {
+        document.getElementById("activity-" + tid)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
+    }
+  }
+
+  const clearNotifFilter = () => {
+    setFromNotif(false);
+    setLastNotifKey(null);
+    setTableFilter("");
+    setSearchQuery("");
+    setExpandedId(null);
+    router.replace("/activity");
+  };
+
   const isAdmin = currentProfile?.role === "admin";
 
   const handleDelete = async () => {
@@ -122,6 +163,9 @@ export default function ActivityPage() {
     }
   };
 
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const filtered = useMemo(() => {
     let result = entries;
     if (tableFilter) result = result.filter(e => e.client_table === tableFilter);
@@ -135,6 +179,8 @@ export default function ActivityPage() {
     }
     return result;
   }, [entries, tableFilter, searchQuery]);
+
+  const visibleEntries = filtered.slice(0, visibleCount);
 
   const actorName = currentProfile ? profileName(currentProfile) : "";
 
@@ -214,6 +260,13 @@ export default function ActivityPage() {
         <p className="text-sm text-gray-500 mt-1">Все изменения по клиентам, сделкам и задачам: кто и что изменил</p>
       </div>
 
+      {fromNotif && (
+        <div className="mb-4 flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+          <span>Показана ветка из уведомления</span>
+          <button onClick={clearNotifFilter} className="font-medium hover:underline shrink-0">Показать всё</button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <Input
@@ -290,7 +343,7 @@ export default function ActivityPage() {
 
       {!loading && !error && filtered.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border divide-y divide-gray-100">
-          {filtered.map(e => {
+          {visibleEntries.map(e => {
             const initials = profileInitials(e.actor_name);
             const ActorIcon = e.action === "create" ? UserPlus : e.action === "delete" ? Trash2 : PencilLine;
             const isSelected = selectedIds.has(e.id);
@@ -298,6 +351,7 @@ export default function ActivityPage() {
             return (
               <div
                 key={e.id}
+                id={"activity-" + e.id}
                 onClick={() => { if (deleteMode) toggleSelect(e.id); else setExpandedId(isExpanded ? null : e.id); }}
                 onPointerDown={ev => handleCardPointerDown(ev, e.id)}
                 onPointerEnter={() => handleCardPointerEnter(e.id)}
@@ -354,6 +408,16 @@ export default function ActivityPage() {
             );
           })}
         </div>
+      )}
+
+      {visibleCount < filtered.length && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+          className="w-full mt-3 py-2.5 rounded-xl border bg-white text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+        >
+          Показать ещё ({filtered.length - visibleCount} из {filtered.length})
+        </button>
       )}
 
       {actorName ? (

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { logActivity, buildChanges, buildUpdateMessage, DEAL_LABELS } from "@/lib/activity";
 import { notifyAll, getActorUserId } from "@/lib/notify";
+import { dealListLink } from "@/lib/notify-links";
+import { isAdminUser } from "@/lib/admin";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -14,7 +16,18 @@ function getTable(type: string | null): string {
   return TABLE_MAP[type || "kvartiry"] || "deals_kvartiry";
 }
 
+async function requireAdmin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser(user.id))) {
+    return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
+  }
+  return null;
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const { id } = await params;
   const body = await request.json();
@@ -83,7 +96,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     await notifyAll({
       key: "deals_update",
       message: "Изменена сделка: «" + (data.name || existing?.name || "") + "»",
-      related_to: "/deals",
+      related_to: dealListLink(body.type, data.category || existing?.category, data.id),
       related_id: data.id,
       actorUserId: await getActorUserId(supabase),
     });
@@ -92,6 +105,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const { id } = await params;
   const type = request.nextUrl.searchParams.get("type");
@@ -111,7 +126,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await notifyAll({
       key: "deals_delete",
       message: "Удалена сделка: «" + (existing.name || "") + "»",
-      related_to: "/deals",
+      related_to: dealListLink(type, existing.category),
       actorUserId: await getActorUserId(supabase),
     });
   }

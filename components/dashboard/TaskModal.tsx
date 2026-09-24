@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, AlertCircle, Clock, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEscapeKey } from "@/lib/use-escape";
 
 interface Task {
   id: number;
@@ -14,6 +15,7 @@ interface Task {
 }
 
 export default function TaskModal({ taskId, onClose }: { taskId: number; onClose: () => void }) {
+  useEscapeKey(onClose);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
 

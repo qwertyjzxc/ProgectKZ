@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { notifyAll, getActorUserId } from "@/lib/notify";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
@@ -43,5 +44,12 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_create",
+    message: "Новый собственник: «" + (data.name || "") + "»",
+    related_to: "/dashboard/owners",
+    related_id: data.id,
+    actorUserId: await getActorUserId(supabase),
+  });
   return NextResponse.json(data, { status: 201 });
 }

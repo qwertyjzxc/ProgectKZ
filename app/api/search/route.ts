@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/admin";
 
 export interface SearchHit {
   kind: string;
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
   const raw = (request.nextUrl.searchParams.get("q") || "").trim().replace(/[%_,]/g, "");
   if (raw.length < 2) return NextResponse.json([]);
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAdmin = user ? await isAdminUser(user.id) : false;
 
   const [clientsA, clientsP, dealsK, dealsP, dealsZ, tasks, props] = await Promise.all([
     safeQuery(supabase, "clients_arenda", "id,name,phone,address", raw, ["name", "phone", "address"], r => ({
@@ -40,6 +43,7 @@ export async function GET(request: NextRequest) {
       kind: "Клиент", title: String(r.name || "—"), subtitle: [r.phone, r.address].filter(Boolean).join(" · ") + " · Покупка",
       href: "/clients/sell",
     })),
+    ...(isAdmin ? [
     safeQuery(supabase, "deals_kvartiry", "id,name,client,phone,amount,category", raw, ["name", "client", "phone"], r => ({
       kind: "Сделка", title: String(r.name || r.client || "—"), subtitle: [r.phone, r.amount ? Number(r.amount).toLocaleString("ru-RU") + " ₸" : ""].filter(Boolean).join(" · ") + " · Квартиры",
       href: "/deals?category=" + (r.category || "arenda"),
@@ -52,6 +56,7 @@ export async function GET(request: NextRequest) {
       kind: "Сделка", title: String(r.name || r.client || "—"), subtitle: [r.phone, r.amount ? Number(r.amount).toLocaleString("ru-RU") + " ₸" : ""].filter(Boolean).join(" · ") + " · Земля",
       href: "/deals?category=" + (r.category || "arenda"),
     })),
+    ] : [Promise.resolve([]), Promise.resolve([]), Promise.resolve([])]),
     safeQuery(supabase, "tasks", "id,title,client", raw, ["title", "client"], r => ({
       kind: "Задача", title: String(r.title || "—"), subtitle: String(r.client || ""),
       href: "/tasks",

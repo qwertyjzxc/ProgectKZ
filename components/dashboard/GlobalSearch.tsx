@@ -32,7 +32,10 @@ export default function GlobalSearch() {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []);
 
   const run = (value: string) => {

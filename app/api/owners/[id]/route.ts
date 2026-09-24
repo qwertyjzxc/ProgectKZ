@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { notifyAll, getActorUserId } from "@/lib/notify";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
@@ -32,6 +33,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row, parseInt(id, 10));
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_update",
+    message: "Изменён собственник: «" + (data.name || "") + "»",
+    related_to: "/dashboard/owners",
+    related_id: data.id,
+    actorUserId: await getActorUserId(supabase),
+  });
   return NextResponse.json(data);
 }
 
@@ -42,7 +50,14 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
   const { id } = await params;
   const supabase = await createClient();
+  const { data: existing } = await supabase.from(table).select("name").eq("id", parseInt(id, 10)).maybeSingle();
   const { error } = await supabase.from(table).delete().eq("id", parseInt(id, 10));
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_delete",
+    message: "Удалён собственник: «" + (existing?.name || "") + "»",
+    related_to: "/dashboard/owners",
+    actorUserId: await getActorUserId(supabase),
+  });
   return NextResponse.json({ success: true });
 }

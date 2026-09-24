@@ -105,11 +105,12 @@ function OverviewContent() {
   const greeting = hour < 5 ? "Доброй ночи" : hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер";
   const firstName = (profileName(currentProfile) || "").split(" ")[0];
 
+  const isAdmin = currentProfile?.role === "admin";
   const stats = [
     { label: "Просрочено задач", value: data?.stats.overdue ?? "—", icon: AlertCircle, alert: (data?.stats.overdue || 0) > 0, href: "/tasks" },
     { label: "Срок сегодня", value: data?.stats.dueToday ?? "—", icon: CalendarDays, alert: false, href: "/tasks" },
     { label: "Моих задач", value: data?.stats.mine ?? "—", icon: UserCheck, alert: false, href: "/tasks" },
-    { label: "Активных сделок", value: data?.stats.activeDeals ?? "—", icon: Handshake, alert: false, href: "/deals?category=arenda" },
+    ...(isAdmin ? [{ label: "Активных сделок", value: data?.stats.activeDeals ?? "—", icon: Handshake, alert: false, href: "/deals?category=arenda" }] : []),
   ];
 
   return (
@@ -184,7 +185,8 @@ function OverviewContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className={"grid grid-cols-1 gap-4 " + (isAdmin ? "xl:grid-cols-2" : "")}>
+            {isAdmin && (
             <div className="bg-white rounded-xl shadow-sm border p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -211,6 +213,7 @@ function OverviewContent() {
                 </div>
               )}
             </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border p-5">
               <div className="flex items-center justify-between mb-3">

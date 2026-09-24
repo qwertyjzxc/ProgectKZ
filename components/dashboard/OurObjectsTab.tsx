@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2, Trash2, Plus, X, Filter, Square, CheckSquare } from "lucide-react";
 import AddPropertyForm from "@/components/AddPropertyForm";
+import { useEscapeKey } from "@/lib/use-escape";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatMoney } from "@/lib/format";
 
@@ -27,6 +28,8 @@ export default function OurObjectsTab() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editProp, setEditProp] = useState<Property | null>(null);
+  useEscapeKey(() => setShowAdd(false), showAdd);
+  useEscapeKey(() => setEditProp(null), editProp !== null);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCity, setFilterCity] = useState("");
   const [filterBType, setFilterBType] = useState("");

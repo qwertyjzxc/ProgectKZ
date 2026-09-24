@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { notifyAll } from "@/lib/notify";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -39,6 +40,13 @@ const updateData: Record<string, any> = { title, price, property_type: propertyT
   if (newUrls.length > 0) { updateData.image_url = newUrls[0]; updateData.image_urls = newUrls; }
   const { data, error } = await supabase.from("properties").update(updateData).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_update",
+    message: "Изменён объект: «" + (data.title || "") + "»",
+    related_to: "/dashboard/ours",
+    related_id: data.id,
+    actorUserId: user.id,
+  });
   return NextResponse.json(data);
 }
 
@@ -47,9 +55,15 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   const { id } = await params;
-  const { data: property } = await supabase.from("properties").select("image_url").eq("id", id).single();
+  const { data: property } = await supabase.from("properties").select("id,title,image_url").eq("id", id).single();
   if (property?.image_url) { const url = new URL(property.image_url); const parts = url.pathname.split("/"); const fn = parts[parts.length - 1]; if (fn) await supabase.storage.from("property-images").remove([fn]); }
   const { error } = await supabase.from("properties").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_delete",
+    message: "Удалён объект: «" + (property?.title || "") + "»",
+    related_to: "/dashboard/ours",
+    actorUserId: user.id,
+  });
   return NextResponse.json({ success: true });
 }

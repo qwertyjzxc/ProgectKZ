@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useEscapeKey } from "@/lib/use-escape";
 import { AlertTriangle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -24,6 +25,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useEscapeKey(onCancel, open);
   if (!open) return null;
 
   return (

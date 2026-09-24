@@ -10,8 +10,11 @@ import { CheckCircle2, Loader2, Shield, UserRound, Phone, Mail, AtSign, Lock, Ke
 
 const NOTIFICATION_ENTITIES = [
   { key: "clients", label: "Клиенты" },
-  { key: "deals", label: "Сделки" },
   { key: "tasks", label: "Задачи" },
+  { key: "objects", label: "Объекты" },
+];
+const NOTIFICATION_ADMIN_ENTITIES = [
+  { key: "deals", label: "Сделки" },
 ];
 const NOTIFICATION_ACTIONS = [
   { suffix: "create", label: "Добавление" },
@@ -415,16 +418,16 @@ function SettingsForm({ currentProfile }: { currentProfile: Profile }) {
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Все изменения</p>
-              <p className="text-xs text-gray-400">Добавление, изменение и удаление клиентов, сделок и задач</p>
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Все изменения</p>
+                <p className="text-xs text-gray-400">Добавление, изменение и удаление клиентов, сделок, задач и объектов</p>
+              </div>
+              <Toggle checked={notifAllOn} onChange={toggleNotifAll} label="Все изменения" />
             </div>
-            <Toggle checked={notifAllOn} onChange={toggleNotifAll} label="Все изменения" />
-          </div>
 
-          <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
-            {NOTIFICATION_ENTITIES.map(entity => (
+            <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
+              {[...NOTIFICATION_ENTITIES, ...(isAdmin ? NOTIFICATION_ADMIN_ENTITIES : [])].map(entity => (
               <div key={entity.key} className="grid grid-cols-1 sm:grid-cols-4 items-center gap-2 px-4 py-3">
                 <p className="text-sm font-medium text-gray-700 sm:col-span-1">{entity.label}</p>
                 <div className="sm:col-span-3 flex flex-wrap items-center gap-x-6 gap-y-2">

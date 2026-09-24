@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart3, Wallet, Scale, Calculator, CheckCircle2,
   Percent, Briefcase, Users, Loader2,
 } from "lucide-react";
 import { RevenueChart, StatusBars, Donut, type MonthPoint } from "@/components/AnalyticsCharts";
 import { formatMoney } from "@/lib/format";
+import { useProfile } from "@/lib/profile-context";
 
 type MonthsKey = "3" | "6" | "12" | "all";
 
@@ -79,6 +81,13 @@ function Card({ icon: Icon, title, subtitle, children }: {
 }
 
 function AnalyticsContent() {
+  const router = useRouter();
+  const { currentProfile } = useProfile();
+
+  useEffect(() => {
+    if (currentProfile && currentProfile.role !== "admin") router.replace("/overview");
+  }, [currentProfile, router]);
+
   const [months, setMonths] = useState<MonthsKey>("12");
   const [category, setCategory] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -122,6 +131,8 @@ function AnalyticsContent() {
     setLoading(true);
     setReloadKey(k => k + 1);
   };
+
+  if (currentProfile && currentProfile.role !== "admin") return null;
 
   return (
     <div className="space-y-5">

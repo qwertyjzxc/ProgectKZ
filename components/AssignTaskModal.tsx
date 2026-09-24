@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Save, CheckCircle2, ChevronDown } from "lucide-react";
 import AssigneePicker from "@/components/AssigneePicker";
+import { useEscapeKey } from "@/lib/use-escape";
 
 export default function AssignTaskModal({ clientName, onClose }: { clientName: string; onClose: () => void }) {
+  useEscapeKey(onClose);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [due, setDue] = useState("");

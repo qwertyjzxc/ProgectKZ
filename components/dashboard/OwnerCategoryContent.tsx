@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useEscapeKey } from "@/lib/use-escape";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, CalendarDays, Banknote, FileText, Paperclip, User, Ruler, Building, Building2, Loader2, ArrowLeft, Check, ChevronDown, CheckSquare, Square, CheckCircle2, type LucideIcon } from "lucide-react";
 import Combobox from "@/components/Combobox";
@@ -174,6 +175,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 // ====== FORM MODAL ======
 function OwnerFormModal({ owner, category, onClose, onSave }: { owner?: Owner; category: OwnerCategory; onClose: () => void; onSave: (data: Record<string, unknown>) => void }) {
+  useEscapeKey(onClose);
   const { currentProfile, allProfiles } = useProfile();
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
   const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
@@ -335,8 +337,8 @@ function OwnerFormModal({ owner, category, onClose, onSave }: { owner?: Owner; c
 // ====== COMPLETE DEAL MODAL ======
 function OwnerCompleteDealModal({ owner, category, onClose, onDone }: { owner: Owner; category: OwnerCategory; onClose: () => void; onDone: (data: { contract: string; amount: number; completion_date: string }) => void }) {
   const [contract, setContract] = useState("");
-  const [amount, setAmount] = useState(owner.price ? String(owner.price) : "");
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  useEscapeKey(onClose);
+  const [amount, setAmount] = useState(owner.price ? String(owner.price) : "");  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -393,6 +395,7 @@ function OwnerCompleteDealModal({ owner, category, onClose, onDone }: { owner: O
 
 // ====== VIEW MODAL ======
 function ViewOwnerModal({ owner, category, onClose, onEdit, onComplete }: { owner: Owner; category: OwnerCategory; onClose: () => void; onEdit: () => void; onComplete: () => void }) {
+  useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>

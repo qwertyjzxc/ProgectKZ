@@ -34,7 +34,7 @@ export default function DashboardHeader() {
 
   const fetchNotifications = useCallback(() => {
     if (!currentProfile?.id) return;
-    fetch("/api/notifications?profile_id=" + currentProfile.id)
+    fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) applyNotifications(data);
@@ -75,8 +75,51 @@ export default function DashboardHeader() {
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const removeNotification = async (id: number) => {
+    applyNotifications(notifications.filter(n => n.id !== id));
+    window.dispatchEvent(new Event("notifications-updated"));
+    try {
+      const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error("Ошибка");
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  const removeAllNotifications = async () => {
+    if (!currentProfile?.id) return;
+    if (!window.confirm("Удалить все уведомления?")) return;
+    applyNotifications([]);
+    window.dispatchEvent(new Event("notifications-updated"));
+    try {
+      const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true, profile_id: currentProfile.id }) });
+      if (!res.ok) throw new Error("Ошибка");
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  // Куда вести по уведомлению:
+  // - задачи с id — в карточку задачи;
+  // - type "activity" (действие сотрудника) — в журнал с раскрытой веткой;
+  // - остальное (сущность: клиент/сделка/объект) — прямо в её карточку.
+  const openNotification = (n: Notification) => {
+    markAsRead(n.id);
+    if (n.related_to === "/tasks" && n.related_id) {
+      setTaskModal(n.related_id);
+      return;
+    }
+    if (n.type === "activity") {
+      setShowNotifications(false);
+      router.push(n.related_to && n.related_to.startsWith("/activity") ? n.related_to : "/activity");
+      return;
+    }
+    if (!n.related_to || n.related_to === "/tasks") return;
+    setShowNotifications(false);
+    router.push(n.related_to);
+  };
+
+  const formatTime = (dateStr: string) => {    const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
@@ -126,14 +169,34 @@ export default function DashboardHeader() {
           {showNotifications && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setShowNotifications(false)} />
-              <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-xl border z-40 p-2 max-h-96 overflow-y-auto">
-                <div className="flex items-center justify-between px-3 py-2 border-b mb-1 bg-white rounded-t-xl">
-                  <span className="font-semibold text-sm">Уведомления</span>
-                  <div className="flex items-center gap-2">
-                    {unreadCount > 0 && (
-                      <button onClick={markAllAsRead} className="text-xs text-blue-500 hover:text-blue-700 font-medium">Прочитать все</button>
+              <div className="absolute right-0 top-12 w-96 bg-white rounded-xl shadow-xl border z-40 p-2 max-h-96 overflow-y-auto overflow-x-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b mb-1 bg-white rounded-t-xl gap-2">
+                  <span className="font-semibold text-sm shrink-0">Уведомления</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={markAllAsRead}
+                      disabled={unreadCount === 0}
+                      title={unreadCount === 0 ? "Непрочитанных нет" : "Отметить все как прочитанные"}
+                      className={
+                        "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap " +
+                        (unreadCount === 0
+                          ? "text-gray-300 border-gray-100 cursor-default"
+                          : "text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100")
+                      }
+                    >
+                      Прочитать все
+                    </button>
+                    {notifications.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={removeAllNotifications}
+                        title="Удалить все уведомления"
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors whitespace-nowrap"
+                      >
+                        Удалить все
+                      </button>
                     )}
-                    <button onClick={() => setShowNotifications(false)}><X className="w-4 h-4 text-gray-400" /></button>
                   </div>
                 </div>
 
@@ -144,20 +207,12 @@ export default function DashboardHeader() {
                   </div>
                 )}
 
-                {notifications.map(n => (
+                {notifications.slice(0, 20).map(n => (
                   <div
                     key={n.id}
-                    onClick={() => {
-                      markAsRead(n.id);
-                      if (n.related_to === "/tasks" && n.related_id) {
-                        setTaskModal(n.related_id);
-                      } else if (n.related_to && n.related_to !== "/tasks") {
-                        setShowNotifications(false);
-                        router.push(n.related_to);
-                      }
-                    }}
+                    onClick={() => openNotification(n)}
                     className={
-                      "px-3 py-3 rounded-lg cursor-pointer transition-colors mb-0.5 " +
+                      "px-3 py-3 rounded-lg cursor-pointer transition-colors mb-0.5 group " +
                       (n.is_read
                         ? "text-gray-500 hover:bg-gray-50"
                         : "font-medium text-gray-800 bg-blue-50/50 hover:bg-blue-50")
@@ -169,9 +224,26 @@ export default function DashboardHeader() {
                         <p className="text-sm">{n.message}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{formatTime(n.created_at)}</p>
                       </div>
+                      <button
+                        type="button"
+                        title="Удалить уведомление"
+                        onClick={e => { e.stopPropagation(); removeNotification(n.id); }}
+                        className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowNotifications(false); router.push("/notifications"); }}
+                    className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium py-2.5 border-t mt-1"
+                  >
+                    Показать все ({notifications.length})
+                  </button>
+                )}
               </div>
             </>
           )}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/admin";
 
 const DEAL_TABLES = ["deals_kvartiry", "deals_pomescheniya", "deals_zemlya"] as const;
 
@@ -17,6 +18,8 @@ function endOfToday(): Date {
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAdmin = user ? await isAdminUser(user.id) : false;
   const profileId = Number(request.nextUrl.searchParams.get("profile_id") || 0);
 
   // Задачи с исполнителями
@@ -57,7 +60,10 @@ export async function GET(request: NextRequest) {
     : [];
 
   // Последние сделки по трём таблицам
+  // Последние сделки — только админам
   const recentDeals: Array<{ id: number; name: string; amount: number; completed: string; created_at: string; dealType: string }> = [];
+  let activeTotal = 0;
+  if (isAdmin) {
   for (const table of DEAL_TABLES) {
     const { data } = await supabase
       .from(table)
@@ -77,11 +83,11 @@ export async function GET(request: NextRequest) {
   }
   recentDeals.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
 
-  let activeTotal = 0;
   for (const table of DEAL_TABLES) {
     const { count } = await supabase.from(table).select("id", { count: "exact", head: true }).neq("completed", "Завершено").neq("completed", "Отказ");
     activeTotal += count || 0;
   }
+  } // конец if (isAdmin) — сделки только админам
 
   // Последние события журнала
   const { data: activity } = await supabase

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
+import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
 
 const TABLE_MAP: Record<string, string> = {
@@ -84,7 +85,7 @@ export async function PUT(
       await notifyAll({
         key: "clients_update",
         message: "Изменён клиент: «" + (data.name || existing?.name || "") + "»",
-        related_to: "/clients",
+        related_to: clientListLink(category, data.type || existing?.type, data.id),
         related_id: data.id,
         actorUserId: await getActorUserId(supabase),
       });
@@ -126,7 +127,7 @@ export async function DELETE(
       await notifyAll({
         key: "clients_delete",
         message: "Удалён клиент: «" + (existing.name || "") + "»",
-        related_to: "/clients",
+        related_to: clientListLink(category, existing.type),
         actorUserId: await getActorUserId(supabase),
       });
     }

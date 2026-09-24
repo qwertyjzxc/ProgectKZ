@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/admin";
 
 const DEAL_TABLES = [
   { table: "deals_kvartiry", label: "Квартиры" },
@@ -14,6 +15,8 @@ export function digitsOnly(s: string): string {
 // Сделки клиента: совпадение по телефону (последние 10 цифр) или по имени.
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser(user.id))) return NextResponse.json([]);
   const phone = digitsOnly(request.nextUrl.searchParams.get("phone") || "").slice(-10);
   const name = (request.nextUrl.searchParams.get("name") || "").trim().replace(/[%_,]/g, "");
   if (!phone && name.length < 2) return NextResponse.json([]);

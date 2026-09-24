@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useProfile, profileName, profileInitials } from "@/lib/profile-context";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/lib/use-escape";
 import { adminCreateUser, adminDeleteUser, adminUpdateProfile, getAllProfiles, getProfilePassword } from "./actions";
 import { UserPlus, Trash2, Edit3, Shield, X, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { maskKzPhone } from "@/components/PhoneInput";
@@ -38,6 +39,7 @@ const colorMap: Record<string, string> = {
 type ProfileFormData = { first_name: string; last_name: string; username: string; password: string; role: string };
 
 function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  useEscapeKey(onClose);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -103,6 +105,7 @@ function CreateUserModal({ onClose, onSave }: { onClose: () => void; onSave: () 
 }
 
 function ProfileFormModal({ profile, onClose, onSave }: { profile: Profile; onClose: () => void; onSave: (data: ProfileFormData) => Promise<{ success: boolean; error?: string }> }) {
+  useEscapeKey(onClose);
   const legacyParts = (profile.full_name || "").split(" ").filter(Boolean);
   const [firstName, setFirstName] = useState(profile.first_name || legacyParts[0] || "");
   const [lastName, setLastName] = useState(profile.last_name || legacyParts.slice(1).join(" ") || "");
@@ -176,6 +179,7 @@ function ProfileFormModal({ profile, onClose, onSave }: { profile: Profile; onCl
 }
 
 function DeleteProfileModal({ profile, onClose, onDeleted }: { profile: Profile; onClose: () => void; onDeleted: () => void }) {
+  useEscapeKey(onClose);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const name = profileName(profile) || profile.username || profile.email || "пользователь";

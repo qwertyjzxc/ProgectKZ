@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { notifyAll, getActorUserId } from "@/lib/notify";
 
 export async function GET() {
   const supabase = await createClient();
@@ -30,6 +31,12 @@ export async function DELETE(request: NextRequest) {
   }
   const { error } = await supabase.from("properties").delete().in("id", ids);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyAll({
+    key: "objects_delete",
+    message: ids.length === 1 ? "Удалён объект" : `Удалено объектов: ${ids.length}`,
+    related_to: "/dashboard/ours",
+    actorUserId: user.id,
+  });
   return NextResponse.json({ success: true });
 }
 
@@ -71,6 +78,13 @@ export async function POST(request: NextRequest) {
   }
   const mainImage = imageUrls[0] || "";
   const { data, error } = await supabase.from("properties").insert({ title, price, property_type: propertyType, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts, image_url: mainImage, image_urls: imageUrls }).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await notifyAll({
+      key: "objects_create",
+      message: "Новый объект: «" + (data.title || "") + "»",
+      related_to: "/dashboard/ours",
+      related_id: data.id,
+      actorUserId: await getActorUserId(supabase),
+    });
+    return NextResponse.json(data, { status: 201 });
 }

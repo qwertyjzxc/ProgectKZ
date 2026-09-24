@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, DEAL_LABELS } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
+import { dealListLink } from "@/lib/notify-links";
 import { formatMoney } from "@/lib/format";
+import { isAdminUser } from "@/lib/admin";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -11,11 +13,22 @@ const TABLE_MAP: Record<string, string> = {
   zemlya: "deals_zemlya",
 };
 
+async function requireAdmin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser(user.id))) {
+    return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
+  }
+  return null;
+}
+
 function getTable(type: string | null): string {
   return TABLE_MAP[type || "kvartiry"] || "deals_kvartiry";
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const type = request.nextUrl.searchParams.get("type");
   const category = request.nextUrl.searchParams.get("category");
@@ -28,6 +41,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const body = await request.json();
   const table = getTable(body.dealType || body.type);
@@ -84,7 +99,7 @@ export async function POST(request: NextRequest) {
   await notifyAll({
     key: "deals_create",
     message: "Новая сделка: «" + (data.name || "") + "»" + (data.amount ? " — " + formatMoney(data.amount) : ""),
-    related_to: "/deals",
+    related_to: dealListLink(body.dealType || body.type, body.category, data.id),
     related_id: data.id,
     actorUserId: await getActorUserId(supabase),
   });
@@ -92,6 +107,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const body = await request.json().catch(() => ({}));
   const table = getTable(body.type);
@@ -122,7 +139,7 @@ export async function DELETE(request: NextRequest) {
     message: ids.length === 1 && existing?.[0]?.name
       ? "Удалена сделка: «" + existing[0].name + "»"
       : `Удалено сделок: ${ids.length}`,
-    related_to: "/deals",
+    related_to: dealListLink(body.type, body.category),
     actorUserId: await getActorUserId(supabase),
   });
   return NextResponse.json({ success: true, deleted: ids.length });

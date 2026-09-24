@@ -23,9 +23,12 @@ const dealCategories = [
 ];
 
 const navItems = [
-  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
   { href: "/tasks", label: "Задачи", icon: ListTodo },
   { href: "/activity", label: "Журнал действий", icon: History },
+];
+
+const adminItems = [
+  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
 ];
 
 interface SidebarProps {
@@ -45,7 +48,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const fetchUnread = useCallback(() => {
     if (!currentProfile?.id) return;
-    fetch("/api/notifications?profile_id=" + currentProfile.id)
+    fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1")
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -67,8 +70,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     };
   }, [fetchUnread, pathname]);
 
-  const allItems = currentProfile?.role === "admin"
-    ? [...navItems, { href: "/profiles", label: "Профили", icon: Shield }]
+  const isAdmin = currentProfile?.role === "admin";
+  const allItems = isAdmin
+    ? [...adminItems, ...navItems, { href: "/profiles", label: "Профили", icon: Shield }]
     : navItems;
 
   const expandAndOpen = (group: "clients" | "objects" | "deals") => {
@@ -212,51 +216,55 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         </div>
 
-        {/* Deals group */}
-        <div>
-          <button
-            onClick={() => (collapsed ? expandAndOpen("deals") : setDealsOpen(!dealsOpen))}
-            title="Сделки"
-            className={
-              "w-full flex items-center justify-between text-sm rounded-lg transition-colors "
-              + (collapsed ? "px-0 justify-center h-10 "
-              : "px-3 py-2.5 ")
-              + (pathname.startsWith("/deals")
-                ? "bg-gray-100 text-gray-900 font-medium"
-                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
-            }
-          >
-            <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
-              <Handshake className="w-4 h-4 shrink-0" />
-              {!collapsed && <>Сделки</>}
-            </span>
-            {!collapsed && <ChevronDown className={"w-4 h-4 transition-transform " + (dealsOpen ? "rotate-180" : "")} />}
-          </button>
-          {!collapsed && dealsOpen && (
-            <div className="ml-7 mt-1 space-y-1">
-              {dealCategories.map(cat => {
-                const href = "/deals?category=" + cat.id;
-                const isSubActive = currentHref === href;
-                const CatIcon = cat.icon;
-                return (
-                  <Link
-                    key={cat.id}
-                    href={href}
-                    className={
-                      "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
-                      + (isSubActive
-                        ? "bg-blue-50 text-blue-700 font-medium"
-                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-800")
-                    }
-                  >
-                    <CatIcon className="w-3.5 h-3.5" />
-                    {cat.label}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {isAdmin && (
+        <>
+          {/* Deals group */}
+          <div>
+            <button
+              onClick={() => (collapsed ? expandAndOpen("deals") : setDealsOpen(!dealsOpen))}
+              title="Сделки"
+              className={
+                "w-full flex items-center justify-between text-sm rounded-lg transition-colors "
+                + (collapsed ? "px-0 justify-center h-10 "
+                : "px-3 py-2.5 ")
+                + (pathname.startsWith("/deals")
+                  ? "bg-gray-100 text-gray-900 font-medium"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")
+              }
+            >
+              <span className={"flex items-center " + (collapsed ? "gap-0" : "gap-3")}>
+                <Handshake className="w-4 h-4 shrink-0" />
+                {!collapsed && <>Сделки</>}
+              </span>
+              {!collapsed && <ChevronDown className={"w-4 h-4 transition-transform " + (dealsOpen ? "rotate-180" : "")} />}
+            </button>
+            {!collapsed && dealsOpen && (
+              <div className="ml-7 mt-1 space-y-1">
+                {dealCategories.map(cat => {
+                  const href = "/deals?category=" + cat.id;
+                  const isSubActive = currentHref === href;
+                  const CatIcon = cat.icon;
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={href}
+                      className={
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
+                        + (isSubActive
+                          ? "bg-blue-50 text-blue-700 font-medium"
+                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-800")
+                      }
+                    >
+                      <CatIcon className="w-3.5 h-3.5" />
+                      {cat.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+        )}
 
         {allItems.map((item) => {
           const isActive = pathname === item.href;
