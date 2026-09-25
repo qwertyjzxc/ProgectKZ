@@ -1,10 +1,17 @@
-import sharp from "sharp";
+export interface WebpResult {
+  buffer: Buffer;
+  ext: string;
+  contentType: string;
+}
 
 // Конвертация загружаемых фото в WebP один раз при загрузке:
 // в сторедже лежит лёгкий файл, при просмотре не нужен пересчёт.
-// Форматы, которые sharp не читает (напр. HEIC), возвращаем как есть.
-export async function toWebp(input: Buffer): Promise<{ buffer: Buffer; ext: string; contentType: string }> {
+// sharp грузим лениво: если нативного биндинга нет в рантайме,
+// роут не должен падать — вернём оригинал как есть.
+// Форматы, которые sharp не читает (напр. HEIC), тоже грузим как есть.
+export async function toWebp(input: Buffer): Promise<WebpResult> {
   try {
+    const { default: sharp } = await import("sharp");
     const out = await sharp(input)
       .rotate()
       .resize({ width: 1920, height: 1920, fit: "inside", withoutEnlargement: true })
