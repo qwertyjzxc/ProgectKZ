@@ -260,7 +260,7 @@ function OwnerFormModal({ owner, category, onClose, onSave }: { owner?: Owner; c
               <>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
-                  <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите ЖК" />
+                  <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите жилой комплекс" />
                 </div>
                 <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>
               </>
@@ -725,7 +725,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
     }
   };
 
-  const colCount = category === "kvartiry" ? 11 : category === "pomescheniya" ? 12 : category === "doma" ? 12 : 9;
+  const colCount = category === "kvartiry" ? 9 : category === "pomescheniya" ? 12 : category === "doma" ? 11 : 9;
 
   return (
     <div>
@@ -926,7 +926,6 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Собственник</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
-                {(category === "kvartiry" || category === "doma") && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Кол-во комнат</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Тип</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Расположение</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Отделка</th>}
@@ -934,7 +933,6 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                 {category === "doma" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Пл. участка</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
-                {category === "kvartiry" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Цена</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
@@ -974,7 +972,6 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                     </div>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-600">{o.district || "—"}</td>
-                  {(category === "kvartiry" || category === "doma") && <td className="px-3 py-3 text-sm text-gray-600">{o.rooms || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-600">{o.premise_type || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.location_line || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-600">{o.finishing || "—"}</td>}
@@ -984,7 +981,6 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                     {o.area ? o.area + (category === "zemlya" ? " " + (o.area_unit || "сот") : " м²") : "—"}
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.address || "—"}</td>
-                  {category === "kvartiry" && <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.jk || "—"}</td>}
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
                     {o.price ? formatMoney(o.price) : "—"}

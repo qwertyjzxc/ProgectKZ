@@ -36,7 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
   phone: "Телефон",
   district: "Район",
   address: "Адрес",
-  jk: "ЖК",
+  jk: "Жилой комплекс",
   rooms: "Кол-во комнат",
   area: "Площадь",
   amount: "Бюджет",

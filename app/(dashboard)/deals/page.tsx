@@ -336,7 +336,7 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
             <div><label className="text-xs text-gray-500 mb-1 block">Дата и время обращения</label><Input value={date} readOnly className="text-sm bg-gray-50 cursor-not-allowed" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Район</label><Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="ул., дом, кв." className="text-sm" /></div>
-            {!isPomescheniya && !isZemlya && <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите ЖК" /></div>}
+            {!isPomescheniya && !isZemlya && <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите жилой комплекс" /></div>}
             {!isPomescheniya && !isZemlya && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="2" className="text-sm" /></div>}
             {isZemlya ? (
               <div>
@@ -425,7 +425,7 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
             ) : isPomescheniya ? (
               <>
                 {premiseType === "В Жилом Комплексе" && (
-                  <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите ЖК" /></div>
+                  <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите жилой комплекс" /></div>
                 )}
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
@@ -534,7 +534,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const totalCols = (isZemlya ? 11 : isPomescheniya ? 14 : 12) + (deleteMode ? 1 : 0);
+  const totalCols = (isZemlya ? 11 : isPomescheniya ? 14 : 10) + (deleteMode ? 1 : 0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -968,10 +968,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     </>
                   ) : (
                     <>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>
                     </>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
@@ -1055,10 +1053,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                       </>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.rooms || "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " м²" : "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.address || "—"}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.jk || "—"}</td>
                       </>
                     )}
                     <td className="px-4 py-3 text-sm text-gray-600">{d.broker || "—"}</td>

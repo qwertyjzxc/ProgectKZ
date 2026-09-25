@@ -311,7 +311,7 @@ function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign,
               <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
               <DetailItem icon={User} label="Брокер" value={client.broker} />
               {client.premise_type && <DetailItem icon={Building} label="Тип помещения" value={client.premise_type} />}
-              {client.finishing && <DetailItem icon={Home} label="Отделка" value={client.finishing} />}
+              {!(category === "arenda" && (client.type === "Квартира" || client.type === "Квартиры")) && client.finishing && <DetailItem icon={Home} label="Отделка" value={client.finishing} />}
               {client.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={client.contract_kind} />}
             </CardSection>
             {(client.reason || client.status_comment || client.resume_date) && (
@@ -573,7 +573,7 @@ function ClientFormModal({ client, onClose, onSave, defaultType, category }: { c
             {type !== "Земля" && (
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
-                <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите ЖК" />
+                <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите жилой комплекс" />
               </div>
             )}
             {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>}
@@ -688,10 +688,12 @@ function ClientFormModal({ client, onClose, onSave, defaultType, category }: { c
                 <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
               </div>
             )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
-              <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
-            </div>
+            {!(category === "arenda" && (type === "Квартира" || type === "Квартиры")) && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
+                <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
+              </div>
+            )}
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Вид договора</label>
               <Select label="Не указано" value={contractKind} onChange={setContractKind} options={[...CONTRACT_KINDS]} />
@@ -1023,8 +1025,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const isHouses = propertyType === "houses";
   const isZemlyaSell = isHouses && category === "prodaja";
-  const showRoomsCol = !isZemlyaSell;
-  const showJkCol = !isHouses;
+  const showRoomsCol = !isZemlyaSell && false;
+  const showJkCol = !isHouses && false;
 
   return (
     <div>

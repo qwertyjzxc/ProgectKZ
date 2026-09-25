@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
+import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
+
+const CLIENT_TABLES = ["clients_arenda", "clients_prodaja"];
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +20,36 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    const rows = (data || []) as Array<Record<string, unknown> & { client_table: string; client_id: number; changes: Array<{ field: string; label: string; oldValue: string; newValue: string }> | null }>;
+
+    // Чужим сотрудникам телефон в журнале не показываем, админ видит всё
+    const vis = await getPhoneVisibility();
+    if (!vis.isAdmin && rows.length > 0) {
+      const idsByTable = new Map<string, Set<number>>();
+      for (const row of rows) {
+        if (!CLIENT_TABLES.includes(row.client_table)) continue;
+        if (!idsByTable.has(row.client_table)) idsByTable.set(row.client_table, new Set());
+        idsByTable.get(row.client_table)!.add(Number(row.client_id));
+      }
+      const brokerMap = new Map<string, Map<number, string>>();
+      for (const [table, ids] of idsByTable) {
+        const map = new Map<number, string>();
+        if (ids.size > 0) {
+          const { data: clients } = await serviceClient.from(table).select("id, broker").in("id", [...ids]);
+          for (const c of clients || []) map.set(Number(c.id), (c.broker || "") as string);
+        }
+        brokerMap.set(table, map);
+      }
+      for (const row of rows) {
+        if (!CLIENT_TABLES.includes(row.client_table)) continue;
+        const broker = brokerMap.get(row.client_table)?.get(Number(row.client_id)) || "";
+        if (canSeePhone(broker, vis)) continue;
+        if (Array.isArray(row.changes)) {
+          row.changes = row.changes.filter(ch => ch.field !== "phone");
+        }
+      }
+    }
+    return NextResponse.json(rows);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }

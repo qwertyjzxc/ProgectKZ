@@ -111,7 +111,7 @@ function OwnerForm({ owner, category, onClose, onSaved }: { owner: Owner | null;
         <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} className="h-9" /></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Район</label><select value={district} onChange={e => setDistrict(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option value="">Не выбран</option>{SHYMKENT_DISTRICTS.map(d => <option key={d}>{d}</option>)}</select></div>
         <div><label className="text-xs text-gray-500 mb-1 block">Адрес</label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="ул. ..." className="text-sm" /></div>
-        {showJk && <div><label className="text-xs text-gray-500 mb-1 block">ЖК</label><Input value={jk} onChange={e => setJk(e.target.value)} placeholder="ЖК Комфорт" className="text-sm" /></div>}
+        {showJk && <div><label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label><Input value={jk} onChange={e => setJk(e.target.value)} placeholder="ЖК Комфорт" className="text-sm" /></div>}
         {showRooms && <div><label className="text-xs text-gray-500 mb-1 block">Комнаты</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="2-комн." className="text-sm" /></div>}
         <div><label className="text-xs text-gray-500 mb-1 block">Площадь</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="65" className="text-sm" /></div>
         {showAreaUnit && <div><label className="text-xs text-gray-500 mb-1 block">Ед. изм.</label><select value={areaUnit} onChange={e => setAreaUnit(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm"><option>сот</option><option>га</option><option>м²</option></select></div>}
@@ -224,7 +224,7 @@ export default function OwnersTab() {
                 <tr>
                   <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Собственник</th>
                   <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Объект</th>
-                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК/Район</th>
+                  <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс/Район</th>
                   <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
                   <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Цена</th>
                   <th className="px-4 py-3 font-semibold text-left sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Договор</th>
