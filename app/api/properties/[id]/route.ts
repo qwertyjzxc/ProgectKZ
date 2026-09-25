@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAll } from "@/lib/notify";
 import { propertyListLink } from "@/lib/notify-links";
+import { toWebp } from "@/lib/image-convert";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -30,10 +31,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const newUrls: string[] = [];
   for (const f of files) {
     if (f && f.size > 0) {
-      const ext = f.name.split(".").pop() || "jpg";
-      const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
       const aBuf = await f.arrayBuffer();
-      const { error: ue } = await supabase.storage.from("property-images").upload(fileName, Buffer.from(aBuf), { contentType: f.type, upsert: false });
+      // Фото жмём в WebP один раз здесь, а не при каждом просмотре
+      const converted = await toWebp(Buffer.from(aBuf));
+      const ext = converted.ext || f.name.split(".").pop() || "jpg";
+      const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+      const { error: ue } = await supabase.storage.from("property-images").upload(fileName, converted.buffer, { contentType: converted.contentType || f.type, upsert: false });
       if (!ue) { const { data: ud } = supabase.storage.from("property-images").getPublicUrl(fileName); newUrls.push(ud.publicUrl); }
     }
   }

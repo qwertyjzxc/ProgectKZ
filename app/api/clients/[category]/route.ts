@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { serviceClient } from "@/lib/supabase/service";
 import { logActivity, buildChanges } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
@@ -18,21 +19,82 @@ async function getTable(category: string) {
   return { supabase, table };
 }
 
+// ---------- Серверный список через RPC (1 хоп вместо 4) ----------
+// Чистим слова: запятые/скобки и %_* нельзя отдавать в ilike-паттерны.
+function cleanWord(s: string): string {
+  return s.replace(/[,()"%*_.\\]/g, "").trim();
+}
+function splitWords(s: string | null): string[] {
+  if (!s) return [];
+  // Как smartMatch на клиенте: слова — последовательности букв/цифр
+  return s.split(/[^\p{L}\p{N}]+/gu).map(cleanWord).filter(w => w.length > 0);
+}
+
+const LIST_DEFAULT_LIMIT = 200;
+const LIST_MAX_LIMIT = 500;
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ category: string }> }
 ) {
   try {
     const { category } = await params;
-    const { supabase, table } = await getTable(category);
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: false });
+    const table = TABLE_MAP[category];
+    if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
+    const sp = request.nextUrl.searchParams;
+
+    // --- Режим distincts: опции фильтров (район/ЖК) на всю категорию ---
+    if (sp.get("distincts") === "1") {
+      const { data, error } = await serviceClient.rpc("get_clients_distincts", { p_table: table });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ districts: data?.districts || [], jk: data?.jk || [] });
+    }
+
+    const numOrNull = (v: string | null): number | null =>
+      v && v.trim() !== "" && !isNaN(Number(v)) ? Number(v) : null;
+    const wordsOrNull = (v: string | null): string[] | null => {
+      const w = splitWords(v);
+      return w.length > 0 ? w : null;
+    };
+    const limit = Math.min(LIST_MAX_LIMIT, Math.max(1, parseInt(sp.get("limit") || String(LIST_DEFAULT_LIMIT), 10) || LIST_DEFAULT_LIMIT));
+    const offset = Math.max(0, parseInt(sp.get("offset") || "0", 10) || 0);
+
+    // Строки + тотал + разбивки — один вызов Postgres вместо сканов и подсчётов.
+    // Проверка прав не нужна сверх авторизации: телефоны маскируем ниже как раньше.
+    // rpc и visibility независимы — параллельно (на холодную экономит хоп).
+    const [rpcRes, vis] = await Promise.all([
+      serviceClient.rpc("get_clients_page", {
+      p_table: table,
+      p_limit: limit,
+      p_offset: offset,
+      p_types: sp.get("types") || null,
+      p_completed: sp.get("completed") || null,
+      p_active_only: sp.get("activeOnly") !== "0",
+      p_words: wordsOrNull(sp.get("search")),
+      p_name_words: wordsOrNull(sp.get("name")),
+      p_district: sp.get("district") || null,
+      p_broker: sp.get("broker") || null,
+      p_jk: sp.get("jk") || null,
+      p_rooms: sp.get("rooms")?.trim() || null,
+      p_address_words: wordsOrNull(sp.get("address")),
+      p_amount_min: numOrNull(sp.get("amountMin")),
+      p_amount_max: numOrNull(sp.get("amountMax")),
+      p_area_min: numOrNull(sp.get("areaMin")),
+      p_area_max: numOrNull(sp.get("areaMax")),
+      p_date_from: sp.get("dateFrom")?.trim() || null,
+      p_date_to: sp.get("dateTo")?.trim() || null,
+      }),
+      getPhoneVisibility(),
+    ]);
+    const { data, error } = rpcRes;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Телефоны видит только тот, кто добавил клиента; админу видны все.
-    const vis = await getPhoneVisibility();
-    return NextResponse.json(maskRowsPhones(data || [], vis));
+    return NextResponse.json({
+      rows: maskRowsPhones((data?.rows || []) as Array<{ broker?: string; phone?: string }>, vis),
+      total: data?.total || 0,
+      byType: data?.byType || {},
+      byStatus: data?.byStatus || {},
+    });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }

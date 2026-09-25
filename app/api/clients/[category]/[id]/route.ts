@@ -4,12 +4,32 @@ import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
-import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
+import { getPhoneVisibility, canSeePhone, maskRowsPhones } from "@/lib/phone-visibility";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
   prodaja: "clients_prodaja",
 };
+
+// Одна карточка для диплинка ?view=<id> (открытие без выгрузки всего списка)
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ category: string; id: string }> }
+) {
+  try {
+    const { category, id } = await params;
+    const table = TABLE_MAP[category];
+    if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
+    const supabase = await createClient();
+    const { data, error } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: "Не найден" }, { status: 404 });
+    const vis = await getPhoneVisibility();
+    return NextResponse.json(maskRowsPhones([data], vis)[0]);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
+  }
+}
 
 export async function PUT(
   request: NextRequest,

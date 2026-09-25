@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2, Trash2, Plus, X, Filter, Square, CheckSquare } from "lucide-react";
@@ -276,7 +277,7 @@ export default function OurObjectsTab() {
                   </button>
                 </div>
               )}
-              <div className="h-48 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden">{p.image_url?<img src={p.image_url} alt={p.title} className="w-full h-full object-cover"/>:<span className="text-gray-400 text-sm">Нет фото</span>}</div>
+              <div className="h-48 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden relative">{p.image_url?<Image src={p.image_url} alt={p.title} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover"/>:<span className="text-gray-400 text-sm">Нет фото</span>}</div>
               <div className="p-4 space-y-1.5">
                 <h3 className="font-semibold text-gray-900 line-clamp-1">{p.title}</h3>
                 <div className="flex items-center justify-between">

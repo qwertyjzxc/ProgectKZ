@@ -4,7 +4,7 @@ import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
 
 const COMPLETED_TTL_MS = 10 * 60 * 1000;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
   // Автоудаление задач, завершённых более 10 минут назад
@@ -15,15 +15,27 @@ export async function GET() {
     .eq("status", "Завершено")
     .lt("completed_at", cutoff);
 
+  // Защита от выгрузки всей таблицы целиком при росте данных
+  const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
   const { data, error } = await supabase
     .from("tasks")
-    .select("*, task_assignees(assignee_id)")
-    .order("created_at", { ascending: false });
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Исполнителей докачиваем отдельно (без FK-embed: работает на любой схеме)
+  const ids = (data || []).map(t => t.id as number);
+  let links: Array<{ task_id: number; assignee_id: number }> = [];
+  if (ids.length > 0) {
+    const { data: linkRows } = await supabase
+      .from("task_assignees")
+      .select("task_id,assignee_id")
+      .in("task_id", ids);
+    links = (linkRows || []) as Array<{ task_id: number; assignee_id: number }>;
+  }
   const normalized = (data || []).map(t => ({
     ...t,
-    assignee_ids: ((t.task_assignees || []) as Array<{ assignee_id: number }>).map(a => a.assignee_id),
-    task_assignees: undefined,
+    assignee_ids: links.filter(a => a.task_id === (t.id as number)).map(a => a.assignee_id),
   }));
   return NextResponse.json(normalized);
 }

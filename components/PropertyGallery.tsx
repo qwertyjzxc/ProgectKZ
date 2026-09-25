@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function PropertyGallery({ images }: { images: string[] }) {
@@ -8,7 +9,7 @@ export default function PropertyGallery({ images }: { images: string[] }) {
   return (
     <div className="relative">
       <div className="relative w-full h-80 sm:h-[450px] md:h-[600px] bg-gray-900 rounded-xl overflow-hidden">
-        <img src={images[active]} alt={`Фото ${active + 1}`} className="w-full h-full object-cover" />
+        <Image src={images[active]} alt={`Фото ${active + 1}`} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" priority />
         {images.length > 1 && (<>
           <button onClick={() => setActive(p => p === 0 ? images.length - 1 : p - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg"><ChevronLeft className="w-5 h-5" /></button>
           <button onClick={() => setActive(p => p === images.length - 1 ? 0 : p + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg"><ChevronRight className="w-5 h-5" /></button>
@@ -18,8 +19,8 @@ export default function PropertyGallery({ images }: { images: string[] }) {
       {images.length > 1 && (
         <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
           {images.map((url, i) => (
-            <button key={i} onClick={() => setActive(i)} className={`shrink-0 w-24 h-20 rounded-lg overflow-hidden border-2 transition-colors ${i === active ? "border-blue-500" : "border-transparent opacity-60 hover:opacity-100"}`}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
+            <button key={i} onClick={() => setActive(i)} className={`shrink-0 w-24 h-20 rounded-lg overflow-hidden border-2 transition-colors relative ${i === active ? "border-blue-500" : "border-transparent opacity-60 hover:opacity-100"}`}>
+              <Image src={url} alt="" fill sizes="96px" className="object-cover" />
             </button>
           ))}
         </div>

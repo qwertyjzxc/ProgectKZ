@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get("type");
   const category = request.nextUrl.searchParams.get("category");
   const table = getTable(type);
+  // Защита от выгрузки всей таблицы целиком при росте данных
+  const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
   let query = supabase.from(table).select("*");
   if (category) query = query.eq("category", category);
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

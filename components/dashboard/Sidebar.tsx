@@ -48,19 +48,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const fetchUnread = useCallback(() => {
     if (!currentProfile?.id) return;
-    fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1")
+    // Только лёгкий счётчик вместо выгрузки всех уведомлений
+    fetch("/api/notifications?profile_id=" + currentProfile.id + "&count=1")
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setUnreadCount(data.filter((n: { is_read?: boolean }) => !n.is_read).length);
-        }
+        if (typeof data?.unread === "number") setUnreadCount(data.unread);
       })
       .catch(() => {});
   }, [currentProfile]);
 
   useEffect(() => {
     fetchUnread();
-    const timer = setInterval(fetchUnread, 15000);
+    const timer = setInterval(fetchUnread, 60000);
     // Мгновенная синхронизация: шапка сообщает, что уведомления прочитаны
     const onUpdated = () => fetchUnread();
     window.addEventListener("notifications-updated", onUpdated);

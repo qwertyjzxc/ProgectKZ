@@ -52,12 +52,21 @@ export async function GET(request: NextRequest) {
   const months = monthsParam === "all" ? null : Math.max(1, parseInt(monthsParam, 10) || 12);
 
   const all: Array<RawDeal & { dealType: string; typeLabel: string }> = [];
-  for (const t of TABLES) {
-    const { data, error } = await supabase
-      .from(t.table)
-      .select("id,amount,completed,category,date,created_at,broker");
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    for (const d of (data || []) as RawDeal[]) {
+  // Параллельно: таблицы независимы, последовательные await-ы утраивали латентность
+  const perTable = await Promise.all(
+    TABLES.map(async t => {
+      const { data, error } = await supabase
+        .from(t.table)
+        .select("id,amount,completed,category,date,created_at,broker");
+      if (error) throw new Error(error.message);
+      return { t, rows: (data || []) as RawDeal[] };
+    })
+  ).catch((e: Error) => ({ error: e.message }));
+  if ("error" in (perTable as object)) {
+    return NextResponse.json({ error: (perTable as { error: string }).error }, { status: 500 });
+  }
+  for (const { t, rows } of perTable as Array<{ t: (typeof TABLES)[number]; rows: RawDeal[] }>) {
+    for (const d of rows) {
       all.push({ ...d, dealType: t.key, typeLabel: t.label });
     }
   }

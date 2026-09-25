@@ -27,20 +27,27 @@ export default function DashboardHeader() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const applyNotifications = useCallback((list: Notification[]) => {
-    setNotifications(list);
-    setUnreadCount(list.filter(n => !n.is_read).length);
-  }, []);
+  const fetchUnread = useCallback(() => {
+    if (!currentProfile?.id) return;
+    fetch("/api/notifications?profile_id=" + currentProfile.id + "&count=1")
+      .then(res => res.json())
+      .then(data => {
+        if (typeof data?.unread === "number") setUnreadCount(data.unread);
+      })
+      .catch(() => {});
+  }, [currentProfile]);
 
   const fetchNotifications = useCallback(() => {
     if (!currentProfile?.id) return;
-    fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1")
+    // Список для дропдауна (первые 20) и лёгкий счётчик для бейджа — вместо выгрузки всех 500
+    fetch("/api/notifications?profile_id=" + currentProfile.id)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) applyNotifications(data);
+        if (Array.isArray(data)) setNotifications(data);
       })
       .catch(() => {});
-  }, [currentProfile, applyNotifications]);
+    fetchUnread();
+  }, [currentProfile, fetchUnread]);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
@@ -53,7 +60,8 @@ export default function DashboardHeader() {
 
   const markAsRead = async (id: number) => {
     // Оптимистично помечаем прочитанным сразу
-    applyNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    fetchUnread();
     window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
@@ -65,7 +73,8 @@ export default function DashboardHeader() {
 
   const markAllAsRead = async () => {
     if (!currentProfile?.id) return;
-    applyNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
     window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
@@ -76,7 +85,8 @@ export default function DashboardHeader() {
   };
 
   const removeNotification = async (id: number) => {
-    applyNotifications(notifications.filter(n => n.id !== id));
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    fetchUnread();
     window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
@@ -89,7 +99,8 @@ export default function DashboardHeader() {
   const removeAllNotifications = async () => {
     if (!currentProfile?.id) return;
     if (!window.confirm("Удалить все уведомления?")) return;
-    applyNotifications([]);
+    setNotifications([]);
+    setUnreadCount(0);
     window.dispatchEvent(new Event("notifications-updated"));
     try {
       const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true, profile_id: currentProfile.id }) });

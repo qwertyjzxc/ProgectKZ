@@ -14,6 +14,13 @@ export async function GET(request: NextRequest) {
   await serviceClient.from("notifications").delete().lt("created_at", cutoff);
 
   const fetchAll = searchParams.get("all") === "1";
+
+  // Лёгкий счётчик непрочитанных для бейджей (без выгрузки сотен строк)
+  if (searchParams.get("count") === "1" && profileId) {
+    const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("profile_id", profileId).eq("is_read", false);
+    return NextResponse.json({ unread: count || 0 });
+  }
+
   let query = supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(fetchAll ? 500 : 20);
   if (profileId) query = query.eq("profile_id", profileId);
 

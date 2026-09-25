@@ -15,14 +15,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const body = await request.json();
 
-  const { data: existing } = await supabase
-    .from("tasks")
-    .select("*, task_assignees(assignee_id)")
-    .eq("id", id)
-    .single();
+  const { data: existing } = await supabase.from("tasks").select("*").eq("id", id).single();
+  // Исполнители отдельно (без FK-embed: работает на любой схеме)
+  const { data: existingLinks } = await supabase
+    .from("task_assignees")
+    .select("assignee_id")
+    .eq("task_id", id);
 
-  const existingAssignees = Array.isArray(existing?.task_assignees)
-    ? (existing.task_assignees as Array<{ assignee_id: number }>).map(a => a.assignee_id)
+  const existingAssignees = Array.isArray(existingLinks)
+    ? (existingLinks as Array<{ assignee_id: number }>).map(a => a.assignee_id)
     : [];
 
   const newStatus = body.status ?? existing?.status;

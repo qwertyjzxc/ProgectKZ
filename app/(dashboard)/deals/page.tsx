@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/format";
 import type { ActivityEntry } from "@/lib/activity";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { useProfile } from "@/lib/profile-context";
+import { getReference } from "@/lib/ref-cache";
 
 interface Deal {
   id: number;
@@ -280,14 +281,8 @@ const [furniture, setFurniture] = useState((deal as any)?.furniture || "");
   };
 
   useEffect(() => {
-    fetch("/api/districts")
-      .then(r => r.json())
-      .then((data: { name: string }[]) => { if (data.length) setDistrictOptions(data.map(d => d.name)); })
-      .catch(() => {});
-    fetch("/api/residential-complexes")
-      .then(r => r.json())
-      .then((data: { name: string }[]) => { if (data.length) setJkOptions(data.map(j => j.name)); })
-      .catch(() => {});
+    getReference("districts").then(d => { if (d.length) setDistrictOptions(d); });
+    getReference("residential-complexes").then(c => { if (c.length) setJkOptions(c); });
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -550,14 +545,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   }, []);
 
   useEffect(() => {
-    fetch("/api/districts")
-      .then(r => r.json())
-      .then((data: { name: string }[]) => { if (data.length) setDistrictOptions(data.map(d => d.name)); })
-      .catch(() => {});
-    fetch("/api/residential-complexes")
-      .then(r => r.json())
-      .then((data: { name: string }[]) => { if (data.length) setJkOptions(data.map(j => j.name)); })
-      .catch(() => {});
+    getReference("districts").then(d => { if (d.length) setDistrictOptions(d); });
+    getReference("residential-complexes").then(c => { if (c.length) setJkOptions(c); });
   }, []);
 
   const loadActivity = useCallback((dealId: number) => {

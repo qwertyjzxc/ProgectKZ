@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { propertyListLink } from "@/lib/notify-links";
+import { toWebp } from "@/lib/image-convert";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("properties").select("*").order("created_at", { ascending: false });
+  // Защита от выгрузки всей таблицы целиком при росте данных
+  const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
+  const { data, error } = await supabase.from("properties").select("*").order("created_at", { ascending: false }).limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
@@ -69,11 +72,12 @@ export async function POST(request: NextRequest) {
   const imageUrls: string[] = [];
   for (const f of files) {
     if (f && f.size > 0) {
-      const ext = f.name.split(".").pop() || "jpg";
-      const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
       const arrayBuffer = await f.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const { error: uploadError } = await supabase.storage.from("property-images").upload(fileName, buffer, { contentType: f.type, upsert: false });
+      // Фото жмём в WebP один раз здесь, а не при каждом просмотре
+      const converted = await toWebp(Buffer.from(arrayBuffer));
+      const ext = converted.ext || f.name.split(".").pop() || "jpg";
+      const fileName = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("property-images").upload(fileName, converted.buffer, { contentType: converted.contentType || f.type, upsert: false });
       if (!uploadError) { const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(fileName); imageUrls.push(urlData.publicUrl); }
     }
   }

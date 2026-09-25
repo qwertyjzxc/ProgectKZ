@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { serviceClient } from "@/lib/supabase/service";
 import { isAdminUser } from "@/lib/admin";
 
 async function requireAdmin() {
@@ -17,7 +18,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const supabase = await createClient();
   const { id } = await params;
   const body = await request.json();
-  const { data, error } = await supabase.from("profiles").update({
+  // Данные через сервис-клиент: см. комментарий в ../route.ts про рекурсивный RLS.
+  const { data, error } = await serviceClient.from("profiles").update({
     full_name: body.full_name,
     role: body.role,
     pin: body.pin,
@@ -33,9 +35,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const supabase = await createClient();
   const { id } = await params;
-  const { error } = await supabase.from("profiles").delete().eq("id", id);
+  // Данные через сервис-клиент: см. комментарий в ../route.ts про рекурсивный RLS.
+  const { error } = await serviceClient.from("profiles").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

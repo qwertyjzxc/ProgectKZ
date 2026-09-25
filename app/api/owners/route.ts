@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
   if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: false });
+  // Защита от выгрузки всей таблицы целиком при росте данных
+  const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
+  const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: false }).limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

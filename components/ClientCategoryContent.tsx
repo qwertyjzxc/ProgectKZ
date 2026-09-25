@@ -2,44 +2,20 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, Users, CalendarDays, Banknote, FileText, Paperclip, User, Briefcase, Check, ChevronDown, Loader2, ArrowLeft, Ruler, Building, ListTodo, History, Square, CheckSquare, CheckCircle2, type LucideIcon } from "lucide-react";
-import { RENT_CATEGORY_LABELS, getRentCategoryLabel, type RentCategory } from "@/components/RentCategorySelector";
-import AssignTaskModal from "@/components/AssignTaskModal";
-import CompleteDealModal from "@/components/CompleteDealModal";
+import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, Check, ChevronDown, Loader2, ArrowLeft, ListTodo, Square, CheckSquare } from "lucide-react";
+import { getRentCategoryLabel, type RentCategory } from "@/components/RentCategorySelector";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
+import { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
-import FileUploader, { type AttachmentFile } from "@/components/FileUploader";
-import ClientDeals from "@/components/ClientDeals";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney } from "@/lib/format";
-import {
-  CLIENT_FUNNEL_STATUSES, reasonsFor, needsReason, needsResumeDate,
-  CLIENT_CATEGORIES, CLIENT_TAGS, PREMISE_TYPES, FINISHING_TYPES, CONTRACT_KINDS,
-  parseTags,
-} from "@/lib/client-status";
-import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
-
-async function fetchReference(table: string): Promise<string[]> {
-  try {
-    const url = table === "districts" ? "/api/districts" : "/api/residential-complexes";
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.map((r: { name: string }) => r.name);
-  } catch {
-    return [];
-  }
-}
 
 const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
   houses: "Земля",
@@ -47,48 +23,7 @@ const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
   apartments: "Квартира",
 };
 
-interface Client {
-  id: number;
-  date: string;
-  name: string;
-  rooms: string;
-  district: string;
-  amount: number;
-  furniture: string;
-  rental_period: string;
-  phone: string;
-  phone_masked?: boolean;
-  who_lives: string;
-  people_count: number;
-  notes: string;
-  completed: string;
-  broker: string;
-  type: string;
-  area: string;
-  address: string;
-  jk: string;
-  contract: string;
-  area_unit?: string;
-  plot_type?: string;
-  purpose?: string;
-  communications?: string;
-  access?: string;
-  plot_shape?: string;
-  relief?: string;
-  restrictions?: string;
-  documents?: string;
-  preferences?: string;
-  client_category?: string;
-  tags?: string;
-  premise_type?: string;
-  finishing?: string;
-  contract_type?: string;
-  contract_kind?: string;
-  reason?: string;
-  status_comment?: string;
-  resume_date?: string;
-  created_at: string;
-}
+import { type Client, type ClientFormData } from "@/lib/client-types";
 
 const CLIENT_STATUSES = [
   "Новый Клиент",
@@ -105,32 +40,7 @@ const CLIENT_STATUSES = [
   "Закрыт без сделки",
 ];
 
-const completedColors: Record<string, string> = {
-  "Новый Клиент": "bg-sky-100 text-sky-800",
-  "Запрос уточняется": "bg-cyan-100 text-cyan-800",
-  "Подбор объектов": "bg-blue-100 text-blue-800",
-  "Варианты отправлены": "bg-indigo-100 text-indigo-800",
-  "Просмотр": "bg-violet-100 text-violet-800",
-  "Переговоры": "bg-amber-100 text-amber-800",
-  "Подготовка к сделке": "bg-orange-100 text-orange-800",
-  "Сделка в процессе": "bg-yellow-100 text-yellow-800",
-  "Сделка завершена": "bg-green-100 text-green-800",
-  "Заморожен": "bg-blue-100 text-blue-800",
-  "Приостановлен": "bg-gray-100 text-gray-700",
-  "Закрыт без сделки": "bg-red-100 text-red-800",
-  // старые статусы из данных — чтобы не были чёрными
-  "В процессе": "bg-yellow-100 text-yellow-800",
-  "Завершено": "bg-green-100 text-green-800",
-  "Отказ": "bg-red-100 text-red-800",
-  "Заморожено": "bg-blue-100 text-blue-800",
-  "Подписание договора": "bg-indigo-100 text-indigo-800",
-  "Оплата": "bg-cyan-100 text-cyan-800",
-  "VIP Клиент": "bg-amber-100 text-amber-800",
-  "Перспективный": "bg-emerald-100 text-emerald-800",
-  "Думает": "bg-orange-100 text-orange-800",
-  "Проблемный": "bg-rose-100 text-rose-800",
-  "Без статуса": "bg-gray-100 text-gray-500",
-};
+import { completedColors, getInitials } from "@/lib/client-types";
 
 const STATUS_STAT_COLORS: Record<string, string> = {
   "Новый Клиент": "text-sky-600",
@@ -164,600 +74,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   prodaja: "Покупка",
 };
 
-type ClientFormData = Omit<Client, "id" | "created_at">;
+import dynamic from "next/dynamic";
 
-// ====== VIEW MODAL ======
-function CardSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
-    </div>
-  );
-}
-
-function ViewClientModal({ client, category, isAdmin, onClose, onEdit, onAssign, onComplete }: { client: Client; category: string; isAdmin: boolean; onClose: () => void; onEdit: () => void; onAssign: () => void; onComplete: () => void }) {
-  useEscapeKey(onClose);
-  const [activity, setActivity] = useState<import("@/lib/activity").ActivityEntry[]>([]);
-  const [activityLoading, setActivityLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<import("@/lib/activity").ActivityEntry | null>(null);
-  const clientTable = "clients_" + category;
-
-  const loadActivity = useCallback(() => {
-    fetch("/api/activity?client_table=" + clientTable + "&client_id=" + client.id)
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setActivity(data); })
-      .catch(() => {})
-      .finally(() => setActivityLoading(false));
-  }, [clientTable, client.id]);
-
-  useEffect(() => { loadActivity(); }, [loadActivity]);
-
-  const handleDeleteActivity = async () => {
-    if (!deleteTarget) return;
-    try {
-      const res = await fetch("/api/activity/" + deleteTarget.id, { method: "DELETE" });
-      if (!res.ok) throw new Error("Ошибка удаления");
-      setActivity(prev => prev.filter(a => a.id !== deleteTarget.id));
-      setDeleteTarget(null);
-    } catch {
-      // ignore
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-gray-900 truncate">{client.name || "Без имени"}</h2>
-              <div className="flex items-center gap-3 mt-2">
-                <Badge className={"text-sm px-3 py-1 " + (completedColors[client.completed] || "bg-gray-100 text-gray-700")}>
-                  {client.completed || "Без статуса"}
-                </Badge>
-                {client.client_category && (
-                  <Badge className="text-sm px-3 py-1 bg-violet-100 text-violet-800">{client.client_category}</Badge>
-                )}
-                <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{client.date}</span>
-              </div>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              {isAdmin && (
-                <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={onComplete}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" />Завершить сделку
-                </Button>
-              )}
-              <Button className="bg-blue-600 hover:bg-blue-700" size="sm" onClick={onAssign}>
-                <ListTodo className="w-4 h-4 mr-1" />Назначить задачу
-              </Button>
-              <Button variant="outline" size="sm" onClick={onEdit}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
-              <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0 flex overflow-hidden">
-          <div className="w-[320px] shrink-0 border-r bg-gray-50/80 flex flex-col">
-            <div className="px-4 py-3 border-b shrink-0">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><History className="w-3.5 h-3.5" />Журнал действий</h3>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-              {activityLoading ? (
-                <div className="text-sm text-gray-400 flex items-center gap-2 py-2"><Loader2 className="w-4 h-4 animate-spin" />Загрузка...</div>
-              ) : activity.length === 0 ? (
-                <p className="text-sm text-gray-400 py-2">Действий пока нет</p>
-              ) : (
-                activity.map(a => (
-                  <div key={a.id} className="flex items-start gap-2.5 group">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">{getInitials(a.actor_name)}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-800 leading-relaxed">
-                        <span className="font-medium">{a.actor_name || "Сотрудник"}</span>{" "}{a.message}
-                        {isAdmin && (
-                          <button
-                            onClick={() => setDeleteTarget(a)}
-                            title="Удалить"
-                            className="ml-1 p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </p>
-                      {a.changes && a.changes.length > 0 && (
-                        <div className="mt-1 space-y-0.5 rounded bg-white border border-gray-100 px-2 py-1.5">
-                          {a.changes.map(ch => (
-                            <p key={ch.field} className="text-[11px] text-gray-500 flex flex-wrap items-baseline gap-x-1">
-                              <span className="text-gray-400">{ch.label}:</span>
-                              <span className="text-gray-400 line-through">{ch.oldValue}</span>
-                              <span>→</span>
-                              <span className="font-medium text-gray-700">{ch.newValue}</span>
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-[11px] text-gray-400 mt-0.5">{formatDateTime(a.created_at)}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
-            <CardSection title="Объект">
-              <DetailItem icon={Home} label="Тип недвижимости" value={client.type === "Земля" ? client.type : client.type === "Дома" ? "Дом" : client.type === "Помещения" ? "Помещение" : client.type} />
-              <DetailItem icon={MapPin} label="Район" value={client.district} />
-              <DetailItem icon={MapPin} label="Адрес" value={client.address} />
-              <DetailItem icon={Building} label="Жилой комплекс" value={client.jk} />
-              <DetailItem icon={Home} label="Кол-во комнат" value={client.rooms} />
-              <DetailItem icon={Ruler} label="Площадь" value={client.area ? client.area + (client.type === "Земля" ? " " + (client.area_unit || "сот") : " м²") : null} />
-              {client.type === "Земля" && <DetailItem icon={Home} label="Участок под" value={client.plot_type} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Назначение" value={client.purpose} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Коммуникации" value={client.communications} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Подъездные пути" value={client.access} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Форма участка" value={client.plot_shape} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Рельеф" value={client.relief} />}
-              {client.type === "Земля" && <DetailItem icon={Home} label="Ограничения" value={client.restrictions} />}
-            </CardSection>
-            <CardSection title="Договор и бюджет">
-              <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
-              <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? formatMoney(client.amount) : null} />
-              <DetailItem icon={CalendarDays} label="Дата обращения" value={client.date} />
-              <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
-              <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
-            </CardSection>
-            <CardSection title="Контакт">
-              <DetailItem icon={Phone} label="Телефон" value={client.phone_masked ? "Скрыт" : client.phone ? maskKzPhone(client.phone) : null} />
-              <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
-              <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
-              <DetailItem icon={User} label="Брокер" value={client.broker} />
-              {client.premise_type && <DetailItem icon={Building} label="Тип помещения" value={client.premise_type} />}
-              {!(category === "arenda" && (client.type === "Квартира" || client.type === "Квартиры")) && client.finishing && <DetailItem icon={Home} label="Отделка" value={client.finishing} />}
-              {client.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={client.contract_kind} />}
-            </CardSection>
-            {(client.reason || client.status_comment || client.resume_date) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <p className="text-xs text-amber-700 mb-1 font-medium">Причина закрытия / приостановки</p>
-                {client.reason && <p className="text-sm text-gray-800">{client.reason}</p>}
-                {client.status_comment && <p className="text-sm text-gray-600 mt-0.5">{client.status_comment}</p>}
-                {client.resume_date && <p className="text-xs text-gray-500 mt-1">Повторный контакт: {client.resume_date}</p>}
-              </div>
-            )}
-            {parseTags(client.tags).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {parseTags(client.tags).map(tag => (
-                  <span key={tag} className="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs text-blue-700">{tag}</span>
-                ))}
-              </div>
-            )}
-            {client.preferences && (
-              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Предпочтения</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.preferences}</p>
-              </div>
-            )}
-            {client.notes && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
-              </div>
-            )}
-            {!client.phone_masked && <ClientDeals phone={client.phone || ""} name={client.name || ""} />}
-            {(client.documents || "").trim() && ((() => {
-              try {
-                const docs = JSON.parse(client.documents || "[]");
-                if (!Array.isArray(docs) || !docs.length) return null;
-                return (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />Документы</p>
-                    <ul className="space-y-1.5">
-                      {docs.map((d: { name: string; url: string }, i: number) => (
-                        <li key={i}>
-                          <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              } catch {
-                return null;
-              }
-            })())}
-          </div>
-        </div>
-      </div>
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="Удаление записи"
-        message={deleteTarget ? "Удалить действие из журнала для этого клиента?" : ""}
-        hint="Запись будет удалена без возможности восстановления."
-        confirmLabel="Удалить"
-        cancelLabel="Отмена"
-        onConfirm={handleDeleteActivity}
-        onCancel={() => setDeleteTarget(null)}
-      />
-    </div>
-  );
-}
-
-function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr || "";
-  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function parseDateStr(s: string): number {
-  const ru = (s || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (ru) return new Date(Number(ru[3]), Number(ru[2]) - 1, Number(ru[1])).getTime();
-  const iso = (s || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])).getTime();
-  return NaN;
-}
-
-function smartMatch(field: string | undefined | null, query: string): boolean {
-  if (!query) return true;
-  if (!field) return false;
-  const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  const cleanField = normalize(field);
-  const words = normalize(query).split(/\s+/).filter(Boolean);
-  return words.every(word => cleanField.includes(word));
-}
-
-function toDateInputValue(v: string): string {
-  const m = (v || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(v || "")) return v;
-  return "";
-}
-
-function fromDateInputValue(v: string): string {
-  const m = (v || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return v;
-  return `${m[3]}.${m[2]}.${m[1]}`;
-}
-
-function DetailItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: React.ReactNode }) {
-  // ТЗ: незаполненные поля не показываем вообще (без прочерков)
-  if (value === null || value === undefined || value === "") return null;
-  return (
-    <div className="flex items-start gap-3">
-      <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{typeof value === 'number' ? value.toLocaleString("ru-RU") : value}</p>
-      </div>
-    </div>
-  );
-}
-
-function getInitials(name: string): string {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
-}
-
-// ====== FORM MODAL ======
-function ClientFormModal({ client, onClose, onSave, defaultType, category }: { client?: Client; onClose: () => void; onSave: (data: ClientFormData) => void; defaultType?: string; category?: "arenda" | "prodaja" }) {
-  const { currentProfile, allProfiles } = useProfile();
-  useEscapeKey(onClose);
-  const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
-  const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
-  const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
-  const [type, setType] = useState(client?.type || defaultType || "");
-  const [area, setArea] = useState(client?.area || "");
-  const [address, setAddress] = useState(client?.address || "");
-  const [jk, setJk] = useState(client?.jk || "");
-  const [contract, setContract] = useState(client?.contract || "");
-  const [date, setDate] = useState(client?.date ? toDateInputValue(client.date) : new Date().toISOString().slice(0, 10));
-  const [name, setName] = useState(client?.name || "");
-  const [phone, setPhone] = useState(client?.phone ? maskKzPhone(client.phone) : "");
-  const [district, setDistrict] = useState(client?.district || "");
-  const [rooms, setRooms] = useState(client?.rooms || "");
-  const [amount, setAmount] = useState(client?.amount ? String(client.amount) : "");
-  const [furniture, setFurniture] = useState(client?.furniture || "");
-  const [rentalPeriod, setRentalPeriod] = useState(client?.rental_period || "");
-  const [whoLives, setWhoLives] = useState(client?.who_lives || "");
-  const [peopleCount, setPeopleCount] = useState(client?.people_count ? String(client.people_count) : "1");
-  const [notes, setNotes] = useState(client?.notes || "");
-  const [documents, setDocuments] = useState<AttachmentFile[]>(() => {
-    try {
-      const p = JSON.parse(client?.documents || "[]");
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return client?.documents ? [{ name: client.documents, url: client.documents }] : [];
-    }
-  });
-  const [completed, setCompleted] = useState(client?.completed || "");
-  const [broker, setBroker] = useState(client ? client.broker : profileName(currentProfile));
-  const [areaUnit, setAreaUnit] = useState(client?.area_unit || "сот");
-  const [plotType, setPlotType] = useState(client?.plot_type || "");
-  const [purpose, setPurpose] = useState(client?.purpose || "");
-  const [communications, setCommunications] = useState(client?.communications || "");
-  const [access, setAccess] = useState(client?.access || "");
-  const [plotShape, setPlotShape] = useState(client?.plot_shape || "");
-  const [relief, setRelief] = useState(client?.relief || "");
-  const [restrictions, setRestrictions] = useState(client?.restrictions || "");
-  const [preferences, setPreferences] = useState(client?.preferences || "");
-  const [clientCategory, setClientCategory] = useState(client?.client_category || "");
-  const [tags, setTags] = useState<string[]>(() => parseTags(client?.tags));
-  const [premiseType, setPremiseType] = useState(client?.premise_type || "");
-  const [finishing, setFinishing] = useState(client?.finishing || "");
-  const [contractType, setContractType] = useState(client?.contract_type || "");
-  const [contractKind, setContractKind] = useState(client?.contract_kind || "");
-  const [reason, setReason] = useState(client?.reason || "");
-  const [statusComment, setStatusComment] = useState(client?.status_comment || "");
-  const [resumeDate, setResumeDate] = useState(client?.resume_date || "");
-  const [formError, setFormError] = useState("");
-
-  const toggleTag = (tag: string) => {
-    setTags(prev => (prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]));
-  };
-
-  const toggleCommunicationsClient = (opt: string) => {
-    setCommunications(prev => {
-      const list = prev ? prev.split(", ") : [];
-      return (list.includes(opt) ? list.filter(x => x !== opt) : [...list, opt]).join(", ");
-    });
-  };
-
-  useEffect(() => {
-    fetchReference("districts").then(d => { if (d.length) setDistrictOptions(d); });
-    fetchReference("residential_complexes").then(c => { if (c.length) setJkOptions(c); });
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // ТЗ §5: причина обязательна для Приостановлен / Закрыт без сделки
-    if (needsReason(completed) && !reason) {
-      setFormError("Укажите причину: без неё сохранить статус «" + completed + "» нельзя");
-      return;
-    }
-    if (needsReason(completed) && reason === "Другое" && !statusComment.trim()) {
-      setFormError("Для причины «Другое» заполните комментарий");
-      return;
-    }
-    if (needsResumeDate(completed) && !resumeDate) {
-      setFormError("Укажите дату повторного контакта");
-      return;
-    }
-    setFormError("");
-    const payload: ClientFormData = {
-      type, area, address, jk, contract, date: fromDateInputValue(date), name, phone, district, rooms,
-      amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod, who_lives: whoLives,
-      people_count: parseInt(peopleCount) || 1, notes, completed, broker,
-      documents: JSON.stringify(documents),
-      preferences, client_category: clientCategory, tags: JSON.stringify(tags),
-      premise_type: premiseType, finishing,
-      contract_type: contractType, contract_kind: contractKind,
-      reason: needsReason(completed) ? reason : "",
-      status_comment: needsReason(completed) ? statusComment : "",
-      resume_date: needsResumeDate(completed) ? resumeDate : "",
-    };
-    if (type === "Земля") {
-      payload.area_unit = areaUnit;
-      payload.plot_type = plotType;
-      payload.purpose = purpose;
-      payload.communications = communications;
-      payload.access = access;
-      payload.plot_shape = plotShape;
-      payload.relief = relief;
-      payload.restrictions = restrictions;
-    }
-    onSave(payload);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
-          <h2 className="text-lg font-bold">{client ? "Редактировать клиента" : "Новый клиент"}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </div>
-        <form id="client-form" onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Тип недвижимости</label>
-              <Select label="Не указано" value={type} onChange={setType} options={["Земля", "Дом", "Помещение", "Квартира"]} />
-            </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Дата обращения</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Имя</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Фамилия Имя" className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} /></div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Район</label>
-              <Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район Шымкента" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Адрес</label>
-              <AddressAutocomplete value={address} onChange={setAddress} placeholder="г. Шымкент, ул., дом, кв." />
-            </div>
-            {type !== "Земля" && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
-                <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите жилой комплекс" />
-              </div>
-            )}
-            {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>}
-            {type === "Земля" ? (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Площадь</label>
-                <div className="flex gap-2">
-                  <Input value={area} onChange={e => setArea(e.target.value)} type="number" placeholder="10" className="text-sm" />
-                  <select value={areaUnit} onChange={e => setAreaUnit(e.target.value)} className="h-9 rounded-lg border px-2 text-sm shrink-0">
-                    <option value="сот">Сотки</option>
-                    <option value="га">Гектары</option>
-                  </select>
-                </div>
-              </div>
-            ) : (
-              <div><label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="120" className="text-sm" /></div>
-            )}
-            <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label><MoneyInput value={amount} onChange={setAmount} placeholder="0" /></div>
-            {type !== "Земля" && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Меблировка</label>
-                <Select label="Не указано" value={furniture} onChange={setFurniture} options={["Полная", "Частичная", "Без мебели"]} />
-              </div>
-            )}
-            {type !== "Земля" && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Срок аренды</label>
-                <Select label="Не указано" value={rentalPeriod} onChange={setRentalPeriod} options={["Долгосрочно", "Краткосрочно", "Посуточно"]} />
-              </div>
-            )}
-            {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кто будет проживать</label><Input value={whoLives} onChange={e => setWhoLives(e.target.value)} placeholder="Семья, один, ..." className="text-sm" /></div>}
-            {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во человек</label><Input value={peopleCount} onChange={e => setPeopleCount(e.target.value)} type="number" placeholder="1" className="text-sm" /></div>}
-            {type === "Земля" && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Участок под</label>
-                  <Select label="Не указано" value={plotType} onChange={setPlotType} options={["Бизнес", "ИЖС"]} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Назначение</label>
-                  <Select label="Не указано" value={purpose} onChange={setPurpose} options={["ИЖС", "Коммерция", "Производство"]} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Коммуникации</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Свет", "Вода", "Газ", "Интернет"].map(opt => {
-                      const checked = (communications || "").split(", ").includes(opt);
-                      return (
-                        <label key={opt} className={"flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer select-none transition-colors " + (checked ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-gray-200 text-gray-600")}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleCommunicationsClient(opt)} className="accent-blue-600 w-3.5 h-3.5" />
-                          {opt}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Подъездные пути</label>
-                  <Select label="Не указано" value={access} onChange={setAccess} options={["Вдоль дороги", "Внутри"]} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Форма участка</label>
-                  <Select label="Не указано" value={plotShape} onChange={setPlotShape} options={["Ровный", "Прямоугольный", "Нестандартная форма"]} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Рельеф</label>
-                  <Select label="Не указано" value={relief} onChange={setRelief} options={["Ровный", "Есть холмы"]} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Ограничения</label>
-                  <Select label="Не указано" value={restrictions} onChange={setRestrictions} options={["Делимый", "Неделимый"]} />
-                </div>
-              </>
-            )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Статус</label>
-              <Select label="Без статуса" value={completed} onChange={v => { setCompleted(v); setReason(""); setStatusComment(""); }} options={[...CLIENT_FUNNEL_STATUSES]} />
-            </div>
-            {needsReason(completed) && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Причина *</label>
-                <Select label="Выберите причину" value={reason} onChange={setReason} options={reasonsFor(completed)} />
-              </div>
-            )}
-            {needsReason(completed) && reason === "Другое" && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Комментарий *</label>
-                <Input value={statusComment} onChange={e => setStatusComment(e.target.value)} placeholder="Уточните причину" className="text-sm" />
-              </div>
-            )}
-            {needsResumeDate(completed) && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Дата повторного контакта *</label>
-                <DatePicker value={resumeDate} onChange={setResumeDate} placeholder="Выберите дату" />
-                <p className="text-[11px] text-gray-400 mt-1">CRM создаст задачу на эту дату автоматически</p>
-              </div>
-            )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Категория клиента</label>
-              <Select label="Не указано" value={clientCategory} onChange={setClientCategory} options={[...CLIENT_CATEGORIES]} />
-            </div>
-            {type === "Помещение" || type === "Помещения" ? (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Тип помещения</label>
-                <Select label="Не указано" value={premiseType} onChange={setPremiseType} options={[...PREMISE_TYPES]} />
-              </div>
-            ) : null}
-            {!(category === "arenda" && (type === "Квартира" || type === "Квартиры")) && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
-                <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
-              </div>
-            )}
-            {!(category === "arenda" && (type === "Квартира" || type === "Квартиры")) && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
-                <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
-              </div>
-            )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Вид договора</label>
-              <Select label="Не указано" value={contractKind} onChange={setContractKind} options={[...CONTRACT_KINDS]} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Брокер</label>
-              <Combobox value={broker} onChange={setBroker} options={brokerNames} placeholder={brokerNames.length ? "Выберите сотрудника" : "Нет сотрудников — введите имя"} />
-            </div>
-          </div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Заметки</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Дополнительная информация..." rows={2} className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Предпочтения</label>
-            <textarea value={preferences} onChange={e => setPreferences(e.target.value)} placeholder="Что важно клиенту: этаж, вид из окна, школа рядом..." rows={2} className="w-full rounded-lg border px-3 py-2 text-sm resize-y" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Теги</label>
-            <div className="flex flex-wrap gap-1.5">
-              {CLIENT_TAGS.map(tag => {
-                const checked = tags.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={"px-2.5 py-1.5 rounded-lg border text-xs transition-colors " + (checked ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-300")}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
-          <FileUploader title="Документы" files={documents} onChange={setDocuments} />
-        </form>
-        <div className="shrink-0 flex items-center justify-end gap-2 p-4 border-t bg-white">
-          <Button variant="outline" type="button" onClick={onClose} className="px-6">Отмена</Button>
-          <Button type="submit" form="client-form" className="bg-blue-600 px-8">{client ? "Сохранить" : "Добавить"}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ====== FILTER SELECT COMPONENT ======
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <div className="relative w-full">
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full h-9 appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-8 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">{label}</option>
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
-      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-    </div>
-  );
-}
+// Тяжёлые модалки — отдельными чанками: грузятся только при открытии,
+// а не в бандле страницы (минус ~40% веса страницы клиентов).
+const ViewClientModal = dynamic(() => import("@/components/ClientViewModal"), { ssr: false });
+const ClientFormModal = dynamic(() => import("@/components/ClientFormModal"), { ssr: false });
+const AssignTaskModal = dynamic(() => import("@/components/AssignTaskModal"), { ssr: false });
+const CompleteDealModal = dynamic(() => import("@/components/CompleteDealModal"), { ssr: false });
 
 // ====== MAIN CONTENT ======
+// Перф: кэш списка в памяти модуля (stale-while-revalidate) — повторный вход
+// на страницу рисуется мгновенно без повторной выгрузки ~3МБ, фоном данные обновляются.
+// Мутации инвалидируют кэш, следующий монт тянет свежие данные.
+const clientsCache: Record<string, { rows: Client[]; total: number; counts: { byType: Record<string, number>; byStatus: Record<string, number> } }> = {};
+// distincts меняются редко (новый район/ЖК) — кэшируем на сессию
+const distinctsCache: Record<string, { districts: string[]; jk: string[] }> = {};
+
+// Размер страницы серверной пагинации. Живые CRM (react-admin, atomic-crm)
+// держат 25 строк на страницу; у нас строки тяжёлые (11 колонок, меню) — берём 50.
+const PAGE_SIZE = 50;
+
 export default function ClientCategoryContent({ category, propertyType, onBack }: { category: "arenda" | "prodaja"; propertyType?: RentCategory; onBack?: () => void }) {
   const { currentProfile, allProfiles } = useProfile();
   const isAdmin = currentProfile?.role === "admin";
@@ -776,14 +113,28 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Глубокая ссылка из уведомления: ?view=<id> открывает карточку клиента
+  // Глубокая ссылка из уведомления: ?view=<id> открывает карточку клиента.
+  // Строки может не быть на загруженной странице — тогда тянем карточку напрямую.
   const viewParam = searchParams.get("view");
   const [lastViewParam, setLastViewParam] = useState<string | null>(null);
-  if (viewParam && viewParam !== lastViewParam && clients.length > 0) {
-    setLastViewParam(viewParam);
+  useEffect(() => {
+    if (!viewParam || viewParam === lastViewParam || loading) return;
     const target = clients.find(c => c.id === Number(viewParam));
-    if (target) setViewClient(target);
-  }
+    if (target) {
+      setLastViewParam(viewParam);
+      setViewClient(target);
+      return;
+    }
+    fetch("/api/clients/" + category + "/" + viewParam)
+      .then(res => (res.ok ? res.json() : null))
+      .then(d => {
+        if (d && d.id) {
+          setLastViewParam(viewParam);
+          setViewClient(d);
+        }
+      })
+      .catch(() => {});
+  }, [viewParam, lastViewParam, loading, clients, category]);
 
   const closeViewClient = useCallback(() => {
     setViewClient(null);
@@ -819,6 +170,25 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const dragRef = useRef(false);
+
+  const hasActiveFilters = filterName || filterCompleted || filterDistrict || filterBroker || filterRooms || filterJk || filterAddress || filterAreaMin || filterAreaMax || filterAmountMin || filterAmountMax || filterDateFrom || filterDateTo;
+
+  const resetAllFilters = () => {
+    setFilterName("");
+    setFilterCompleted("");
+    setFilterDistrict("");
+    setFilterBroker("");
+    setFilterRooms("");
+    setFilterJk("");
+    setFilterAddress("");
+    setFilterAreaMin("");
+    setFilterAreaMax("");
+    setFilterAmountMin("");
+    setFilterAmountMax("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setSearchQuery("");
+  };
 
   useEffect(() => {
     const up = () => { dragRef.current = false; };
@@ -858,98 +228,177 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     setSelectedIds(new Set());
   };
 
-  // Collect unique values for dropdowns
-  const uniqueDistricts = useMemo(() => [...new Set(clients.map(c => c.district).filter(Boolean))].sort(), [clients]);
+  // Опции фильтров на всю категорию — с distincts-endpoint (а не из загруженной страницы)
+  const [uniqueDistricts, setUniqueDistricts] = useState<string[]>([]);
+  const [uniqueJk, setUniqueJk] = useState<string[]>([]);
   const roomsFilterOptions = ["1", "2", "3", "4", "5"];
-  const uniqueJk = useMemo(() => [...new Set(clients.map(c => c.jk).filter(Boolean))].sort(), [clients]);
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
 
-  const categoryClients = useMemo(() => {
-    if (!propertyType) return clients;
+  // Тоталы с counts-endpoint: total — scope типа, byStatus — полный scope фильтров
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<{ byType: Record<string, number>; byStatus: Record<string, number> }>({ byType: {}, byStatus: {} });
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Есть ли ещё страницы: страница короче PAGE_SIZE = конец выборки.
+  // Надёжнее сравнения с total (в нём и завершённые, которых activeOnly не отдаёт).
+  const [hasMore, setHasMore] = useState(true);
+
+  // types= для сервера — те же значения, которыми раньше фильтровался список типов
+  const typesParam = useMemo(() => {
+    if (!propertyType) return "";
     const label = RENT_TYPE_SINGULAR[propertyType];
-    if (label === "Земля") return clients.filter(c => c.type === "Земля" || c.type === "Дома" || c.type === "Дом");
-    if (label === "Помещение") return clients.filter(c => c.type === "Помещение" || c.type === "Помещения");
-    return clients.filter(c => c.type === label);
-  }, [clients, propertyType]);
+    if (label === "Земля") return "Земля,Дома,Дом";
+    if (label === "Помещение") return "Помещение,Помещения";
+    return label;
+  }, [propertyType]);
 
-  const hasActiveFilters = filterName || filterCompleted || filterDistrict || filterBroker || filterRooms || filterJk || filterAddress || filterAreaMin || filterAreaMax || filterAmountMin || filterAmountMax || filterDateFrom || filterDateTo;
+  const isDefaultView = !searchQuery.trim() && !filterName.trim() && !filterCompleted && !filterDistrict && !filterBroker && !filterRooms.trim() && !filterJk && !filterAddress.trim() && !filterAreaMin.trim() && !filterAreaMax.trim() && !filterAmountMin.trim() && !filterAmountMax.trim() && !filterDateFrom.trim() && !filterDateTo.trim();
 
-  const resetAllFilters = () => {
-    setFilterName("");
-    setFilterCompleted("");
-    setFilterDistrict("");
-    setFilterBroker("");
-    setFilterRooms("");
-    setFilterJk("");
-    setFilterAddress("");
-    setFilterAreaMin("");
-    setFilterAreaMax("");
-    setFilterAmountMin("");
-    setFilterAmountMax("");
-    setFilterDateFrom("");
-    setFilterDateTo("");
-    setSearchQuery("");
-  };
+  const buildListParams = useCallback((offset: number) => {
+    const p = new URLSearchParams();
+    p.set("limit", String(PAGE_SIZE));
+    p.set("offset", String(offset));
+    if (typesParam) p.set("types", typesParam);
+    if (filterCompleted) p.set("completed", filterCompleted);
+    else p.set("activeOnly", "1");
+    if (searchQuery.trim()) p.set("search", searchQuery.trim());
+    if (filterName.trim()) p.set("name", filterName.trim());
+    if (filterDistrict) p.set("district", filterDistrict);
+    if (filterBroker) p.set("broker", filterBroker);
+    if (filterRooms.trim()) p.set("rooms", filterRooms.trim());
+    if (filterJk) p.set("jk", filterJk);
+    if (filterAddress.trim()) p.set("address", filterAddress.trim());
+    if (filterAreaMin.trim()) p.set("areaMin", filterAreaMin.trim());
+    if (filterAreaMax.trim()) p.set("areaMax", filterAreaMax.trim());
+    if (filterAmountMin.trim()) p.set("amountMin", filterAmountMin.trim());
+    if (filterAmountMax.trim()) p.set("amountMax", filterAmountMax.trim());
+    if (filterDateFrom.trim()) p.set("dateFrom", filterDateFrom.trim());
+    if (filterDateTo.trim()) p.set("dateTo", filterDateTo.trim());
+    return p;
+  }, [typesParam, filterCompleted, searchQuery, filterName, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
 
-  const fetchClients = useCallback(() => {
-    fetch("/api/clients/" + category)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setClients(data);
-        else if (data.error) setError(data.error);
-      })
-      .catch(err => setError(err instanceof Error ? err.message : "Ошибка загрузки"))
-      .finally(() => setLoading(false));
+  // Одна загрузка на всё: строки + тотал + разбивки приходят одним RPC.
+  // keepPreviousData (как у react-query в живых CRM): при смене фильтра старые
+  // строки остаются на экране, скелетон — только на холодном монте без данных.
+  // Устаревшие запросы отменяем через AbortController, чтобы поздний ответ
+  // не затёр свежий (гонка при быстрой печати).
+  const listAbort = useRef<AbortController | null>(null);
+  const clientsRef = useRef<Client[]>([]);
+  useEffect(() => {
+    clientsRef.current = clients;
+  }, [clients]);
+
+  const loadAll = useCallback(async (reset: boolean, offset: number) => {
+    listAbort.current?.abort();
+    const ctl = new AbortController();
+    listAbort.current = ctl;
+    const cacheKey = category + ":" + typesParam;
+    const hadRows = clientsRef.current.length > 0;
+    if (reset) {
+      const cached = isDefaultView ? clientsCache[cacheKey] : undefined;
+      if (cached) {
+        setClients(cached.rows);
+        setTotalCount(cached.total);
+        setStatusCounts(cached.counts);
+        setLoading(false);
+      } else if (!hadRows) {
+        setLoading(true);
+      }
+      setHasMore(true);
+      setError(null);
+    } else {
+      setLoadingMore(true);
+    }
+    try {
+      const params = buildListParams(offset);
+      const res = await fetch("/api/clients/" + category + "?" + params.toString(), { signal: ctl.signal });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+      const rows: Client[] = Array.isArray(data) ? data : data.rows || [];
+      // Legacy-массив (на случай отката API): режем страницу на клиенте
+      const page = Array.isArray(data) ? rows.slice(offset, offset + PAGE_SIZE) : rows;
+      const total: number = Array.isArray(data) ? data.length : data.total || 0;
+      const counts = Array.isArray(data)
+        ? { byType: {} as Record<string, number>, byStatus: {} as Record<string, number> }
+        : { byType: data.byType || {}, byStatus: data.byStatus || {} };
+      if (reset) {
+        setClients(page);
+        setTotalCount(total);
+        setStatusCounts(counts);
+        if (isDefaultView && !Array.isArray(data)) clientsCache[cacheKey] = { rows: page, total, counts };
+      } else {
+        setClients(prev => [...prev, ...page]);
+        if (page.length < PAGE_SIZE) setHasMore(false);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      if (reset && clientsRef.current.length === 0) setError(err instanceof Error ? err.message : "Ошибка загрузки");
+    } finally {
+      if (listAbort.current !== ctl) return;
+      if (reset) setLoading(false);
+      else setLoadingMore(false);
+    }
+  }, [category, typesParam, isDefaultView, buildListParams]);
+
+  const loadDistincts = useCallback(async () => {
+    const cached = distinctsCache[category];
+    if (cached) {
+      setUniqueDistricts(cached.districts);
+      setUniqueJk(cached.jk);
+      return;
+    }
+    try {
+      const res = await fetch("/api/clients/" + category + "?distincts=1");
+      const data = await res.json();
+      if (res.ok) {
+        const districts = Array.isArray(data.districts) ? data.districts : [];
+        const jk = Array.isArray(data.jk) ? data.jk : [];
+        setUniqueDistricts(districts);
+        setUniqueJk(jk);
+        distinctsCache[category] = { districts, jk };
+      }
+    } catch {
+      // опции фильтров не должны ронять список
+    }
   }, [category]);
 
-  useEffect(() => { fetchClients(); }, [fetchClients]);
+  // Мутации инвалидируют кэш — следующий монт тянет свежие данные с сервера
+  const invalidateClientsCache = useCallback(() => {
+    Object.keys(clientsCache).forEach(k => {
+      if (k.startsWith(category + ":")) delete clientsCache[k];
+    });
+    delete distinctsCache[category];
+  }, [category]);
 
-  const stageBase = useMemo(() => {
-    let result = categoryClients;
-    if (searchQuery) {
-      result = result.filter(c =>
-        smartMatch(c.name, searchQuery) || smartMatch(c.phone, searchQuery) || smartMatch(c.district, searchQuery) || smartMatch(c.address, searchQuery) || smartMatch(c.jk, searchQuery) || smartMatch(c.broker, searchQuery)
-      );
-    }
-    if (filterName) {
-      result = result.filter(c => smartMatch(c.name, filterName));
-    }
-    if (filterDistrict) result = result.filter(c => c.district === filterDistrict);
-    if (filterBroker) result = result.filter(c => c.broker === filterBroker);
-    if (filterRooms) result = result.filter(c => (c.rooms || "").trim().startsWith(filterRooms));
-    if (filterJk) result = result.filter(c => c.jk === filterJk);
-    if (filterAddress) {
-      result = result.filter(c => smartMatch(c.address, filterAddress));
-    }
-    if (filterAreaMin) result = result.filter(c => Number(c.area) >= Number(filterAreaMin));
-    if (filterAreaMax) result = result.filter(c => Number(c.area) <= Number(filterAreaMax));
-    if (filterAmountMin) result = result.filter(c => c.amount >= Number(filterAmountMin));
-    if (filterAmountMax) result = result.filter(c => c.amount <= Number(filterAmountMax));
-    if (filterDateFrom) {
-      const t = parseDateStr(filterDateFrom);
-      if (!isNaN(t)) result = result.filter(c => parseDateStr(c.date) >= t);
-    }
-    if (filterDateTo) {
-      const t = parseDateStr(filterDateTo);
-      if (!isNaN(t)) result = result.filter(c => parseDateStr(c.date) <= t);
-    }
-    return result;
-  }, [categoryClients, searchQuery, filterName, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
+  // Немедленно: смена категории/типа (кэш рисует мгновенно)
+  const lastImmediate = useRef(0);
+  useEffect(() => {
+    lastImmediate.current = Date.now();
+    loadAll(true, 0);
+    loadDistincts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, typesParam]);
 
-  const filtered = useMemo(() => {
-    // ТЗ §7: по умолчанию только активные; завершённые — через пилюлю «Сделка завершена»
-    if (filterCompleted) return stageBase.filter(c => (c.completed || "Без статуса") === filterCompleted);
-    return stageBase.filter(c => c.completed !== "Сделка завершена");
-  }, [stageBase, filterCompleted]);
+  // Дебаунс 300мс: фильтры и поиск (пропускаем дубль сразу после немедленной загрузки)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (Date.now() - lastImmediate.current < 600) return;
+      loadAll(true, 0);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, filterName, filterCompleted, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
 
+  const loadMore = useCallback(() => {
+    loadAll(false, clients.length);
+  }, [loadAll, clients.length]);
+
+  // Фильтрация — на сервере; здесь только серверные итоги для пилюль.
+  // ТЗ §7: по умолчанию только активные; завершённые — через пилюлю «Сделка завершена»
   const clientStatusList = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of categoryClients) {
-      const s = c.completed || "Без статуса";
-      m.set(s, (m.get(s) || 0) + 1);
-    }
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
-  }, [categoryClients]);
+    return Object.entries(statusCounts.byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([s]) => s);
+  }, [statusCounts.byType]);
 
   const pillVis = usePillVisibility("clients");
   const visibleStatuses = clientStatusList.filter(s => !pillVis.hidden.includes(s) || filterCompleted === s);
@@ -964,6 +413,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       if (!res.ok) throw new Error((await res.json()).error || "Ошибка сохранения");
       const newClient = await res.json();
       setClients(prev => prev.map(c => c.id === temp.id ? newClient : c));
+      invalidateClientsCache();
+      loadAll(true, 0);
       if (Array.isArray(newClient.duplicateWarning) && newClient.duplicateWarning.length > 0) {
         setDupWarning(newClient.duplicateWarning);
       }
@@ -985,6 +436,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       if (!res.ok) throw new Error((await res.json()).error || "Ошибка сохранения");
       const updated = await res.json();
       setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+      invalidateClientsCache();
+      loadAll(true, 0);
     } catch (err) {
       setClients(prev => prev.map(c => c.id === original.id ? original : c));
       setSaveError(err instanceof Error ? err.message : "Ошибка сохранения");
@@ -993,15 +446,19 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const handleDelete = async (id: number) => {
     const res = await fetch("/api/clients/" + category + "/" + id, { method: "DELETE" });
-    if (res.ok) setClients(prev => prev.filter(c => c.id !== id));
+    if (res.ok) {
+      setClients(prev => prev.filter(c => c.id !== id));
+      invalidateClientsCache();
+      loadAll(true, 0);
+    }
   };
 
-  const allVisibleSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  const allVisibleSelected = clients.length > 0 && clients.every(c => selectedIds.has(c.id));
   const handleSelectAll = () => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (allVisibleSelected) filtered.forEach(c => next.delete(c.id));
-      else filtered.forEach(c => next.add(c.id));
+      if (allVisibleSelected) clients.forEach(c => next.delete(c.id));
+      else clients.forEach(c => next.add(c.id));
       return next;
     });
   };
@@ -1013,6 +470,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       const res = await fetch("/api/clients/" + category, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) });
       if (res.ok) {
         setClients(prev => prev.filter(c => !selectedIds.has(c.id)));
+        invalidateClientsCache();
+        loadAll(true, 0);
         exitDeleteMode();
       }
     } finally {
@@ -1202,10 +661,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 transition-colors"
         >
           <span>Всего</span>
-          <span className="font-bold">{categoryClients.length}</span>
+          <span className="font-bold">{totalCount}</span>
         </button>
         {visibleStatuses.map(s => {
-          const count = stageBase.filter(c => (c.completed || "Без статуса") === s).length;
+          const count = statusCounts.byStatus[s] ?? 0;
           const active = filterCompleted === s;
           return (
             <button
@@ -1228,8 +687,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         })}
       </div>
 
-      {/* Loading / Error */}
-      {loading && (
+      {/* Loading / Error — скелетон только на холодном монте; при смене
+          фильтра старые строки остаются (keepPreviousData), сверху — «Обновление…» */}
+      {loading && clients.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
           <p className="text-gray-500 mt-2">Загрузка из Supabase...</p>
@@ -1238,12 +698,12 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">
           Ошибка: {error}
-          <button onClick={() => { setLoading(true); setError(null); fetchClients(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button>
+          <button onClick={() => { setLoading(true); setError(null); loadAll(true, 0); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button>
         </div>
       )}
 
       {/* Clients table */}
-      {!loading && !error && (
+      {(clients.length > 0 || (!loading && !error)) && (
         <div className="bg-white rounded-xl shadow-sm border">
           <div className="table-scroll overflow-y-auto max-h-[calc(100vh-280px)]">
           <table className="w-full table-fixed text-center">
@@ -1282,18 +742,18 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
-              {filtered.length === 0 && (
+              {clients.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-6 py-16 text-center text-gray-400">
                     <p className="text-lg">Нет клиентов</p>
-                    <p className="text-sm mt-1">{categoryClients.length === 0 ? "Нажмите «Добавить клиента»" : "Попробуйте изменить фильтры"}</p>
-                    {categoryClients.length > 0 && (
+                    <p className="text-sm mt-1">{totalCount === 0 ? "Нажмите «Добавить клиента»" : "Попробуйте изменить фильтры"}</p>
+                    {totalCount > 0 && (
                       <button onClick={resetAllFilters} className="mt-2 text-blue-500 hover:text-blue-600 text-sm">Сбросить фильтры</button>
                     )}
                   </td>
                 </tr>
               )}
-              {filtered.map(c => (
+              {clients.map(c => (
                 <tr
                   key={c.id}
                   onContextMenu={e => handleRowContextMenu(e, c.id)}
@@ -1388,10 +848,24 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           </table>
           </div>
           <div className="border-t bg-gray-50/50 px-4 py-2.5 text-xs text-gray-400 flex items-center justify-between rounded-b-xl">
-            <span>Показано: {filtered.length} из {categoryClients.length} клиентов</span>
-            {hasActiveFilters && (
-              <button onClick={resetAllFilters} className="text-blue-500 hover:text-blue-600">Сбросить всё</button>
-            )}
+            <span>
+              Показано: {clients.length} из {totalCount}
+              {loading && clients.length > 0 && <span className="ml-2 text-blue-500">Обновление…</span>}
+            </span>
+            <div className="flex items-center gap-3">
+              {hasMore && clients.length < totalCount && (
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50"
+                >
+                  {loadingMore ? "Загрузка…" : `Показать ещё (${totalCount - clients.length})`}
+                </button>
+              )}
+              {hasActiveFilters && (
+                <button onClick={resetAllFilters} className="text-blue-500 hover:text-blue-600">Сбросить всё</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1401,7 +875,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {editClient && <ClientFormModal client={editClient} category={category} onClose={() => setEditClient(null)} onSave={handleEdit} />}
       {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={closeViewClient} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
       {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
-      {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); fetchClients(); }} />}
+      {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); loadAll(true, 0); }} />}
 
       <ConfirmDialog
         open={confirmDelete}
