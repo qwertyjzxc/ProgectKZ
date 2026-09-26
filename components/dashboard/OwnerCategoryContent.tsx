@@ -91,11 +91,15 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
     setLastViewParam(viewParam);
     const target = owners.find(o => o.id === Number(viewParam));
     if (target) setViewOwner(target);
+  } else if (!viewParam && lastViewParam) {
+    // URL уже почищен закрытием — сбрасываем guard для повторного клика
+    setLastViewParam(null);
   }
 
   const closeViewOwner = useCallback(() => {
     setViewOwner(null);
-    setLastViewParam(null);
+    // lastViewParam НЕ сбрасываем: иначе карточка переоткрывается,
+    // пока router.replace чистит URL (приходилось закрывать дважды)
     const params = new URLSearchParams(searchParams.toString());
     if (params.has("view")) {
       params.delete("view");

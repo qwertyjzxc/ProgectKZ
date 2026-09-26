@@ -60,8 +60,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   useEffect(() => {
     fetchUnread();
     const timer = setInterval(fetchUnread, 60000);
-    // Мгновенная синхронизация: шапка сообщает, что уведомления прочитаны
-    const onUpdated = () => fetchUnread();
+    // Мгновенная синхронизация: шапка сообщает новый счётчик прямо в событии
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ unread?: number; delta?: number }>).detail;
+      if (detail && typeof detail.unread === "number") setUnreadCount(detail.unread);
+      else if (detail && typeof detail.delta === "number") {
+        const d: number = detail.delta;
+        setUnreadCount(prev => Math.max(0, prev + d));
+      } else fetchUnread();
+    };
     window.addEventListener("notifications-updated", onUpdated);
     return () => {
       clearInterval(timer);

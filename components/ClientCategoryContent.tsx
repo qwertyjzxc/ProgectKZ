@@ -118,7 +118,13 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const viewParam = searchParams.get("view");
   const [lastViewParam, setLastViewParam] = useState<string | null>(null);
   useEffect(() => {
-    if (!viewParam || viewParam === lastViewParam || loading) return;
+    // URL уже почищен — сбрасываем guard, чтобы повторный клик по тому же
+    // уведомлению снова открывал карточку
+    if (!viewParam) {
+      if (lastViewParam) setLastViewParam(null);
+      return;
+    }
+    if (viewParam === lastViewParam || loading) return;
     const target = clients.find(c => c.id === Number(viewParam));
     if (target) {
       setLastViewParam(viewParam);
@@ -138,7 +144,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const closeViewClient = useCallback(() => {
     setViewClient(null);
-    setLastViewParam(null);
+    // lastViewParam НЕ сбрасываем здесь: router.replace асинхронен, и сброс
+    // приводил к повторному открытию карточки (закрывать приходилось дважды).
+    // Сброс происходит в эффекте выше, когда view уже убран из URL.
     const params = new URLSearchParams(searchParams.toString());
     if (params.has("view")) {
       params.delete("view");

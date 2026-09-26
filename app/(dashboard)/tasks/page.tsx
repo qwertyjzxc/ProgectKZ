@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Calendar, CheckCircle2, AlertCircle, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Clock, Square, CheckSquare } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, AlertCircle, MoreHorizontal, Trash2, Edit3, Filter, X, Loader2, Check, Clock, Square, CheckSquare, User } from "lucide-react";
 import { type NewTaskData } from "@/components/AddTaskModal";
 import { type EditableTask } from "@/components/EditTaskModal";
 // Модалки задач — отдельными чанками: грузятся только при открытии
@@ -124,7 +124,7 @@ function AssigneeStack({ assigneeIds, profileMap }: { assigneeIds: number[]; pro
 }
 
 function TasksContent() {
-  const { allProfiles } = useProfile();
+  const { currentProfile, allProfiles } = useProfile();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +135,7 @@ function TasksContent() {
   const [filterPriority, setFilterPriority] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterAssignees, setFilterAssignees] = useState<number[]>([]);
+  const [showMineOnly, setShowMineOnly] = useState(false);
   const [filterDueDate, setFilterDueDate] = useState("");
   const [filterCreatedFrom, setFilterCreatedFrom] = useState("");
   const [filterCreatedTo, setFilterCreatedTo] = useState("");
@@ -224,6 +225,8 @@ function TasksContent() {
     }
     if (filterPriority) result = result.filter(t => t.priority === filterPriority);
     if (filterAssignees.length > 0) result = result.filter(t => t.assignee_ids.some(id => filterAssignees.includes(id)));
+    // Галочка «Мои задачи»: сначала свои — назначенные текущему профилю
+    if (showMineOnly && currentProfile?.id) result = result.filter(t => t.assignee_ids.includes(currentProfile.id));
     if (filterDueDate) {
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -264,7 +267,7 @@ function TasksContent() {
       result = result.filter(t => t.status !== "Завершено");
     }
     return result;
-  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap, showCompleted, filterDueDate, filterCreatedFrom, filterCreatedTo]);
+  }, [tasks, searchQuery, filterPriority, filterStatus, filterAssignees, profileMap, showCompleted, filterDueDate, filterCreatedFrom, filterCreatedTo, showMineOnly, currentProfile]);
 
   const [confirmComplete, setConfirmComplete] = useState<{ id: number; currentStatus: string } | null>(null);
 
@@ -355,8 +358,8 @@ function TasksContent() {
 
   const overdueCount = tasks.filter(isTaskOverdue).length;
 
-  const hasFilters = !!(searchQuery || filterPriority || filterStatus || filterAssignees.length > 0 || filterDueDate || filterCreatedFrom || filterCreatedTo);
-  const resetFilters = () => { setSearchQuery(""); setFilterPriority(""); setFilterStatus(""); setFilterAssignees([]); setFilterDueDate(""); setFilterCreatedFrom(""); setFilterCreatedTo(""); };
+  const hasFilters = !!(searchQuery || filterPriority || filterStatus || filterAssignees.length > 0 || filterDueDate || filterCreatedFrom || filterCreatedTo || showMineOnly);
+  const resetFilters = () => { setSearchQuery(""); setFilterPriority(""); setFilterStatus(""); setFilterAssignees([]); setFilterDueDate(""); setFilterCreatedFrom(""); setFilterCreatedTo(""); setShowMineOnly(false); };
 
   return (
     <div>
@@ -380,6 +383,9 @@ function TasksContent() {
         <Button variant={showFilters || hasFilters ? "default" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="gap-1"><Filter className="w-4 h-4" />Фильтры{(hasFilters && (filterPriority || filterStatus || filterAssignees.length > 0 || filterDueDate || filterCreatedFrom || filterCreatedTo)) && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}</Button>
         <Button variant={showCompleted ? "default" : "outline"} size="sm" onClick={() => setShowCompleted(!showCompleted)} className="gap-1">
           <CheckSquare className="w-4 h-4" />Архив
+        </Button>
+        <Button variant={showMineOnly ? "default" : "outline"} size="sm" onClick={() => setShowMineOnly(!showMineOnly)} className="gap-1" title="Показать только задачи, назначенные мне">
+          <User className="w-4 h-4" />Мои задачи
         </Button>
         {!deleteMode ? (
           <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">

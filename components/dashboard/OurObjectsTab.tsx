@@ -65,11 +65,15 @@ export default function OurObjectsTab() {
     setLastViewParam(viewParam);
     const target = props.find(p => String(p.id) === viewParam);
     if (target) setEditProp(target);
+  } else if (!viewParam && lastViewParam) {
+    // URL уже почищен закрытием — сбрасываем guard для повторного клика
+    setLastViewParam(null);
   }
 
   const closeEdit = () => {
     setEditProp(null);
-    setLastViewParam(null);
+    // lastViewParam НЕ сбрасываем: иначе карточка переоткрывается,
+    // пока router.replace чистит URL (приходилось закрывать дважды)
     const params = new URLSearchParams(searchParams.toString());
     if (params.has("view")) {
       params.delete("view");

@@ -59,10 +59,15 @@ export default function DashboardHeader() {
   }, [fetchNotifications]);
 
   const markAsRead = async (id: number) => {
-    // Оптимистично помечаем прочитанным сразу
+    // Оптимистично: список и бейдж обновляются мгновенно, сервер догоняет фоном
+    const wasUnread = notifications.some(n => n.id === id && !n.is_read);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    fetchUnread();
-    window.dispatchEvent(new Event("notifications-updated"));
+    if (wasUnread) {
+      setUnreadCount(c => Math.max(0, c - 1));
+      window.dispatchEvent(new CustomEvent("notifications-updated", { detail: { delta: -1 } }));
+    } else {
+      window.dispatchEvent(new Event("notifications-updated"));
+    }
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       if (!res.ok) throw new Error("Ошибка");
@@ -75,7 +80,7 @@ export default function DashboardHeader() {
     if (!currentProfile?.id) return;
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
-    window.dispatchEvent(new Event("notifications-updated"));
+    window.dispatchEvent(new CustomEvent("notifications-updated", { detail: { unread: 0 } }));
     try {
       const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
       if (!res.ok) throw new Error("Ошибка");
@@ -85,9 +90,14 @@ export default function DashboardHeader() {
   };
 
   const removeNotification = async (id: number) => {
+    const wasUnread = notifications.some(n => n.id === id && !n.is_read);
     setNotifications(prev => prev.filter(n => n.id !== id));
-    fetchUnread();
-    window.dispatchEvent(new Event("notifications-updated"));
+    if (wasUnread) {
+      setUnreadCount(c => Math.max(0, c - 1));
+      window.dispatchEvent(new CustomEvent("notifications-updated", { detail: { delta: -1 } }));
+    } else {
+      window.dispatchEvent(new Event("notifications-updated"));
+    }
     try {
       const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       if (!res.ok) throw new Error("Ошибка");
@@ -101,7 +111,7 @@ export default function DashboardHeader() {
     if (!window.confirm("Удалить все уведомления?")) return;
     setNotifications([]);
     setUnreadCount(0);
-    window.dispatchEvent(new Event("notifications-updated"));
+    window.dispatchEvent(new CustomEvent("notifications-updated", { detail: { unread: 0 } }));
     try {
       const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true, profile_id: currentProfile.id }) });
       if (!res.ok) throw new Error("Ошибка");

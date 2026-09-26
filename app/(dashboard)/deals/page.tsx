@@ -115,11 +115,16 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     setLastDealViewParam(dealViewParam);
     const target = deals.find(d => d.id === Number(dealViewParam));
     if (target) setViewDeal(target);
+  } else if (!dealViewParam && lastDealViewParam) {
+    // URL уже почищен закрытием — сбрасываем guard для повторного клика
+    setLastDealViewParam(null);
   }
 
   const closeViewDeal = useCallback(() => {
     setViewDeal(null);
-    setLastDealViewParam(null);    const params = new URLSearchParams(dealsSearchParams.toString());
+    // lastDealViewParam НЕ сбрасываем: иначе карточка переоткрывается,
+    // пока router.replace чистит URL (приходилось закрывать дважды)
+    const params = new URLSearchParams(dealsSearchParams.toString());
     if (params.has("view")) {
       params.delete("view");
       const qs = params.toString();
