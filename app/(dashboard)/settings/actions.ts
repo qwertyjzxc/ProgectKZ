@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
+import { encryptSecret } from "@/lib/crypto";
 
 async function getLinkedProfileIds(userId: string): Promise<number[]> {
   const { data } = await serviceClient.from("profile_links").select("profile_id").eq("user_id", userId);
@@ -87,6 +88,7 @@ export async function changeMyPassword(password: string) {
   if (!password || password.length < 6) return { error: "Пароль должен быть не короче 6 символов" };
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };
+  await serviceClient.from("profiles").update({ password_enc: encryptSecret(password) }).eq("user_id", user.id);
   return { success: true };
 }
 

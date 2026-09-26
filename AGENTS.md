@@ -12,7 +12,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Доступ в API — только через `lib/route-auth.ts` (`requireUser`/`requireAdmin`/`requireCronOrAdmin`).
   Новые ручки без проверки доступа запрещены. GET не мутирует данные.
 - Удаления подтверждать через `components/ConfirmDialog.tsx`, не `window.confirm`.
-- Пароли — только Supabase Auth; никакого обратимого хранения.
+- Пароли — Supabase Auth + обратимая копия `password_enc` для просмотра админом (осознанное решение владельца, не убирать).
 - Схема БД: канон `supabase-full-schema.sql`; изменения — новым `supabase-*.sql`
   файлом + запись в README. Fallback в `lib/supabase-column-fallback.ts` только
   логирует дрейф, молча данные не терять.

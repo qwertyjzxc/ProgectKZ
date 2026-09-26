@@ -2,6 +2,7 @@
 
 import { serviceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 export async function adminCreateUser(data: {
   username: string;
@@ -53,6 +54,7 @@ export async function adminCreateUser(data: {
     phone: data.phone || "",
     avatar_color: data.avatar_color || "blue",
     is_active: true,
+    password_enc: data.password ? encryptSecret(data.password) : "",
   };
   // В БД может жить триггер handle_new_user, который уже создал строку
   // профиля при создании auth-юзера, а может и не жить. Поэтому INSERT,
@@ -78,7 +80,7 @@ export async function adminCreateUser(data: {
   return { success: true };
 }
 
-export async function adminDeleteUser(userId: string) {
+export async function adminDeleteUser(profileId: number) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Не авторизован" };
@@ -91,31 +93,44 @@ export async function adminDeleteUser(userId: string) {
   if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
     return { error: "Только администратор может удалять пользователей" };
   }
-  if (userId === user.id) {
+
+  // Цель ищем по id профиля: у старых/тестовых строк user_id может быть пустым,
+  // удаление по user_id их бы не нашло.
+  const { data: target } = await serviceClient
+    .from("profiles")
+    .select("id, user_id")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (!target) return { error: "Профиль не найден" };
+  const targetUserId = (target.user_id as string) || "";
+  if (targetUserId && targetUserId === user.id) {
     return { error: "Нельзя удалить самого себя" };
   }
 
   // Связи профиля: задачи, уведомления, связки логинов
-  const { data: targetProfiles } = await serviceClient
-    .from("profiles")
-    .select("id")
-    .eq("user_id", userId);
-  const profileIds = (targetProfiles || []).map(p => p.id as number);
-  if (profileIds.length > 0) {
-    await serviceClient.from("task_assignees").delete().in("assignee_id", profileIds);
-    await serviceClient.from("notifications").delete().in("profile_id", profileIds);
+  await serviceClient.from("task_assignees").delete().eq("assignee_id", profileId);
+  await serviceClient.from("notifications").delete().eq("profile_id", profileId);
+  if (targetUserId) {
+    await serviceClient.from("profile_links").delete().eq("user_id", targetUserId);
+  } else {
+    await serviceClient.from("profile_links").delete().eq("profile_id", profileId);
   }
-  await serviceClient.from("profile_links").delete().eq("user_id", userId);
 
-  const { error } = await serviceClient.auth.admin.deleteUser(userId);
-  if (error) return { error: error.message };
+  // Auth-юзер: может уже отсутствовать (удалён раньше) — это не ошибка,
+  // строку профиля всё равно чистим.
+  if (targetUserId) {
+    const { error } = await serviceClient.auth.admin.deleteUser(targetUserId);
+    if (error && !/not found|not exist|no user/i.test(error.message)) {
+      return { error: error.message };
+    }
+  }
 
   // Строка профиля: ON DELETE CASCADE из auth.users в живой БД может
   // отсутствовать, поэтому удаляем явно — иначе человек остаётся в списке.
   const { error: profileError } = await serviceClient
     .from("profiles")
     .delete()
-    .eq("user_id", userId);
+    .eq("id", profileId);
   if (profileError) return { error: profileError.message };
 
   return { success: true };
@@ -159,6 +174,9 @@ export async function adminUpdateProfile(profileId: number, data: {
   if (newUsername && newUsername !== (target?.username as string)) {
     update.username = newUsername;
   }
+  if (data.password) {
+    update.password_enc = encryptSecret(data.password);
+  }
 
   const { error } = await serviceClient
     .from("profiles")
@@ -176,7 +194,7 @@ export async function adminUpdateProfile(profileId: number, data: {
     });
   }
 
-  // Пароль живёт только в Supabase Auth (хеш). Обратимые копии не храним.
+  // Пароль — в Supabase Auth, плюс обратимая копия для просмотра админом.
   if (data.password && ownerId) {
     const { error: authError } = await serviceClient.auth.admin.updateUserById(ownerId, {
       password: data.password,
@@ -199,8 +217,37 @@ export async function getAllProfiles() {
 
   const { data } = await serviceClient
     .from("profiles")
-    .select("id, user_id, username, first_name, last_name, full_name, role, pin, phone, email, avatar_color, is_active")
+    .select("id, user_id, username, first_name, last_name, full_name, role, pin, phone, email, avatar_color, is_active, password_enc")
     .order("created_at", { ascending: false });
 
-  return data || [];
+  return (data || []).map(({ password_enc, ...rest }) => ({
+    ...rest,
+    has_password: !!(password_enc as string),
+  }));
+}
+
+export async function getProfilePassword(profileId: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Не авторизован" };
+
+  const { data: myProfiles } = await serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id);
+
+  if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
+    return { error: "Только администратор может просматривать пароли" };
+  }
+
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("password_enc")
+    .eq("id", profileId)
+    .single();
+
+  if (!profile) return { error: "Пользователь не найден" };
+  const pwd = decryptSecret((profile.password_enc as string) || "");
+  if (!pwd) return { error: "Сохранённый пароль не расшифровывается текущим ключом APP_PASSWORD_KEY. Задайте пароль заново через редактирование профиля." };
+  return { password: pwd };
 }
