@@ -41,10 +41,14 @@ export async function adminCreateUser(data: {
 
   if (authError) return { error: authError.message };
 
-  await serviceClient
+  // Профиля с новым user_id ещё нет — создаём строку (UPDATE тут ничего
+  // не найдёт). При ошибке откатываем auth-юзера, чтобы не было сироты.
+  const { error: profileError } = await serviceClient
     .from("profiles")
-    .update({
+    .insert({
+      user_id: authData.user.id,
       username: data.username,
+      email,
       first_name: data.first_name || "",
       last_name: data.last_name || "",
       full_name,
@@ -53,8 +57,12 @@ export async function adminCreateUser(data: {
       phone: data.phone || "",
       avatar_color: data.avatar_color || "blue",
       password_enc: data.password ? encryptSecret(data.password) : "",
-    })
-    .eq("user_id", authData.user.id);
+      is_active: true,
+    });
+  if (profileError) {
+    await serviceClient.auth.admin.deleteUser(authData.user.id);
+    return { error: profileError.message };
+  }
 
   return { success: true };
 }
