@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { isCronRequest, requireUser } from "@/lib/route-auth";
 import { serviceClient } from "@/lib/supabase/service";
 
-// Keep-warm для serverless и пула Supabase: дёргается кроном,
+// Keep-warm для serverless и пула Supabase: дёргается кроном или
+// мониторингом (UptimeRobot) по ключу ?key=CRON_SECRET,
 // чтобы горячие ручки не уходили в cold start на медленном трафике CRM.
 export async function GET(request: NextRequest) {
   if (!isCronRequest(request)) {
-    const { denied } = await requireUser();
-    if (denied) return denied;
+    const key = request.nextUrl.searchParams.get("key");
+    const secret = process.env.CRON_SECRET;
+    if (!secret || key !== secret) {
+      const { denied } = await requireUser();
+      if (denied) return denied;
+    }
   }
   try {
     await serviceClient.from("profiles").select("id", { count: "exact", head: true });
