@@ -1,12 +1,13 @@
 // Чистые хелперы ссылок для уведомлений — БЕЗ серверных импортов,
 // можно использовать и в браузере, и в API-роутах.
 
+import { normalizeDealCategory } from "./deal-types";
+
 const DEAL_KEYS = ["kvartiry", "pomescheniya", "zemlya"];
-const DEAL_CATS = ["arenda", "pokupka"];
 
 export function dealListLink(typeKey: unknown, category: unknown, id?: number | null): string {
   const t = DEAL_KEYS.includes(String(typeKey)) ? String(typeKey) : "kvartiry";
-  const c = DEAL_CATS.includes(String(category)) ? String(category) : "arenda";
+  const c = normalizeDealCategory(category);
   return `/deals?category=${c}&type=${t}` + (id ? `&view=${id}` : "");
 }
 

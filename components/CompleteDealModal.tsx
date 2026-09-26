@@ -84,7 +84,7 @@ export default function CompleteDealModal({
 
     const dealTypeMap: Record<string, string> = { "Квартира": "kvartiry", "Помещение": "pomescheniya", "Дом": "zemlya", "Участок": "zemlya" };
     const dealType = dealTypeMap[objectType] || "kvartiry";
-    const dealCategory = dealKind === "Продажа" ? "prodaja" : "arenda";
+    const dealCategory = dealKind === "Продажа" ? "pokupka" : "arenda";
 
     try {
       // 1. Update client (тип, договор, сумма, статус «Сделка завершена»)
@@ -117,7 +117,7 @@ export default function CompleteDealModal({
           commission: parseFloat(commission) || 0,
           owner_name: ownerName,
           stage: "Сделка закрыта",
-          completed: "Завершено",
+          completed: "Сделка",
           date: completionDate,
           contract: contract,
           phone: client.phone || "",

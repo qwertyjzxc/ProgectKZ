@@ -45,10 +45,10 @@ export default function CompleteDealModalForDeal({
         body: JSON.stringify({
           contract,
           amount: parseFloat(amount) || 0,
-          completed: "Завершено",
+          completed: "Сделка",
           stage: "Сделка закрыта",
           date: completionDate,
-          completion_date: deal.completion_date || new Date().toISOString().slice(0, 10),
+          completion_date: completionDate,
           type: dealType || deal.type || "kvartiry",
           category: category || deal.category || "arenda",
           name: deal.name,

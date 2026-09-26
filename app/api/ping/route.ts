@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isCronRequest, requireUser } from "@/lib/route-auth";
 import { serviceClient } from "@/lib/supabase/service";
 
 // Keep-warm для serverless и пула Supabase: дёргается кроном,
 // чтобы горячие ручки не уходили в cold start на медленном трафике CRM.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isCronRequest(request)) {
+    const { denied } = await requireUser();
+    if (denied) return denied;
+  }
   try {
     await serviceClient.from("profiles").select("id", { count: "exact", head: true });
     return NextResponse.json({ ok: true });

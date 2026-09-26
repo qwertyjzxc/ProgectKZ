@@ -7,6 +7,7 @@ import { notifyAll, getActorUserId } from "@/lib/notify";
 import { dealListLink } from "@/lib/notify-links";
 import { formatMoney } from "@/lib/format";
 import { isAdminUser } from "@/lib/admin";
+import { normalizeDealCategory } from "@/lib/deal-types";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
   // Защита от выгрузки всей таблицы целиком при росте данных
   const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
   let query = supabase.from(table).select("*");
-  if (category) query = query.eq("category", category);
+  if (category) query = query.eq("category", normalizeDealCategory(category));
   const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     owner_name: body.owner_name || "",
     stage: body.stage || "Первичный контакт",
     date: body.date || new Date().toLocaleDateString("ru-RU"),
-    category: body.category || "arenda",
+    category: normalizeDealCategory(body.category),
     type: body.type || "",
     area: body.area || "",
     address: body.address || "",

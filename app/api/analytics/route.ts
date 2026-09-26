@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/admin";
+import { normalizeDealCategory } from "@/lib/deal-types";
 
 const TABLES = [
   { key: "kvartiry", table: "deals_kvartiry", label: "Квартиры" },
@@ -8,17 +9,25 @@ const TABLES = [
   { key: "zemlya", table: "deals_zemlya", label: "Земля" },
 ] as const;
 
-const CLOSED = "Завершено";
 const LOST = "Отказ";
+// Терминальный статус закрытой сделки — "Сделка".
+// "Завершено" — legacy, оставлен для старых строк до миграции.
+const CLOSED = ["Завершено", "Сделка"];
 
 interface RawDeal {
   id: number;
   amount: number | string | null;
+  commission: number | string | null;
   completed: string | null;
   category: string | null;
   date: string | null;
   created_at: string | null;
   broker: string | null;
+}
+
+// Доход агентства — комиссия брокера, а не сумма сделки.
+function dealCommission(d: RawDeal): number {
+  return toNumber(d.commission);
 }
 
 function toNumber(v: number | string | null | undefined): number {
@@ -55,9 +64,17 @@ export async function GET(request: NextRequest) {
   // Параллельно: таблицы независимы, последовательные await-ы утраивали латентность
   const perTable = await Promise.all(
     TABLES.map(async t => {
-      const { data, error } = await supabase
+      // Колонки commission может не быть в старых БД — тогда откатываемся
+      // на список без неё (комиссии посчитаются нулями, в логах будет warn).
+      let { data, error } = await supabase
         .from(t.table)
-        .select("id,amount,completed,category,date,created_at,broker");
+        .select("id,amount,commission,completed,category,date,created_at,broker");
+      if (error && /commission/.test(error.message)) {
+        console.warn(`[schema-drift] таблица "${t.table}": нет колонки commission, аналитика посчитает её нулём. Примените supabase-deals-complete-fields.sql.`);
+        ({ data, error } = await supabase
+          .from(t.table)
+          .select("id,amount,completed,category,date,created_at,broker"));
+      }
       if (error) throw new Error(error.message);
       return { t, rows: (data || []) as RawDeal[] };
     })
@@ -72,7 +89,7 @@ export async function GET(request: NextRequest) {
   }
 
   const filtered = categoryParam
-    ? all.filter(d => (d.category || "") === categoryParam)
+    ? all.filter(d => normalizeDealCategory(d.category) === normalizeDealCategory(categoryParam))
     : all;
 
   const now = new Date();
@@ -85,14 +102,14 @@ export async function GET(request: NextRequest) {
     return new Date(d.created_at) >= start;
   });
 
-  const closed = inRange.filter(d => (d.completed || "") === CLOSED);
+  const closed = inRange.filter(d => CLOSED.includes(d.completed || ""));
   const lost = inRange.filter(d => (d.completed || "") === LOST);
   const active = inRange.filter(d => {
     const c = d.completed || "";
-    return c !== CLOSED && c !== LOST;
+    return !CLOSED.includes(c) && c !== LOST;
   });
 
-  const amounts = closed.map(d => toNumber(d.amount)).sort((a, b) => a - b);
+  const amounts = closed.map(d => dealCommission(d)).sort((a, b) => a - b);
   const revenue = amounts.reduce((a, b) => a + b, 0);
   const avg = closed.length ? revenue / closed.length : 0;
   const med = median(amounts);
@@ -114,7 +131,7 @@ export async function GET(request: NextRequest) {
     if (!d.created_at) continue;
     const b = byKey.get(monthKey(new Date(d.created_at)));
     if (b) {
-      b.revenue += toNumber(d.amount);
+      b.revenue += dealCommission(d);
       b.count += 1;
     }
   }
@@ -134,7 +151,7 @@ export async function GET(request: NextRequest) {
   for (const d of closed) {
     const c = d.category || "—";
     const cur = catMap.get(c) || { revenue: 0, count: 0 };
-    cur.revenue += toNumber(d.amount);
+    cur.revenue += dealCommission(d);
     cur.count += 1;
     catMap.set(c, cur);
   }
@@ -144,18 +161,18 @@ export async function GET(request: NextRequest) {
   const typeMap = new Map<string, { revenue: number; count: number }>();
   for (const d of closed) {
     const cur = typeMap.get(d.typeLabel) || { revenue: 0, count: 0 };
-    cur.revenue += toNumber(d.amount);
+    cur.revenue += dealCommission(d);
     cur.count += 1;
     typeMap.set(d.typeLabel, cur);
   }
   const byType = [...typeMap.entries()].map(([type, v]) => ({ type, ...v }));
 
-  // Топ брокеров по закрытой выручке
+  // Топ брокеров по закрытым комиссиям
   const brokerMap = new Map<string, { revenue: number; count: number }>();
   for (const d of closed) {
     const b = (d.broker || "").trim() || "Без брокера";
     const cur = brokerMap.get(b) || { revenue: 0, count: 0 };
-    cur.revenue += toNumber(d.amount);
+    cur.revenue += dealCommission(d);
     cur.count += 1;
     brokerMap.set(b, cur);
   }

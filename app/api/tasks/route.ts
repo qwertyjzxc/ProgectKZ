@@ -3,19 +3,10 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
 
-const COMPLETED_TTL_MS = 10 * 60 * 1000;
-
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
-  // Автоудаление задач, завершённых более 10 минут назад
-  const cutoff = new Date(Date.now() - COMPLETED_TTL_MS).toISOString();
-  await supabase
-    .from("tasks")
-    .delete()
-    .eq("status", "Завершено")
-    .lt("completed_at", cutoff);
-
+  // Чистка завершённых задач — в GET /api/cleanup по крону, не здесь.
   // Защита от выгрузки всей таблицы целиком при росте данных
   const limit = Math.min(1000, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") || "1000", 10) || 1000));
   const { data, error } = await supabase

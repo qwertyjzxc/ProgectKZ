@@ -23,7 +23,7 @@ const CompleteDealModalForDealDyn = dynamic(() => import("@/components/CompleteD
 import MoneyInput from "@/components/MoneyInput";
 import { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import { formatMoney } from "@/lib/format";
-import { type Deal, type DealFormValues, DEAL_STATUSES, completedColors, DEAL_TABLE_MAP } from "@/lib/deal-types";
+import { type Deal, type DealFormValues, DEAL_STATUSES, completedColors, DEAL_TABLE_MAP, normalizeDealCategory } from "@/lib/deal-types";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { useProfile } from "@/lib/profile-context";
 import { getReference } from "@/lib/ref-cache";
@@ -281,7 +281,8 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
   const filtered = useMemo(() => {
     if (filterStage) return stageBase.filter(d => d.completed === filterStage);
-    return stageBase.filter(d => d.completed !== "Завершено");
+    // Без фильтров показываем всё, включая завершённые
+    return stageBase;
   }, [stageBase, filterStage]);
 
   const handleAdd = async (data: DealFormValues) => {
@@ -764,7 +765,9 @@ function DealsPageInner() {
   const categoryParam = searchParams.get("category");
   const typeParam = searchParams.get("type");
 
-  const selectedCategory: string | null = VALID_CATEGORIES.includes(categoryParam ?? "") ? categoryParam! : null;
+  // Legacy-ссылки с ?category=prodaja нормализуются в pokupka
+  const normalizedCategoryParam = categoryParam ? normalizeDealCategory(categoryParam) : null;
+  const selectedCategory: string | null = normalizedCategoryParam && VALID_CATEGORIES.includes(normalizedCategoryParam) ? normalizedCategoryParam : null;
   const selectedType: string | null = VALID_TYPES.includes(typeParam ?? "") ? typeParam! : null;
 
   const handleSelectCategory = (cat: string) => {

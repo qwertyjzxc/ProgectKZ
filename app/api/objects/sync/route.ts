@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireCronOrAdmin } from "@/lib/route-auth";
 import { serviceClient } from "@/lib/supabase/service";
 import {
   fetchAllKrishaListings,
@@ -87,9 +88,13 @@ async function handle(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { denied } = await requireCronOrAdmin(request);
+  if (denied) return denied;
   return handle(request);
 }
 
 export async function POST(request: NextRequest) {
+  const { denied } = await requireCronOrAdmin(request);
+  if (denied) return denied;
   return handle(request);
 }

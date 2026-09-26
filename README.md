@@ -1,37 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProgectKZ — CRM агентства недвижимости (Шымкент)
 
-## Getting Started
+Next.js 16 (App Router) + React 19 + Supabase (Postgres, Auth, Storage) + Tailwind 4.
 
-First, run the development server:
+Разделы: Главная → Клиенты (аренда/продажа, воронка статусов) → Объекты
+(Krisha-парсинг, «Наши объекты», Собственники) → Сделки (admin) → Задачи →
+Журнал → Аналитика/Профили (admin) → Настройки (справочники районов и ЖК).
+
+Ключевой флоу: клиент → «Завершить сделку» → `PUT /api/clients/*` +
+`POST /api/deals` + запись в `client_activity` + уведомления.
+
+## Запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build
+npm test         # vitest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Переменные окружения (`.env.local`, в git не коммитить)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=   # только сервер, никогда на клиент
+YANDEX_API_KEY=              # подсказки адресов
+CRON_SECRET=                 # Bearer-секрет для /api/objects/sync, /api/cleanup, /api/ping
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Миграции БД (Supabase → SQL Editor, по порядку)
 
-## Learn More
+1. `supabase-full-schema.sql` — канон схемы
+2. `supabase-fix-rls.sql` (legacy) → затем `supabase-rls-hardening.sql` — настоящий RLS
+3. `supabase-clients-rpc.sql` — поиск/пагинация клиентов
+4. Остальные `supabase-*.sql` — инкрементальные поля (в т.ч. `supabase-deals-category-unify.sql`,
+   `supabase-profiles-drop-password-enc.sql`)
+5. `supabase-storage-policies.sql` — бакеты `property-images`, `deal-documents`, `attachments`
 
-To learn more about Next.js, take a look at the following resources:
+## Правила для кода
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Категории сделок — канон `arenda | pokupka` (`normalizeDealCategory` в `lib/deal-types.ts`);
+  `prodaja` — legacy-алиас только на входе. Клиенты — `arenda | prodaja` (таблицы).
+- Подтверждения удалений — только `ConfirmDialog`, не `window.confirm`.
+- GET-ручки не пишут в БД (чистка — в `GET /api/cleanup` по крону).
+- Пароли живут только в Supabase Auth; обратимых копий нет.
+- API-доступ: `requireUser` / `requireAdmin` / `requireCronOrAdmin` из `lib/route-auth.ts`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Крон (vercel.json)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-1
+- `0 0 * * *` → `/api/objects/sync` (Krisha, до 300 сек)
+- `30 1 * * *` → `/api/cleanup` (завершённые задачи, старые уведомления)

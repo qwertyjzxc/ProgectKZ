@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useProfile, profileName, profileInitials } from "@/lib/profile-context";
 import { useRouter } from "next/navigation";
 import { useEscapeKey } from "@/lib/use-escape";
-import { adminCreateUser, adminDeleteUser, adminUpdateProfile, getAllProfiles, getProfilePassword } from "./actions";
-import { UserPlus, Trash2, Edit3, Shield, X, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { adminCreateUser, adminDeleteUser, adminUpdateProfile, getAllProfiles } from "./actions";
+import { UserPlus, Trash2, Edit3, Shield, X, Loader2, ArrowLeft } from "lucide-react";
 import { maskKzPhone } from "@/components/PhoneInput";
 
 interface Profile {
@@ -22,7 +22,6 @@ interface Profile {
   phone: string;
   email: string;
   avatar_color: string;
-  has_password: boolean;
   is_active: boolean;
 }
 
@@ -233,27 +232,8 @@ function DeleteProfileModal({ profile, onClose, onDeleted }: { profile: Profile;
 }
 
 function ProfileCard({ profile, onEdit, onDelete }: { profile: Profile; onEdit: () => void; onDelete: () => void }) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState("");
-  const [loadingPass, setLoadingPass] = useState(false);
   const initials = profileInitials(profileName(profile) || profile.username);
   const avatarClass = colorMap[profile.avatar_color] || colorMap.blue;
-
-  const togglePassword = async () => {
-    if (showPassword) {
-      setShowPassword(false);
-      return;
-    }
-    if (!password) {
-      setLoadingPass(true);
-      const res = await getProfilePassword(profile.id);
-      setLoadingPass(false);
-      if (res.password !== undefined) {
-        setPassword(res.password);
-      }
-    }
-    setShowPassword(true);
-  };
 
   return (
     <div className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow">
@@ -271,20 +251,6 @@ function ProfileCard({ profile, onEdit, onDelete }: { profile: Profile; onEdit: 
       <div className="space-y-1 text-sm text-gray-600 mb-4">
         {profile.username && <p>🔑 Логин: {profile.username}</p>}
         {profile.phone && <p>📱 {maskKzPhone(profile.phone)}</p>}
-        {profile.has_password && (
-          <p className="flex items-center gap-1.5">
-            🔒 Пароль:{" "}
-            <span className="font-mono">{showPassword ? password : "••••••"}</span>
-            <button
-              type="button"
-              onClick={togglePassword}
-              className="text-gray-400 hover:text-gray-600 ml-auto"
-              title={showPassword ? "Скрыть пароль" : "Показать пароль"}
-            >
-              {loadingPass ? <Loader2 className="w-4 h-4 animate-spin" /> : showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </p>
-        )}
       </div>
 
       <div className="flex gap-2">

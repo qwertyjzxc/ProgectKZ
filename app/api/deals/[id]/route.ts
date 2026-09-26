@@ -6,6 +6,7 @@ import { logActivity, buildChanges, buildUpdateMessage, DEAL_LABELS } from "@/li
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { dealListLink } from "@/lib/notify-links";
 import { isAdminUser } from "@/lib/admin";
+import { normalizeDealCategory } from "@/lib/deal-types";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     amount: body.amount,
     stage: body.stage,
     date: body.date,
-    category: body.category,
+    category: body.category === undefined ? undefined : normalizeDealCategory(body.category),
     type: body.type,
     area: body.area,
     address: body.address,

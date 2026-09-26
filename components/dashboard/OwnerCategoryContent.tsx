@@ -280,7 +280,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
           client: original.name || "",
           amount: data.amount,
           stage: "Сделка закрыта",
-          completed: "Завершено",
+          completed: "Сделка",
           date: data.completion_date,
           contract: data.contract,
           phone: original.phone || "",

@@ -2,7 +2,6 @@
 
 import { serviceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
-import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 export async function adminCreateUser(data: {
   username: string;
@@ -29,6 +28,7 @@ export async function adminCreateUser(data: {
     return { error: "Только администратор может создавать пользователей" };
   }
 
+  if (!data.password || data.password.length < 6) return { error: "Пароль должен быть не короче 6 символов" };
   const full_name = [data.first_name || "", data.last_name || ""].join(" ").trim() || data.full_name || "";
   const email = (data.email || "").trim() || `${data.username}@crm.local`;
 
@@ -41,27 +41,38 @@ export async function adminCreateUser(data: {
 
   if (authError) return { error: authError.message };
 
-  // Профиля с новым user_id ещё нет — создаём строку (UPDATE тут ничего
-  // не найдёт). При ошибке откатываем auth-юзера, чтобы не было сироты.
-  const { error: profileError } = await serviceClient
-    .from("profiles")
-    .insert({
-      user_id: authData.user.id,
-      username: data.username,
-      email,
-      first_name: data.first_name || "",
-      last_name: data.last_name || "",
-      full_name,
-      role: data.role || "user",
-      pin: data.pin || "",
-      phone: data.phone || "",
-      avatar_color: data.avatar_color || "blue",
-      password_enc: data.password ? encryptSecret(data.password) : "",
-      is_active: true,
-    });
-  if (profileError) {
-    await serviceClient.auth.admin.deleteUser(authData.user.id);
-    return { error: profileError.message };
+  const profileRow = {
+    user_id: authData.user.id,
+    username: data.username,
+    email,
+    first_name: data.first_name || "",
+    last_name: data.last_name || "",
+    full_name,
+    role: data.role || "user",
+    pin: data.pin || "",
+    phone: data.phone || "",
+    avatar_color: data.avatar_color || "blue",
+    is_active: true,
+  };
+  // В БД может жить триггер handle_new_user, который уже создал строку
+  // профиля при создании auth-юзера, а может и не жить. Поэтому INSERT,
+  // а при дубле user_id (23505) — UPDATE существующей строки.
+  // При любой другой ошибке откатываем auth-юзера, чтобы не было сироты.
+  const { error: insertError } = await serviceClient.from("profiles").insert(profileRow);
+  if (insertError) {
+    if ((insertError as { code?: string }).code === "23505") {
+      const { error: updateError } = await serviceClient
+        .from("profiles")
+        .update(profileRow)
+        .eq("user_id", authData.user.id);
+      if (updateError) {
+        await serviceClient.auth.admin.deleteUser(authData.user.id);
+        return { error: updateError.message };
+      }
+    } else {
+      await serviceClient.auth.admin.deleteUser(authData.user.id);
+      return { error: insertError.message };
+    }
   }
 
   return { success: true };
@@ -80,9 +91,32 @@ export async function adminDeleteUser(userId: string) {
   if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
     return { error: "Только администратор может удалять пользователей" };
   }
+  if (userId === user.id) {
+    return { error: "Нельзя удалить самого себя" };
+  }
+
+  // Связи профиля: задачи, уведомления, связки логинов
+  const { data: targetProfiles } = await serviceClient
+    .from("profiles")
+    .select("id")
+    .eq("user_id", userId);
+  const profileIds = (targetProfiles || []).map(p => p.id as number);
+  if (profileIds.length > 0) {
+    await serviceClient.from("task_assignees").delete().in("assignee_id", profileIds);
+    await serviceClient.from("notifications").delete().in("profile_id", profileIds);
+  }
+  await serviceClient.from("profile_links").delete().eq("user_id", userId);
 
   const { error } = await serviceClient.auth.admin.deleteUser(userId);
   if (error) return { error: error.message };
+
+  // Строка профиля: ON DELETE CASCADE из auth.users в живой БД может
+  // отсутствовать, поэтому удаляем явно — иначе человек остаётся в списке.
+  const { error: profileError } = await serviceClient
+    .from("profiles")
+    .delete()
+    .eq("user_id", userId);
+  if (profileError) return { error: profileError.message };
 
   return { success: true };
 }
@@ -113,6 +147,8 @@ export async function adminUpdateProfile(profileId: number, data: {
 
   const target = targetRes.data;
   if (!target) return { error: "Профиль не найден" };
+  // Валидация до любых записей в БД и Auth.
+  if (data.password && data.password.length < 6) return { error: "Пароль должен быть не короче 6 символов" };
 
   const update: Record<string, string | number | boolean> = { ...data };
   delete update.password;
@@ -122,9 +158,6 @@ export async function adminUpdateProfile(profileId: number, data: {
   const newUsername = data.username !== undefined ? data.username.trim() : "";
   if (newUsername && newUsername !== (target?.username as string)) {
     update.username = newUsername;
-  }
-  if (data.password) {
-    update.password_enc = encryptSecret(data.password);
   }
 
   const { error } = await serviceClient
@@ -143,53 +176,31 @@ export async function adminUpdateProfile(profileId: number, data: {
     });
   }
 
-  if (data.password) {
-    if (data.password.length < 6) return { error: "Пароль должен быть не короче 6 символов" };
-    if (ownerId) {
-      const { error: authError } = await serviceClient.auth.admin.updateUserById(ownerId, {
-        password: data.password,
-      });
-      if (authError) return { error: authError.message };
-    }
+  // Пароль живёт только в Supabase Auth (хеш). Обратимые копии не храним.
+  if (data.password && ownerId) {
+    const { error: authError } = await serviceClient.auth.admin.updateUserById(ownerId, {
+      password: data.password,
+    });
+    if (authError) return { error: authError.message };
   }
 
   return { success: true };
 }
 
 export async function getAllProfiles() {
-  const { data } = await serviceClient
-    .from("profiles")
-    .select("id, user_id, username, first_name, last_name, full_name, role, pin, phone, email, avatar_color, is_active, password_enc")
-    .order("created_at", { ascending: false });
-
-  return (data || []).map(({ password_enc, ...rest }) => ({
-    ...rest,
-    has_password: !!(password_enc as string),
-  }));
-}
-
-export async function getProfilePassword(profileId: number) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Не авторизован" };
-
+  if (!user) return [];
   const { data: myProfiles } = await serviceClient
     .from("profiles")
     .select("role")
     .eq("user_id", user.id);
+  if (!myProfiles || !myProfiles.some(p => p.role === "admin")) return [];
 
-  if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
-    return { error: "Только администратор может просматривать пароли" };
-  }
-
-  const { data: profile } = await serviceClient
+  const { data } = await serviceClient
     .from("profiles")
-    .select("password_enc")
-    .eq("id", profileId)
-    .single();
+    .select("id, user_id, username, first_name, last_name, full_name, role, pin, phone, email, avatar_color, is_active")
+    .order("created_at", { ascending: false });
 
-  if (!profile) return { error: "Пользователь не найден" };
-  const pwd = decryptSecret((profile.password_enc as string) || "");
-  if (!pwd) return { error: "Сохранённый пароль не расшифровывается текущим ключом APP_PASSWORD_KEY. Задайте пароль заново через редактирование профиля." };
-  return { password: pwd };
+  return data || [];
 }

@@ -5,6 +5,7 @@ import { Bell, X, Shield, Settings, LogOut, UserCog } from "lucide-react";
 import { useProfile, profileName, profileInitials } from "@/lib/profile-context";
 import TaskModal from "./TaskModal";
 import GlobalSearch from "./GlobalSearch";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Notification {
   id: number;
@@ -106,9 +107,10 @@ export default function DashboardHeader() {
     }
   };
 
+  const [confirmClear, setConfirmClear] = useState(false);
   const removeAllNotifications = async () => {
     if (!currentProfile?.id) return;
-    if (!window.confirm("Удалить все уведомления?")) return;
+    setConfirmClear(false);
     setNotifications([]);
     setUnreadCount(0);
     window.dispatchEvent(new CustomEvent("notifications-updated", { detail: { unread: 0 } }));
@@ -211,7 +213,7 @@ export default function DashboardHeader() {
                     {notifications.length > 0 && (
                       <button
                         type="button"
-                        onClick={removeAllNotifications}
+                        onClick={() => setConfirmClear(true)}
                         title="Удалить все уведомления"
                         className="px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors whitespace-nowrap"
                       >
@@ -337,6 +339,16 @@ export default function DashboardHeader() {
       </div>
 
       {taskModal && <TaskModal taskId={taskModal} onClose={() => setTaskModal(null)} />}
+      <ConfirmDialog
+        open={confirmClear}
+        title="Удаление уведомлений"
+        message="Удалить все уведомления?"
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={removeAllNotifications}
+        onCancel={() => setConfirmClear(false)}
+      />
     </header>
   );
 }

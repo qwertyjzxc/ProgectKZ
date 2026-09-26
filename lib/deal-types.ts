@@ -54,8 +54,20 @@ export type DealFormValues = Partial<Deal> & {
 
 export const DEAL_TABLE_MAP: Record<string, string> = { kvartiry: "deals_kvartiry", pomescheniya: "deals_pomescheniya", zemlya: "deals_zemlya" };
 
+// Канон категорий сделок: аренда и покупка.
+// "prodaja" — legacy-алиас (раньше приходил из клиентов продажи),
+// нормализуется в "pokupka" на границах (API, ссылки, фильтры).
+export const DEAL_CATEGORIES = ["arenda", "pokupka"] as const;
+export type DealCategory = (typeof DEAL_CATEGORIES)[number];
+
+export function normalizeDealCategory(c: unknown): DealCategory {
+  const s = String(c || "");
+  if (s === "pokupka" || s === "prodaja") return "pokupka";
+  return "arenda";
+}
+
 export const DEAL_STATUSES = [
-  "В процессе", "Завершено", "Отказ",
+  "В процессе", "Отказ",
   "Заморожено", "Подписание договора", "Оплата",
   "VIP Клиент", "Перспективный", "Думает", "Проблемный",
   "Новый собственник", "Оценка объекта", "Заключение договора", "Упаковка + Маркетинг", "Сделка",

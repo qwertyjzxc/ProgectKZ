@@ -141,7 +141,7 @@ function AnalyticsContent() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-blue-600" />Аналитика продаж
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Медиана и средняя сделка, выручка, воронка и структура продаж</p>
+          <p className="text-sm text-gray-500 mt-1">Медиана и средняя комиссия, доход, воронка и структура продаж</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <div className="flex gap-1 p-1 bg-white border rounded-lg shadow-sm">
@@ -195,15 +195,15 @@ function AnalyticsContent() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <KpiCard icon={Wallet} label="Выручка" value={formatMoney(data.kpi.revenue)} hint={`${data.kpi.closedCount} закрытых сделок`} />
-            <KpiCard icon={Scale} label="Медиана сделки" value={data.kpi.closedCount ? formatMoney(data.kpi.median) : "—"} hint="типичная сделка без выбросов" />
-            <KpiCard icon={Calculator} label="Средняя сделка" value={data.kpi.closedCount ? formatMoney(data.kpi.average) : "—"} hint="выручка / закрытые" />
+            <KpiCard icon={Wallet} label="Комиссия" value={formatMoney(data.kpi.revenue)} hint={`${data.kpi.closedCount} закрытых сделок`} />
+            <KpiCard icon={Scale} label="Медиана комиссии" value={data.kpi.closedCount ? formatMoney(data.kpi.median) : "—"} hint="типичная комиссия без выбросов" />
+            <KpiCard icon={Calculator} label="Средняя комиссия" value={data.kpi.closedCount ? formatMoney(data.kpi.average) : "—"} hint="комиссия / закрытые" />
             <KpiCard icon={CheckCircle2} label="Закрыто сделок" value={String(data.kpi.closedCount)} hint={`всего в периоде: ${data.kpi.totalCount}`} />
             <KpiCard icon={Percent} label="Конверсия в продажу" value={data.kpi.totalCount > 0 ? data.kpi.winRate + " %" : "—"} hint="закрытые / (закрытые + отказы)" />
-            <KpiCard icon={Briefcase} label="В работе" value={formatMoney(data.kpi.pipeline)} hint={`${data.kpi.activeCount} активных сделок`} />
+            <KpiCard icon={Briefcase} label="В работе" value={formatMoney(data.kpi.pipeline)} hint={`${data.kpi.activeCount} активных сделок · суммы сделок`} />
           </div>
 
-          <Card icon={Wallet} title="Динамика выручки" subtitle="Закрытые сделки по месяцам · выручка в тенге">
+          <Card icon={Wallet} title="Динамика комиссий" subtitle="Закрытые сделки по месяцам · комиссия в тенге">
             <RevenueChart points={data.monthly} />
           </Card>
 
@@ -211,13 +211,13 @@ function AnalyticsContent() {
             <Card icon={BarChart3} title="Воронка по статусам" subtitle="Распределение всех сделок периода">
               <StatusBars items={data.byStatus} />
             </Card>
-            <Card icon={Briefcase} title="Структура по типам" subtitle="Закрытая выручка: квартиры, помещения, земля">
+            <Card icon={Briefcase} title="Структура по типам" subtitle="Закрытые комиссии: квартиры, помещения, земля">
               <Donut items={data.byType} valueKey="revenue" />
             </Card>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Card icon={Users} title="Топ брокеров" subtitle="По закрытой выручке за период">
+            <Card icon={Users} title="Топ брокеров" subtitle="По закрытым комиссиям за период">
               {data.topBrokers.length === 0 ? (
                 <p className="text-sm text-gray-400">Нет закрытых сделок за период</p>
               ) : (

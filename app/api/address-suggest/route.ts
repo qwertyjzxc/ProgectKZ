@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/route-auth";
 
 const SUGGEST_URL = "https://suggest-maps.yandex.ru/v1/suggest";
 // Бounding box г. Шымкент (минимальные/максимальные lon,lat)
@@ -14,6 +15,8 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_MAX = 300;
 
 export async function GET(request: NextRequest) {
+  const { denied } = await requireUser();
+  if (denied) return denied;
   const q = (request.nextUrl.searchParams.get("q") || "").trim();
   if (q.length < 3) {
     return NextResponse.json({ results: [] });

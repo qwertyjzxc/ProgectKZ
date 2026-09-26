@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { serviceClient } from "@/lib/supabase/service";
-
-const NOTIFICATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { searchParams } = new URL(request.url);
   const profileId = searchParams.get("profile_id");
 
-  // Автоудаление уведомлений старше 30 дней (через сервис-клиент, без зависимости от RLS)
-  const cutoff = new Date(Date.now() - NOTIFICATION_TTL_MS).toISOString();
-  await serviceClient.from("notifications").delete().lt("created_at", cutoff);
+  // Чистка уведомлений старше 30 дней — в GET /api/cleanup по крону, не здесь.
 
   const fetchAll = searchParams.get("all") === "1";
 

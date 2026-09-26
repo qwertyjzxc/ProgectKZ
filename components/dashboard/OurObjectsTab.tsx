@@ -93,7 +93,13 @@ export default function OurObjectsTab() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
   useEffect(()=>{load();},[]);
 
-  const del=async(id:string)=>{if(!confirm("Удалить?"))return;await window.fetch("/api/properties/"+id,{method:"DELETE"});setProps(p=>p.filter(x=>x.id!==id));};
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const doDel = async () => {
+    if (!deleteId) return;
+    await window.fetch("/api/properties/" + deleteId, { method: "DELETE" });
+    setProps(p => p.filter(x => x.id !== deleteId));
+    setDeleteId(null);
+  };
   const copyLink=async(id:string)=>{await navigator.clipboard.writeText(`${location.origin}/p/${id}`);setCopiedId(id);setTimeout(()=>setCopiedId(null),2000);};
   const hasFilters = filterStatus||filterCity||filterBType||filterRooms||filterBath||filterPriceMin||filterPriceMax||filterAreaMin||filterAreaMax||filterYearMin||filterYearMax;
 
@@ -312,7 +318,7 @@ export default function OurObjectsTab() {
                 {!deleteMode && (
                   <div className="flex gap-1 pt-2">
                     <Button variant="outline" size="icon-sm" className="h-7 w-7" onClick={(e)=>{e.stopPropagation();copyLink(p.id);}}>{copiedId===p.id?<Check className="w-3 h-3 text-green-500"/>:<Copy className="w-3 h-3"/>}</Button>
-                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 text-red-500" onClick={(e)=>{e.stopPropagation();del(p.id);}}><Trash2 className="w-3 h-3"/></Button>
+                    <Button variant="ghost" size="icon-sm" className="h-7 w-7 text-red-500" onClick={(e)=>{e.stopPropagation();setDeleteId(p.id);}}><Trash2 className="w-3 h-3"/></Button>
                   </div>
                 )}
               </div>
@@ -324,6 +330,16 @@ export default function OurObjectsTab() {
       {showAdd&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={()=>setShowAdd(false)}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={()=>setShowAdd(false)} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm onSuccess={()=>{load();setShowAdd(false);}}/></div></div>)}
       {editProp&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeEdit}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={closeEdit} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm property={editProp} onSuccess={()=>{load();closeEdit();}}/></div></div>)}
 
+      <ConfirmDialog
+        open={deleteId !== null}
+        title="Удаление объекта"
+        message="Удалить этот объект?"
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={doDel}
+        onCancel={() => setDeleteId(null)}
+      />
       <ConfirmDialog
         open={confirmDelete}
         title="Удаление объектов"

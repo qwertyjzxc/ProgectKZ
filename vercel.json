@@ -3,6 +3,10 @@
     {
       "path": "/api/objects/sync",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cleanup",
+      "schedule": "30 1 * * *"
     }
   ]
 }

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   const dealsCountPromise = isAdmin
     ? Promise.all(
         DEAL_TABLES.map(t =>
-          supabase.from(t).select("id", { count: "exact", head: true }).neq("completed", "Завершено").neq("completed", "Отказ")
+          supabase.from(t).select("id", { count: "exact", head: true }).neq("completed", "Завершено").neq("completed", "Сделка").neq("completed", "Отказ")
         )
       )
     : Promise.resolve([]);

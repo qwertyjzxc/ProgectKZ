@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireCronOrAdmin } from "@/lib/route-auth";
 import { serviceClient } from "@/lib/supabase/service";
 import { fetchAllKrishaListings, MAX_KRISHA_PAGES, type KrishaParams } from "@/lib/krisha";
 
@@ -41,6 +42,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { denied } = await requireCronOrAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json().catch(() => ({}));
     const params: KrishaParams = {

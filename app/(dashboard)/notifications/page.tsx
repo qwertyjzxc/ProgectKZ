@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, X, Loader2, Trash2 } from "lucide-react";
 import { useProfile } from "@/lib/profile-context";
 import TaskModal from "@/components/dashboard/TaskModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Notification {
   id: number;
@@ -81,9 +82,10 @@ function NotificationsContent() {
     }
   };
 
+  const [confirmClear, setConfirmClear] = useState(false);
   const removeAll = async () => {
     if (!currentProfile?.id) return;
-    if (!window.confirm("Удалить все уведомления?")) return;
+    setConfirmClear(false);
     setNotifications([]);
     window.dispatchEvent(new Event("notifications-updated"));
     try {
@@ -136,7 +138,7 @@ function NotificationsContent() {
             </button>
             <button
               type="button"
-              onClick={removeAll}
+              onClick={() => setConfirmClear(true)}
               className="px-3.5 py-1.5 rounded-lg text-sm font-medium bg-white border shadow-sm text-gray-500 hover:text-red-600 flex items-center gap-1.5"
             >
               <Trash2 className="w-4 h-4" />Удалить все
@@ -184,6 +186,16 @@ function NotificationsContent() {
       )}
 
       {taskModal && <TaskModal taskId={taskModal} onClose={() => setTaskModal(null)} />}
+      <ConfirmDialog
+        open={confirmClear}
+        title="Удаление уведомлений"
+        message="Удалить все уведомления?"
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={removeAll}
+        onCancel={() => setConfirmClear(false)}
+      />
     </div>
   );
 }

@@ -116,7 +116,7 @@ export default function DealViewModal({ deal: viewDeal, dealType, category, onCl
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              {viewDeal.completed !== "Завершено" && (
+              {viewDeal.completed !== "Сделка" && viewDeal.completed !== "Завершено" && (
                 <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={() => onComplete(viewDeal)}>
                   <CheckCircle2 className="w-4 h-4 mr-1" />Закрыть сделку
                 </Button>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/route-auth";
 import {
   buildKrishaUrl,
   detectTotalPages,
@@ -9,6 +10,8 @@ import {
 } from "@/lib/krisha";
 
 export async function GET(request: NextRequest) {
+  const { denied } = await requireUser();
+  if (denied) return denied;
   const sp = request.nextUrl.searchParams;
   const params: KrishaParams = {
     dealType: sp.get("dealType") || "",

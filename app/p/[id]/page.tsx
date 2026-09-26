@@ -18,6 +18,7 @@ interface PublicProperty {
   area?: number;
   bathroom?: string;
   ceiling_height?: number;
+  status?: string;
 }
 
 export default async function PublicPropertyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,8 @@ export default async function PublicPropertyPage({ params }: { params: Promise<{
   const { data: raw } = await supabase.from("properties").select("*").eq("id", id).single();
   if (!raw) notFound();
   const p = raw as unknown as PublicProperty;
+  // Публично показываем только активные объявления
+  if (p.status && p.status !== "Активно") notFound();
   const images: string[] = p.image_urls?.length ? p.image_urls : p.image_url ? [p.image_url] : [];
 
   return (
