@@ -1,62 +1,28 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useEscapeKey } from "@/lib/use-escape";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, CalendarDays, Banknote, FileText, Paperclip, User, Ruler, Building, Building2, Loader2, ArrowLeft, Check, ChevronDown, CheckSquare, Square, CheckCircle2, type LucideIcon } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, CalendarDays, Banknote, FileText, User, Ruler, Building, Loader2, ArrowLeft, Check, ChevronDown, CheckSquare, Square, CheckCircle2 } from "lucide-react";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import PhoneInput, { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
-import FileUploader, { type AttachmentFile } from "@/components/FileUploader";
+import { maskKzPhone } from "@/components/PhoneInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
-import { formatMoney } from "@/lib/format";
-import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 import { useProfile, profileName } from "@/lib/profile-context";
 import { OWNER_CATEGORY_LABELS, type OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
-
-interface Owner {
-  id: number;
-  name: string;
-  phone?: string;
-  district?: string;
-  address?: string;
-  jk?: string;
-  rooms?: string;
-  area?: string;
-  area_unit?: string;
-  house_area?: string;
-  land_area?: string;
-  price?: number;
-  contract_type?: string;
-  contract_kind?: string;
-  status?: string;
-  condition?: string;
-  location_line?: string;
-  premise_type?: string;
-  finishing?: string;
-  notes?: string;
-  broker?: string;
-  documents?: string;
-  date?: string;
-  created_at: string;
-}
-
-const OWNER_STATUSES = ["Новый собственник", "Оценка объекта", "Заключение договора", "Упаковка + Маркетинг", "Сделка"];
-
-const completedColors: Record<string, string> = {
-  "Новый собственник": "bg-violet-100 text-violet-800",
-  "Оценка объекта": "bg-sky-100 text-sky-800",
-  "Заключение договора": "bg-indigo-100 text-indigo-800",
-  "Упаковка + Маркетинг": "bg-teal-100 text-teal-800",
-  "Сделка": "bg-green-100 text-green-800",
-};
+import { type Owner, OWNER_STATUSES, completedColors } from "@/lib/owner-types";
+import { getInitials } from "@/lib/client-types";
+// Модалки собственников — отдельными чанками: грузятся только при открытии
+const OwnerFormModal = dynamic(() => import("@/components/OwnerFormModal"), { ssr: false });
+const OwnerCompleteDealModal = dynamic(() => import("@/components/OwnerCompleteDealModal"), { ssr: false });
+const ViewOwnerModal = dynamic(() => import("@/components/OwnerViewModal"), { ssr: false });
 
 const STATUS_STAT_COLORS: Record<string, string> = {
   "Новый собственник": "text-violet-600",
@@ -65,12 +31,6 @@ const STATUS_STAT_COLORS: Record<string, string> = {
   "Упаковка + Маркетинг": "text-teal-600",
   "Сделка": "text-green-600",
 };
-
-const CONDITIONS = ["Новое", "Хорошее", "Требует ремонта"];
-const LOCATION_LINES = ["1 линия (вдоль главной дороги)", "2 линия (второстепенная дорога, во дворе)"];
-const PREMISE_TYPES = ["Отдельно стоящее здание", "В ЖК"];
-const FINISHING_TYPES = ["Черновая", "С ремонтом"];
-const CONTRACT_KINDS = ["Эксклюзивный", "Стандартный"];
 
 const OWNER_TO_DEAL_TYPE: Record<OwnerCategory, string> = {
   kvartiry: "kvartiry",
@@ -85,18 +45,6 @@ const OWNER_TO_DEAL_TYPE_LABEL: Record<OwnerCategory, string> = {
   doma: "Дом",
   zemlya: "Земля",
 };
-
-function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr || "";
-  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDateOnly(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr || "";
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
 
 function parseDateStr(s: string): number {
   const ru = (s || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
@@ -115,379 +63,10 @@ function smartMatch(field: string | undefined | null, query: string): boolean {
   return words.every(word => cleanField.includes(word));
 }
 
-function toDateInputValue(v: string): string {
-  const m = (v || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(v || "")) return v;
-  return "";
-}
-
-function fromDateInputValue(v: string): string {
-  const m = (v || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return v;
-  return `${m[3]}.${m[2]}.${m[1]}`;
-}
-
-function DetailItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: React.ReactNode }) {
-  if (value === null || value === undefined || value === "") return null;
-  return (
-    <div className="flex items-start gap-3">
-      <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-blue-600" /></div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{typeof value === 'number' ? value.toLocaleString("ru-RU") : value}</p>
-      </div>
-    </div>
-  );
-}
-
-function getInitials(name: string): string {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
-}
-
-function CardSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-gray-50/60 rounded-xl p-4">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</p>
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <div className="relative w-full">
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full h-9 appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-8 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">{label}</option>
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
-      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-    </div>
-  );
-}
-
-// ====== FORM MODAL ======
-function OwnerFormModal({ owner, category, onClose, onSave }: { owner?: Owner; category: OwnerCategory; onClose: () => void; onSave: (data: Record<string, unknown>) => void }) {
-  useEscapeKey(onClose);
-  const { currentProfile, allProfiles } = useProfile();
-  const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
-  const [districtOptions, setDistrictOptions] = useState<string[]>(SHYMKENT_DISTRICTS);
-  const [jkOptions, setJkOptions] = useState<string[]>(SHYMKENT_JK);
-  const [name, setName] = useState(owner?.name || "");
-  const [phone, setPhone] = useState(owner?.phone || "");
-  const [district, setDistrict] = useState(owner?.district || "");
-  const [address, setAddress] = useState(owner?.address || "");
-  const [jk, setJk] = useState(owner?.jk || "");
-  const [rooms, setRooms] = useState(owner?.rooms || "");
-  const [area, setArea] = useState(owner?.area || "");
-  const [areaUnit, setAreaUnit] = useState(owner?.area_unit || "сот");
-  const [houseArea, setHouseArea] = useState(owner?.house_area || "");
-  const [landArea, setLandArea] = useState(owner?.land_area || "");
-  const [price, setPrice] = useState(owner?.price ? String(owner.price) : "");
-  const [condition, setCondition] = useState(owner?.condition || "");
-  const [locationLine, setLocationLine] = useState(owner?.location_line || "");
-  const [premiseType, setPremiseType] = useState(owner?.premise_type || "");
-  const [finishing, setFinishing] = useState(owner?.finishing || "");
-  const [contractType, setContractType] = useState(owner?.contract_type || "");
-  const [contractKind, setContractKind] = useState(owner?.contract_kind || "");
-  const [status, setStatus] = useState(owner?.status || "Новый собственник");
-  const [broker, setBroker] = useState(owner ? owner.broker || "" : profileName(currentProfile) || "");
-  const [date, setDate] = useState(owner?.date ? toDateInputValue(owner.date) : new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState(owner?.notes || "");
-  const [documents, setDocuments] = useState<AttachmentFile[]>(() => {
-    try {
-      const p = JSON.parse(owner?.documents || "[]");
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return owner?.documents ? [{ name: owner.documents, url: owner.documents }] : [];
-    }
-  });
-  const [formError, setFormError] = useState("");
-
-  useEffect(() => {
-    fetch("/api/districts").then(r => r.json()).then((d: { name: string }[]) => { if (d.length) setDistrictOptions(d.map(x => x.name)); }).catch(() => {});
-    fetch("/api/residential-complexes").then(r => r.json()).then((c: { name: string }[]) => { if (c.length) setJkOptions(c.map(x => x.name)); }).catch(() => {});
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) { setFormError("Введите имя собственника"); return; }
-    setFormError("");
-    const payload: Record<string, unknown> = {
-      name, phone, district, address, rooms, area,
-      area_unit: category === "zemlya" ? areaUnit : areaUnit,
-      house_area: category === "doma" ? houseArea : "",
-      land_area: category === "doma" ? landArea : "",
-      price: parseInt(price) || 0,
-      condition, location_line: locationLine,
-      premise_type: premiseType, finishing,
-      contract_type: contractType, contract_kind: contractKind,
-      status, broker, date: fromDateInputValue(date), notes, documents: JSON.stringify(documents),
-    };
-    if (category === "kvartiry") payload.jk = jk;
-    onSave(payload);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
-          <h2 className="text-lg font-bold">{owner ? "Редактировать собственника" : "Новый собственник"}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </div>
-        <form id="owner-form" onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500 mb-1 block">Имя собственника *</label><Input value={name} onChange={e => setName(e.target.value)} placeholder="ФИО" className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Телефон</label><PhoneInput value={phone} onChange={setPhone} /></div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Район</label>
-              <Combobox value={district} onChange={setDistrict} options={districtOptions} placeholder="Выберите район Шымкента" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Адрес</label>
-              <AddressAutocomplete value={address} onChange={setAddress} placeholder="г. Шымкент, ул., дом" />
-            </div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Дата обращения</label><Input type="date" value={date} onChange={e => setDate(e.target.value)} className="text-sm" /></div>
-            {category === "kvartiry" && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Жилой комплекс</label>
-                  <Combobox value={jk} onChange={setJk} options={jkOptions} placeholder="Выберите или введите жилой комплекс" />
-                </div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>
-              </>
-            )}
-            {category === "doma" && (
-              <>
-                <div><label className="text-xs text-gray-500 mb-1 block">Кол-во комнат</label><Input value={rooms} onChange={e => setRooms(e.target.value)} placeholder="Кол-во комнат" className="text-sm" /></div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Площадь дома, м²</label><Input value={houseArea} onChange={e => setHouseArea(e.target.value)} placeholder="120" className="text-sm" /></div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Площадь участка, сот</label><Input value={landArea} onChange={e => setLandArea(e.target.value)} placeholder="10" className="text-sm" /></div>
-              </>
-            )}
-            {category === "pomescheniya" && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Тип помещения</label>
-                  <Select label="Не указано" value={premiseType} onChange={setPremiseType} options={PREMISE_TYPES} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Расположение коммерции</label>
-                  <Select label="Не указано" value={locationLine} onChange={setLocationLine} options={LOCATION_LINES} />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
-                  <Select label="Не указано" value={finishing} onChange={setFinishing} options={FINISHING_TYPES} />
-                </div>
-              </>
-            )}
-            {(category === "zemlya") && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Площадь</label>
-                <div className="flex gap-2">
-                  <Input value={area} onChange={e => setArea(e.target.value)} type="number" placeholder="10" className="text-sm" />
-                  <select value={areaUnit} onChange={e => setAreaUnit(e.target.value)} className="h-9 rounded-lg border px-2 text-sm shrink-0">
-                    <option value="сот">Сотки</option>
-                    <option value="га">Гектары</option>
-                  </select>
-                </div>
-              </div>
-            )}
-            {(category === "kvartiry" || category === "pomescheniya") && <div><label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="120" className="text-sm" /></div>}
-            <div><label className="text-xs text-gray-500 mb-1 block">Цена, ₸</label><MoneyInput value={price} onChange={setPrice} placeholder="20 000 000" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Тип договора</label><Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" /></div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Вид договора</label>
-              <Select label="Не указано" value={contractKind} onChange={setContractKind} options={CONTRACT_KINDS} />
-            </div>
-            {(category === "kvartiry" || category === "doma") && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Состояние</label>
-                <Select label="Не указано" value={condition} onChange={setCondition} options={CONDITIONS} />
-              </div>
-            )}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Статус</label>
-              <Select label="Без статуса" value={status} onChange={setStatus} options={OWNER_STATUSES} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Брокер</label>
-              <Combobox value={broker} onChange={setBroker} options={brokerNames} placeholder={brokerNames.length ? "Выберите сотрудника" : "Нет сотрудников — введите имя"} />
-            </div>
-          </div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Заметки</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Дополнительная информация..." rows={2} className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
-          <FileUploader title="Документы" files={documents} onChange={setDocuments} />
-        </form>
-        <div className="shrink-0 flex items-center justify-end gap-2 p-4 border-t bg-white">
-          <Button variant="outline" type="button" onClick={onClose} className="px-6">Отмена</Button>
-          <Button type="submit" form="owner-form" className="bg-blue-600 px-8">{owner ? "Сохранить" : "Добавить"}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ====== COMPLETE DEAL MODAL ======
-function OwnerCompleteDealModal({ owner, category, onClose, onDone }: { owner: Owner; category: OwnerCategory; onClose: () => void; onDone: (data: { contract: string; amount: number; completion_date: string }) => void }) {
-  const [contract, setContract] = useState("");
-  useEscapeKey(onClose);
-  const [amount, setAmount] = useState(owner.price ? String(owner.price) : "");  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!contract.trim()) return setError("Укажите номер договора");
-    if (!amount) return setError("Укажите сумму сделки");
-    setLoading(true);
-    setError("");
-    onDone({
-      contract: contract.trim(),
-      amount: parseFloat(amount) || 0,
-      completion_date: completionDate,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold">Завершить сделку</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <div className="text-sm text-gray-500 space-y-1">
-            <p>Собственник: <span className="font-medium text-gray-800">{owner.name || "Без имени"}</span></p>
-            <p>Категория: <span className="font-medium text-gray-800">{OWNER_CATEGORY_LABELS[category]}</span></p>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
-            <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: ПК-2026-001" className="text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸ *</label>
-            <MoneyInput value={amount} onChange={setAmount} placeholder="25 000 000" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Дата завершения</label>
-            <DatePicker value={completionDate} onChange={setCompletionDate} placeholder="Выберите дату" />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" type="button" onClick={onClose} size="sm">Отмена</Button>
-            <Button type="submit" size="sm" className="bg-green-600 hover:bg-green-700 gap-2" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {loading ? "Завершение..." : "Завершить"}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
+// ====== FORM MODAL (вынесена в OwnerFormModal) ======
+// ====== COMPLETE DEAL MODAL (вынесена в OwnerCompleteDealModal) ======
 // ====== VIEW MODAL ======
-function ViewOwnerModal({ owner, category, onClose, onEdit, onComplete }: { owner: Owner; category: OwnerCategory; onClose: () => void; onEdit: () => void; onComplete: () => void }) {
-  useEscapeKey(onClose);
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-gray-900 truncate">{owner.name || "Без имени"}</h2>
-              <div className="flex items-center gap-3 mt-2">
-                <Badge className={"text-sm px-3 py-1 " + (completedColors[owner.status || ""] || "bg-gray-100 text-gray-700")}>
-                  {owner.status || "Без статуса"}
-                </Badge>
-                <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{owner.date ? formatDateOnly(owner.date) : formatDateOnly(owner.created_at)}</span>
-              </div>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              {owner.status !== "Сделка" && (
-                <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={onComplete}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" />Завершить сделку
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={onEdit}><Edit3 className="w-4 h-4 mr-1" />Редактировать</Button>
-              <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
-          <CardSection title="Объект">
-            <DetailItem icon={Home} label="Тип недвижимости" value={OWNER_CATEGORY_LABELS[category]} />
-            <DetailItem icon={MapPin} label="Район" value={owner.district} />
-            <DetailItem icon={MapPin} label="Адрес" value={owner.address} />
-            {category === "kvartiry" && <DetailItem icon={Building} label="Жилой комплекс" value={owner.jk} />}
-            {(category === "kvartiry" || category === "doma") && <DetailItem icon={Home} label="Кол-во комнат" value={owner.rooms} />}
-            {category === "kvartiry" && <DetailItem icon={Ruler} label="Площадь" value={owner.area ? owner.area + " м²" : null} />}
-            {category === "pomescheniya" && (
-              <>
-                <DetailItem icon={Ruler} label="Площадь" value={owner.area ? owner.area + " м²" : null} />
-                <DetailItem icon={Building2} label="Тип помещения" value={owner.premise_type} />
-                <DetailItem icon={MapPin} label="Расположение коммерции" value={owner.location_line} />
-                <DetailItem icon={Home} label="Отделка" value={owner.finishing} />
-              </>
-            )}
-            {category === "doma" && (
-              <>
-                <DetailItem icon={Ruler} label="Площадь дома" value={owner.house_area ? owner.house_area + " м²" : null} />
-                <DetailItem icon={Ruler} label="Площадь участка" value={owner.land_area ? owner.land_area + " сот" : null} />
-              </>
-            )}
-            {category === "zemlya" && <DetailItem icon={Ruler} label="Площадь" value={owner.area ? owner.area + " " + (owner.area_unit || "сот") : null} />}
-            {owner.condition && <DetailItem icon={Home} label="Состояние" value={owner.condition} />}
-          </CardSection>
-          <CardSection title="Договор и цена">
-            <DetailItem icon={Banknote} label="Цена" value={owner.price ? formatMoney(owner.price) : null} />
-            <DetailItem icon={CalendarDays} label="Дата обращения" value={owner.date ? formatDateOnly(owner.date) : formatDateOnly(owner.created_at)} />
-            <DetailItem icon={FileText} label="Тип договора" value={owner.contract_type} />
-            {owner.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={owner.contract_kind} />}
-          </CardSection>
-          <CardSection title="Контакт">
-            <DetailItem icon={Phone} label="Телефон" value={owner.phone ? maskKzPhone(owner.phone) : null} />
-            <DetailItem icon={User} label="Брокер" value={owner.broker} />
-          </CardSection>
-          {owner.notes && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Заметки</p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{owner.notes}</p>
-            </div>
-          )}
-          {(owner.documents || "").trim() && ((() => {
-            try {
-              const docs = JSON.parse(owner.documents || "[]");
-              if (!Array.isArray(docs) || !docs.length) return null;
-              return (
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />Документы</p>
-                  <ul className="space-y-1.5">
-                    {docs.map((d: { name: string; url: string }, i: number) => (
-                      <li key={i}>
-                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            } catch {
-              return null;
-            }
-          })())}
-        </div>
-      </div>
-    </div>
-  );
-}
+// ====== VIEW MODAL (вынесена в OwnerViewModal) ======
 
 // ====== MAIN CONTENT ======
 export default function OwnerCategoryContent({ category, onBack }: { category: OwnerCategory; onBack?: () => void }) {

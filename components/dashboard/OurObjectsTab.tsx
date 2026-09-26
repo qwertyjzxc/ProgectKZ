@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2, Trash2, Plus, X, Filter, Square, CheckSquare } from "lucide-react";
-import AddPropertyForm from "@/components/AddPropertyForm";
+// Форма тяжёлая (загрузчик файлов, справочники) — отдельным чанком, только при открытии
+const AddPropertyForm = dynamic(() => import("@/components/AddPropertyForm"), { ssr: false });
 import { useEscapeKey } from "@/lib/use-escape";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatMoney } from "@/lib/format";
