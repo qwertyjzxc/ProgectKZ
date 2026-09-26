@@ -2,12 +2,29 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Приглушённая синяя шкала: тот же синий характер, но глубже и спокойнее
+   электрического blue-600. Переопределение в @theme меняет ВСЕ blue-*
+   классы проекта разом (кнопки, ссылки, бейджи, фокусы). */
+@theme {
+  --color-blue-50: #edf2fd;
+  --color-blue-100: #dbe6fa;
+  --color-blue-200: #bfd3f5;
+  --color-blue-300: #93b5ec;
+  --color-blue-400: #5f8de0;
+  --color-blue-500: #3b6fd0;
+  --color-blue-600: #2e5bbd;
+  --color-blue-700: #274c9c;
+  --color-blue-800: #243e7e;
+  --color-blue-900: #212f5e;
+  --color-blue-950: #141d38;
+}
+
 ::selection {
-  background: #2563eb;
+  background: #2e5bbd;
   color: #ffffff;
 }
 ::-moz-selection {
-  background: #2563eb;
+  background: #2e5bbd;
   color: #ffffff;
 }
 

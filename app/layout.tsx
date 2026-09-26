@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "kzproject — CRM", description: "У
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="h-full bg-gray-100"><TooltipProvider>{children}</TooltipProvider></body>
+      <body className="h-full bg-[#f1f4f9]"><TooltipProvider>{children}</TooltipProvider></body>
     </html>
   );
 }
