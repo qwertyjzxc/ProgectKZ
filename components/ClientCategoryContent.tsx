@@ -453,12 +453,19 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   };
 
   const handleDelete = async (id: number) => {
-    const res = await fetch("/api/clients/" + category + "/" + id, { method: "DELETE" });
-    if (res.ok) {
-      setClients(prev => prev.filter(c => c.id !== id));
-      invalidateClientsCache();
+    // Оптимистично: строка исчезает сразу, сервер догоняет фоном
+    setClients(prev => prev.filter(c => c.id !== id));
+    invalidateClientsCache();
+    try {
+      const res = await fetch("/api/clients/" + category + "/" + id, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error || "Ошибка удаления");
+    } catch (err) {
+      // Откат: перечитываем список с сервера
       loadAll(true, 0);
+      setSaveError(err instanceof Error ? err.message : "Ошибка удаления");
+      return;
     }
+    loadAll(true, 0);
   };
 
   const allVisibleSelected = clients.length > 0 && clients.every(c => selectedIds.has(c.id));
@@ -473,19 +480,23 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
+    // Оптимистично: строки исчезают и режим закрывается сразу
+    const removed = new Set(selectedIds);
+    setClients(prev => prev.filter(c => !removed.has(c.id)));
+    invalidateClientsCache();
+    exitDeleteMode();
     setDeleting(true);
     try {
-      const res = await fetch("/api/clients/" + category, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) });
-      if (res.ok) {
-        setClients(prev => prev.filter(c => !selectedIds.has(c.id)));
-        invalidateClientsCache();
-        loadAll(true, 0);
-        exitDeleteMode();
-      }
+      const res = await fetch("/api/clients/" + category, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...removed] }) });
+      if (!res.ok) throw new Error((await res.json()).error || "Ошибка удаления");
+    } catch (err) {
+      loadAll(true, 0);
+      setSaveError(err instanceof Error ? err.message : "Ошибка удаления");
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
     }
+    loadAll(true, 0);
   };
 
   const categoryLabel = CATEGORY_LABELS[category] || category;

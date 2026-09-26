@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { logActivity, buildChanges, buildUpdateMessage, DEAL_LABELS } from "@/lib/activity";
@@ -85,20 +86,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const changes = buildChanges(existing || {}, data || {}, DEAL_LABELS);
   if (changes.length > 0) {
-    await logActivity({
-      client_table: table,
-      client_id: data.id,
-      client_name: data.name || existing?.name || "",
-      action: "update",
-      message: buildUpdateMessage(changes),
-      changes,
-    });
-    await notifyAll({
-      key: "deals_update",
-      message: "Изменена сделка: «" + (data.name || existing?.name || "") + "»",
-      related_to: dealListLink(body.type, data.category || existing?.category, data.id),
-      related_id: data.id,
-      actorUserId: await getActorUserId(supabase),
+    const snapshot = { data, existing, changes, table, body };
+    after(async () => {
+      const actorUserId = await getActorUserId(supabase);
+      await Promise.all([
+        logActivity({
+          client_table: snapshot.table,
+          client_id: snapshot.data.id,
+          client_name: snapshot.data.name || snapshot.existing?.name || "",
+          action: "update",
+          message: buildUpdateMessage(snapshot.changes),
+          changes: snapshot.changes,
+        }),
+        notifyAll({
+          key: "deals_update",
+          message: "Изменена сделка: «" + (snapshot.data.name || snapshot.existing?.name || "") + "»",
+          related_to: dealListLink(snapshot.body.type, snapshot.data.category || snapshot.existing?.category, snapshot.data.id),
+          related_id: snapshot.data.id,
+          actorUserId,
+        }),
+      ]);
     });
   }
   return NextResponse.json(data);
@@ -112,22 +119,30 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const type = request.nextUrl.searchParams.get("type");
   const table = getTable(type);
   const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
-  const { error } = await supabase.from(table).delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const [delRes, actorUserId] = await Promise.all([
+    supabase.from(table).delete().eq("id", id),
+    getActorUserId(supabase),
+  ]);
+  if (delRes.error) return NextResponse.json({ error: delRes.error.message }, { status: 500 });
   if (existing) {
-    await logActivity({
-      client_table: table,
-      client_id: existing.id,
-      client_name: existing.name || "",
-      action: "delete",
-      message: "Удалил сделку",
-      changes: buildChanges(existing, {}, DEAL_LABELS),
-    });
-    await notifyAll({
-      key: "deals_delete",
-      message: "Удалена сделка: «" + (existing.name || "") + "»",
-      related_to: dealListLink(type, existing.category),
-      actorUserId: await getActorUserId(supabase),
+    const row = existing;
+    after(async () => {
+      await Promise.all([
+        logActivity({
+          client_table: table,
+          client_id: row.id,
+          client_name: row.name || "",
+          action: "delete",
+          message: "Удалил сделку",
+          changes: buildChanges(row, {}, DEAL_LABELS),
+        }),
+        notifyAll({
+          key: "deals_delete",
+          message: "Удалена сделка: «" + (row.name || "") + "»",
+          related_to: dealListLink(type, row.category),
+          actorUserId,
+        }),
+      ]);
     });
   }
   return NextResponse.json({ success: true });

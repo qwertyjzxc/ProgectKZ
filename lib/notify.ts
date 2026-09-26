@@ -22,9 +22,16 @@ interface NotifyOpts {
 // Ошибки только логируются — уведомление никогда не должно ронять API.
 export async function notifyAll(opts: NotifyOpts): Promise<void> {
   try {
-    const { data: profiles, error } = await serviceClient
-      .from("profiles")
-      .select("id, user_id, role, notification_settings");
+    // Профили и связки автора независимы — параллельно, а не цепочкой
+    const [profilesRes, linksRes] = await Promise.all([
+      serviceClient
+        .from("profiles")
+        .select("id, user_id, role, notification_settings"),
+      opts.actorUserId
+        ? serviceClient.from("profile_links").select("profile_id").eq("user_id", opts.actorUserId)
+        : Promise.resolve({ data: [] as Array<{ profile_id: number }> }),
+    ]);
+    const { data: profiles, error } = profilesRes;
     if (error || !profiles) {
       if (error) console.error("notifyAll profiles:", error.message);
       return;
@@ -35,11 +42,7 @@ export async function notifyAll(opts: NotifyOpts): Promise<void> {
       for (const p of profiles as Array<{ id: number; user_id: string | null }>) {
         if (p.user_id === opts.actorUserId) ownIds.add(p.id);
       }
-      const { data: links } = await serviceClient
-        .from("profile_links")
-        .select("profile_id")
-        .eq("user_id", opts.actorUserId);
-      for (const l of links || []) ownIds.add(l.profile_id as number);
+      for (const l of linksRes.data || []) ownIds.add((l as { profile_id: number }).profile_id as number);
     }
 
     const targets = (profiles as Array<{ id: number; role: string | null; notification_settings: Record<string, boolean> | null }>).filter(p => {

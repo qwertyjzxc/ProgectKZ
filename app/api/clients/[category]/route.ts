@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
 import { logActivity, buildChanges } from "@/lib/activity";
@@ -151,43 +152,55 @@ export async function POST(
     }
     const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, insertRow);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    // Проверка на дубли по телефону (в обеих клиентских таблицах)
+    // Проверка на дубли по телефону (в обеих клиентских таблицах — параллельно)
     let duplicateWarning: Array<{ id: number; name: string; where: string }> = [];
     try {
       const digits = String(body.phone || "").replace(/\D/g, "").slice(-10);
       if (digits.length >= 7) {
-        const found: Array<{ id: number; name: string; where: string }> = [];
         const tables: Array<{ t: string; label: string }> = [
           { t: "clients_arenda", label: "Аренда" },
           { t: "clients_prodaja", label: "Покупка" },
         ];
-        for (const ct of tables) {
-          const { data: dups } = await supabase.from(ct.t).select("id,name").ilike("phone", "%" + digits + "%").neq("id", data.id).limit(3);
-          for (const d of dups || []) {
-            found.push({ id: d.id as number, name: (d.name || "") as string, where: ct.label });
-          }
-        }
-        duplicateWarning = found;
+        const dupResults = await Promise.all(
+          tables.map(ct =>
+            supabase.from(ct.t).select("id,name").ilike("phone", "%" + digits + "%").neq("id", data.id).limit(3)
+          )
+        );
+        duplicateWarning = dupResults.flatMap((r, i) =>
+          ((r.data || []) as Array<{ id: number; name?: string }>).map(d => ({
+            id: d.id as number,
+            name: (d.name || "") as string,
+            where: tables[i].label,
+          }))
+        );
       }
     } catch {
       // проверка дублей не должна мешать созданию
     }
-    await logActivity({
-      client_table: table,
-      client_id: data.id,
-      client_name: data.name || "",
-      action: "create",
-      message: "Добавил клиента",
-      changes: buildChanges({}, data),
+    // Журнал, уведомления и автозадача — после ответа: на скорость создания не влияют
+    const actorPromise = getActorUserId(supabase);
+    const createdRow = data;
+    after(async () => {
+      const actorUserId = await actorPromise;
+      await Promise.all([
+        logActivity({
+          client_table: table,
+          client_id: createdRow.id,
+          client_name: createdRow.name || "",
+          action: "create",
+          message: "Добавил клиента",
+          changes: buildChanges({}, createdRow),
+        }),
+        notifyAll({
+          key: "clients_create",
+          message: "Новый клиент: «" + (createdRow.name || "") + "»",
+          related_to: clientListLink(category, createdRow.type || body.type, createdRow.id),
+          related_id: createdRow.id,
+          actorUserId,
+        }),
+        maybeCreateResumeTask(supabase, createdRow),
+      ]);
     });
-    await notifyAll({
-      key: "clients_create",
-      message: "Новый клиент: «" + (data.name || "") + "»",
-      related_to: clientListLink(category, data.type || body.type, data.id),
-      related_id: data.id,
-      actorUserId: await getActorUserId(supabase),
-    });
-    await maybeCreateResumeTask(supabase, data);
     return NextResponse.json({ ...data, duplicateWarning }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
@@ -205,27 +218,35 @@ export async function DELETE(
     const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
     if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных клиентов" }, { status: 400 });
 
-    const { data: existing } = await supabase.from(table).select("id, name").in("id", ids);
-    const names = (existing ?? []).map((r: { name?: string }) => r.name || "").filter(Boolean);
-
-    const { error } = await supabase.from(table).delete().in("id", ids);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Удаление сразу возвращает строки — отдельный select не нужен.
+    // Удаление и id автора — независимо, параллельно
+    const [delRes, actorUserId] = await Promise.all([
+      supabase.from(table).delete().in("id", ids).select("id, name"),
+      getActorUserId(supabase),
+    ]);
+    if (delRes.error) return NextResponse.json({ error: delRes.error.message }, { status: 500 });
+    const names = ((delRes.data ?? []) as Array<{ name?: string }>).map((r) => r.name || "").filter(Boolean);
 
     const nameList = names.length > 0 ? `: ${names.join(", ")}` : "";
-    await logActivity({
-      client_table: table,
-      client_id: ids[0],
-      client_name: names.join(", "),
-      action: "delete",
-      message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}${nameList}`,
-    });
-    await notifyAll({
-      key: "clients_delete",
-      message: ids.length === 1 && names[0]
-        ? "Удалён клиент: «" + names[0] + "»"
-        : `Удалено клиентов: ${ids.length}`,
-      related_to: clientListLink(category, undefined),
-      actorUserId: await getActorUserId(supabase),
+    // Журнал и уведомления — после ответа: на скорость удаления не влияют
+    after(async () => {
+      await Promise.all([
+        logActivity({
+          client_table: table,
+          client_id: ids[0],
+          client_name: names.join(", "),
+          action: "delete",
+          message: `Удалил ${ids.length} ${ids.length === 1 ? "клиента" : "клиентов"}${nameList}`,
+        }),
+        notifyAll({
+          key: "clients_delete",
+          message: ids.length === 1 && names[0]
+            ? "Удалён клиент: «" + names[0] + "»"
+            : `Удалено клиентов: ${ids.length}`,
+          related_to: clientListLink(category, undefined),
+          actorUserId,
+        }),
+      ]);
     });
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (e) {

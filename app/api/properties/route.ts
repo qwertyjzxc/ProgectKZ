@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { propertyListLink } from "@/lib/notify-links";
@@ -35,11 +36,14 @@ export async function DELETE(request: NextRequest) {
   }
   const { error } = await supabase.from("properties").delete().in("id", ids);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await notifyAll({
-    key: "objects_delete",
-    message: ids.length === 1 ? "Удалён объект" : `Удалено объектов: ${ids.length}`,
-    related_to: "/dashboard/ours",
-    actorUserId: user.id,
+  after(async () => {
+    const actorUserId = await getActorUserId(supabase);
+    await notifyAll({
+      key: "objects_delete",
+      message: ids.length === 1 ? "Удалён объект" : `Удалено объектов: ${ids.length}`,
+      related_to: "/dashboard/ours",
+      actorUserId,
+    });
   });
   return NextResponse.json({ success: true });
 }
@@ -84,13 +88,18 @@ export async function POST(request: NextRequest) {
   const mainImage = imageUrls[0] || "";
   const { data, error } = await supabase.from("properties").insert({ title, price, property_type: propertyType, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts, image_url: mainImage, image_urls: imageUrls }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    await notifyAll({
-      key: "objects_create",
-      message: "Новый объект: «" + (data.title || "") + "»",
-      related_to: propertyListLink(data.id),
-      // id объекта — UUID, в related_id (int) не влезает
-      related_id: null,
-      actorUserId: await getActorUserId(supabase),
+    const created = data;
+    const link = propertyListLink(data.id);
+    after(async () => {
+      const actorUserId = await getActorUserId(supabase);
+      await notifyAll({
+        key: "objects_create",
+        message: "Новый объект: «" + (created.title || "") + "»",
+        related_to: link,
+        // id объекта — UUID, в related_id (int) не влезает
+        related_id: null,
+        actorUserId,
+      });
     });
     return NextResponse.json(data, { status: 201 });
 }

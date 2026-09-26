@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
@@ -47,12 +48,17 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await notifyAll({
-    key: "objects_create",
-    message: "Новый собственник: «" + (data.name || "") + "»",
-    related_to: ownerListLink(category, data.id),
-    related_id: data.id,
-    actorUserId: await getActorUserId(supabase),
+  const created = data;
+  const link = ownerListLink(category, data.id);
+  after(async () => {
+    const actorUserId = await getActorUserId(supabase);
+    await notifyAll({
+      key: "objects_create",
+      message: "Новый собственник: «" + (created.name || "") + "»",
+      related_to: link,
+      related_id: created.id,
+      actorUserId,
+    });
   });
   return NextResponse.json(data, { status: 201 });
 }

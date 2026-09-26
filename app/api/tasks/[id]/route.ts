@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage, TASK_LABELS } from "@/lib/activity";
 
@@ -78,13 +79,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const newRow = { ...data, assignee_ids: newAssignees };
   const changes = buildChanges(oldRow, newRow, TASK_LABELS);
   if (changes.length > 0) {
-    await logActivity({
-      client_table: "tasks",
-      client_id: data.id,
-      client_name: data.title || existing?.title || "",
-      action: "update",
-      message: buildUpdateMessage(changes),
-      changes,
+    after(async () => {
+      await logActivity({
+        client_table: "tasks",
+        client_id: data.id,
+        client_name: data.title || existing?.title || "",
+        action: "update",
+        message: buildUpdateMessage(changes),
+        changes,
+      });
     });
   }
 
@@ -98,13 +101,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (existing) {
-    await logActivity({
-      client_table: "tasks",
-      client_id: existing.id,
-      client_name: existing.title || "",
-      action: "delete",
-      message: "Удалил задачу",
-      changes: buildChanges(existing, {}, TASK_LABELS),
+    const row = existing;
+    after(async () => {
+      await supabase.from("task_assignees").delete().eq("task_id", id);
+      await logActivity({
+        client_table: "tasks",
+        client_id: row.id,
+        client_name: row.title || "",
+        action: "delete",
+        message: "Удалил задачу",
+        changes: buildChanges(row, {}, TASK_LABELS),
+      });
     });
   }
   return NextResponse.json({ success: true });

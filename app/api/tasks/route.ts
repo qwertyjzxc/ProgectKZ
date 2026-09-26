@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
 
@@ -79,13 +80,15 @@ export async function POST(request: NextRequest) {
     })();
   }
 
-  await logActivity({
-    client_table: "tasks",
-    client_id: data.id,
-    client_name: data.title || "",
-    action: "create",
-    message: "Добавил задачу",
-    changes: buildChanges({}, { ...data, assignee_ids: assigneeIds }, TASK_LABELS),
+  after(async () => {
+    await logActivity({
+      client_table: "tasks",
+      client_id: data.id,
+      client_name: data.title || "",
+      action: "create",
+      message: "Добавил задачу",
+      changes: buildChanges({}, { ...data, assignee_ids: assigneeIds }, TASK_LABELS),
+    });
   });
 
   return NextResponse.json({ ...data, assignee_ids: assigneeIds }, { status: 201 });
@@ -99,22 +102,27 @@ export async function DELETE(request: NextRequest) {
   const { data: existing } = await supabase.from("tasks").select("id, title").in("id", ids);
   const { error } = await supabase.from("tasks").delete().in("id", ids);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (ids.length === 1 && existing?.[0]) {
-    await logActivity({
-      client_table: "tasks",
-      client_id: existing[0].id,
-      client_name: existing[0].title || "",
-      action: "delete",
-      message: "Удалил задачу",
-    });
-  } else {
-    await logActivity({
-      client_table: "tasks",
-      client_id: 0,
-      client_name: "",
-      action: "delete",
-      message: `Удалил ${ids.length} задач`,
-    });
-  }
+  // assignees висячих назначений чистятся следом, не задерживая ответ
+  const goneIds = [...ids];
+  after(async () => {
+    await supabase.from("task_assignees").delete().in("task_id", goneIds);
+    if (goneIds.length === 1 && existing?.[0]) {
+      await logActivity({
+        client_table: "tasks",
+        client_id: existing[0].id,
+        client_name: existing[0].title || "",
+        action: "delete",
+        message: "Удалил задачу",
+      });
+    } else {
+      await logActivity({
+        client_table: "tasks",
+        client_id: 0,
+        client_name: "",
+        action: "delete",
+        message: `Удалил ${goneIds.length} задач`,
+      });
+    }
+  });
   return NextResponse.json({ success: true, deleted: ids.length });
 }

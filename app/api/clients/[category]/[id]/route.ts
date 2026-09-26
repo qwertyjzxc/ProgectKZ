@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
@@ -94,23 +95,28 @@ export async function PUT(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const changes = buildChanges(existing || {}, data);
     if (changes.length > 0) {
-      await logActivity({
-        client_table: table,
-        client_id: data.id,
-        client_name: data.name || existing?.name || "",
-        action: "update",
-        message: buildUpdateMessage(changes),
-        changes,
+      const snapshot = { data, existing, changes, table, category, body };
+      after(async () => {
+        const actorUserId = await getActorUserId(supabase);
+        await Promise.all([
+          logActivity({
+            client_table: snapshot.table,
+            client_id: snapshot.data.id,
+            client_name: snapshot.data.name || snapshot.existing?.name || "",
+            action: "update",
+            message: buildUpdateMessage(snapshot.changes),
+            changes: snapshot.changes,
+          }),
+          notifyAll({
+            key: "clients_update",
+            message: "Изменён клиент: «" + (snapshot.data.name || snapshot.existing?.name || "") + "»",
+            related_to: clientListLink(snapshot.category, snapshot.data.type || snapshot.existing?.type, snapshot.data.id),
+            related_id: snapshot.data.id,
+            actorUserId,
+          }),
+          maybeCreateResumeTask(supabase, snapshot.data),
+        ]);
       });
-      await notifyAll({
-        key: "clients_update",
-        message: "Изменён клиент: «" + (data.name || existing?.name || "") + "»",
-        related_to: clientListLink(category, data.type || existing?.type, data.id),
-        related_id: data.id,
-        actorUserId: await getActorUserId(supabase),
-      });
-      // ТЗ §5: «Приостановлен» с датой → автозадача на повторный контакт
-      await maybeCreateResumeTask(supabase, data);
     }
     // Чужой клиент: телефон в ответе скрываем, чтобы он не утёк в клиентский стейт
     if (!canEditPhone) {
@@ -132,23 +138,34 @@ export async function DELETE(
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
     const supabase = await createClient();
-    const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
-    const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Удаление сразу возвращает строки — отдельный select не нужен.
+    // Удаление и id автора — независимо, параллельно.
+    const [delRes, actorUserId] = await Promise.all([
+      supabase.from(table).delete().eq("id", id).select("*"),
+      getActorUserId(supabase),
+    ]);
+    if (delRes.error) return NextResponse.json({ error: delRes.error.message }, { status: 500 });
+    const existing = (delRes.data || [])[0] as { name?: string; type?: string } | undefined;
     if (existing) {
-      await logActivity({
-        client_table: table,
-        client_id: Number(id),
-        client_name: existing.name || "",
-        action: "delete",
-        message: "Удалил клиента",
-        changes: buildChanges(existing, {}),
-      });
-      await notifyAll({
-        key: "clients_delete",
-        message: "Удалён клиент: «" + (existing.name || "") + "»",
-        related_to: clientListLink(category, existing.type),
-        actorUserId: await getActorUserId(supabase),
+      // Журнал и уведомления — после ответа: на скорость удаления не влияют
+      const row = existing;
+      after(async () => {
+        await Promise.all([
+          logActivity({
+            client_table: table,
+            client_id: Number(id),
+            client_name: row.name || "",
+            action: "delete",
+            message: "Удалил клиента",
+            changes: buildChanges(row, {}),
+          }),
+          notifyAll({
+            key: "clients_delete",
+            message: "Удалён клиент: «" + (row.name || "") + "»",
+            related_to: clientListLink(category, row.type),
+            actorUserId,
+          }),
+        ]);
       });
     }
     return NextResponse.json({ success: true });
