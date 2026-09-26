@@ -377,24 +377,20 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     delete distinctsCache[category];
   }, [category]);
 
-  // Немедленно: смена категории/типа (кэш рисует мгновенно)
-  const lastImmediate = useRef(0);
+  // Селекты/пилюли/категория — немедленно (без дебаунса): сервер отвечает ~130мс
   useEffect(() => {
-    lastImmediate.current = Date.now();
     loadAll(true, 0);
-    loadDistincts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, typesParam]);
+  }, [category, typesParam, filterCompleted, filterDistrict, filterBroker, filterRooms, filterJk]);
 
-  // Дебаунс 300мс: фильтры и поиск (пропускаем дубль сразу после немедленной загрузки)
+  // Свободный ввод — с дебаунсом 350мс, чтобы не дёргать сервер на каждую букву
   useEffect(() => {
     const t = setTimeout(() => {
-      if (Date.now() - lastImmediate.current < 600) return;
       loadAll(true, 0);
-    }, 300);
+    }, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, filterName, filterCompleted, filterDistrict, filterBroker, filterRooms, filterJk, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
+  }, [searchQuery, filterName, filterAddress, filterAreaMin, filterAreaMax, filterAmountMin, filterAmountMax, filterDateFrom, filterDateTo]);
 
   const loadMore = useCallback(() => {
     loadAll(false, clients.length);
