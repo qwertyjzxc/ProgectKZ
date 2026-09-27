@@ -9,6 +9,7 @@ import {
 import { RevenueChart, StatusBars, Donut, type MonthPoint } from "@/components/AnalyticsCharts";
 import { formatMoney } from "@/lib/format";
 import { useProfile } from "@/lib/profile-context";
+import DatePicker from "@/components/DatePicker";
 
 type MonthsKey = "3" | "6" | "12" | "all";
 
@@ -90,14 +91,17 @@ function AnalyticsContent() {
 
   const [months, setMonths] = useState<MonthsKey>("12");
   const [category, setCategory] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const customRange = dateFrom !== "" || dateTo !== "";
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/analytics?months=${months}&category=${category}`)
+    fetch(`/api/analytics?months=${months}&category=${category}&from=${dateFrom}&to=${dateTo}`)
       .then(async (res) => {
         const json = await res.json();
         if (cancelled) return;
@@ -114,10 +118,25 @@ function AnalyticsContent() {
     return () => {
       cancelled = true;
     };
-  }, [months, category, reloadKey]);
+  }, [months, category, dateFrom, dateTo, reloadKey]);
 
   const pickPeriod = (key: MonthsKey) => {
     setMonths(key);
+    // Пресет сбрасывает свой период
+    setDateFrom("");
+    setDateTo("");
+    setLoading(true);
+  };
+
+  const pickDate = (which: "from" | "to", v: string) => {
+    if (which === "from") setDateFrom(v);
+    else setDateTo(v);
+    setLoading(true);
+  };
+
+  const clearRange = () => {
+    setDateFrom("");
+    setDateTo("");
     setLoading(true);
   };
 
@@ -143,7 +162,7 @@ function AnalyticsContent() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Медиана и средняя комиссия, доход, воронка и структура продаж</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           <div className="flex gap-1 p-1 bg-white border rounded-lg shadow-sm">
             {PERIODS.map(p => (
               <button
@@ -152,12 +171,27 @@ function AnalyticsContent() {
                 onClick={() => pickPeriod(p.key)}
                 className={
                   "px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors " +
-                  (months === p.key ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-800")
+                  (!customRange && months === p.key ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-800")
                 }
               >
                 {p.label}
               </button>
             ))}
+          </div>
+          <div className={"flex gap-1 p-1 bg-white border rounded-lg shadow-sm items-center " + (customRange ? "ring-2 ring-blue-500" : "")}>
+            <div className="w-36"><DatePicker value={dateFrom} onChange={v => pickDate("from", v)} placeholder="От" /></div>
+            <span className="text-gray-400 text-sm px-0.5">–</span>
+            <div className="w-36"><DatePicker value={dateTo} onChange={v => pickDate("to", v)} placeholder="До" /></div>
+            {customRange && (
+              <button
+                type="button"
+                onClick={clearRange}
+                title="Сбросить период"
+                className="px-2 py-1.5 text-sm text-gray-400 hover:text-red-500"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <div className="flex gap-1 p-1 bg-white border rounded-lg shadow-sm">
             {CATEGORIES.map(c => (

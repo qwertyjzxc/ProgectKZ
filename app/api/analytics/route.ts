@@ -50,6 +50,32 @@ function median(sorted: number[]): number {
   return (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// Произвольный период "от–до": фронт шлёт YYYY-MM-DD (DatePicker).
+function parseBound(v: string, endOfDay: boolean): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const t = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (isNaN(t.getTime())) return null;
+  t.setHours(0, 0, 0, 0);
+  return t.getTime() + (endOfDay ? 86399999 : 0);
+}
+
+// Помесячные корзины между двумя датами (макс 36, чтобы не раздувать ответ).
+function rangeBuckets(fromTs: number, toTs: number): Array<{ key: string; label: string; revenue: number; count: number }> {
+  const out: Array<{ key: string; label: string; revenue: number; count: number }> = [];
+  const cur = new Date(fromTs);
+  cur.setDate(1);
+  cur.setHours(0, 0, 0, 0);
+  const end = new Date(toTs);
+  let guard = 0;
+  while ((cur.getFullYear() < end.getFullYear() || (cur.getFullYear() === end.getFullYear() && cur.getMonth() <= end.getMonth())) && guard < 36) {
+    out.push({ key: monthKey(cur), label: monthLabel(cur), revenue: 0, count: 0 });
+    cur.setMonth(cur.getMonth() + 1);
+    guard++;
+  }
+  return out.length > 0 ? out : [{ key: monthKey(new Date(toTs)), label: monthLabel(new Date(toTs)), revenue: 0, count: 0 }];
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -59,6 +85,15 @@ export async function GET(request: NextRequest) {
   const monthsParam = request.nextUrl.searchParams.get("months") || "12";
   const categoryParam = request.nextUrl.searchParams.get("category") || "";
   const months = monthsParam === "all" ? null : Math.max(1, parseInt(monthsParam, 10) || 12);
+  // Свой период имеет приоритет над пресетом months
+  let fromTs = parseBound(request.nextUrl.searchParams.get("from") || "", false);
+  let toTs = parseBound(request.nextUrl.searchParams.get("to") || "", true);
+  if (fromTs !== null && toTs !== null && fromTs > toTs) {
+    const tmp = fromTs;
+    fromTs = toTs - 86399999;
+    toTs = tmp + 86399999;
+  }
+  const useCustom = fromTs !== null || toTs !== null;
 
   const all: Array<RawDeal & { dealType: string; typeLabel: string }> = [];
   // Параллельно: таблицы независимы, последовательные await-ы утраивали латентность
@@ -93,13 +128,18 @@ export async function GET(request: NextRequest) {
     : all;
 
   const now = new Date();
-  const start = months === null
-    ? null
-    : new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const start = !useCustom && months !== null
+    ? new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)
+    : null;
 
   const inRange = filtered.filter(d => {
-    if (!start || !d.created_at) return true;
-    return new Date(d.created_at) >= start;
+    if (!d.created_at) return true;
+    const t = new Date(d.created_at).getTime();
+    if (isNaN(t)) return true;
+    if (fromTs !== null && t < fromTs) return false;
+    if (toTs !== null && t > toTs) return false;
+    if (start && t < start.getTime()) return false;
+    return true;
   });
 
   const closed = inRange.filter(d => CLOSED.includes(d.completed || ""));
@@ -119,12 +159,20 @@ export async function GET(request: NextRequest) {
     : 0;
   const pipeline = active.reduce((a, d) => a + toNumber(d.amount), 0);
 
-  // Помесячная динамика выручки (по created_at)
+  // Помесячная динамика комиссий (по created_at).
+  // При своём периоде корзины строятся по нему, иначе — последние N месяцев.
   const span = months === null ? 12 : months;
-  const buckets: Array<{ key: string; label: string; revenue: number; count: number }> = [];
-  for (let i = span - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    buckets.push({ key: monthKey(d), label: monthLabel(d), revenue: 0, count: 0 });
+  let buckets: Array<{ key: string; label: string; revenue: number; count: number }>;
+  if (useCustom) {
+    const rangeFrom = fromTs !== null ? fromTs : toTs! - 11 * 31 * 86400000;
+    const rangeTo = toTs !== null ? toTs : fromTs! + 11 * 31 * 86400000;
+    buckets = rangeBuckets(Math.min(rangeFrom, rangeTo), Math.max(rangeFrom, rangeTo));
+  } else {
+    buckets = [];
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({ key: monthKey(d), label: monthLabel(d), revenue: 0, count: 0 });
+    }
   }
   const byKey = new Map(buckets.map(b => [b.key, b]));
   for (const d of closed) {
