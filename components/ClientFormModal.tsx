@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
-import PhoneInput, { maskKzPhone } from "@/components/PhoneInput";
+import PhoneInput, { formatPhone } from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
 import FileUploader, { type AttachmentFile } from "@/components/FileUploader";
 import { getReference } from "@/lib/ref-cache";
 import {
-  CLIENT_FUNNEL_STATUSES, reasonsFor, needsReason, needsResumeDate,
+  CLIENT_FUNNEL_STATUSES, DEAL_DONE_STATUS, reasonsFor, needsReason, needsResumeDate,
   CLIENT_CATEGORIES, CLIENT_TAGS, PREMISE_TYPES, FINISHING_TYPES, CONTRACT_KINDS,
   parseTags,
 } from "@/lib/client-status";
@@ -65,7 +65,7 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
   const [contract, setContract] = useState(client?.contract || "");
   const [date, setDate] = useState(client?.date ? toDateInputValue(client.date) : new Date().toISOString().slice(0, 10));
   const [name, setName] = useState(client?.name || "");
-  const [phone, setPhone] = useState(client?.phone ? maskKzPhone(client.phone) : "");
+  const [phone, setPhone] = useState(client?.phone ? formatPhone(client.phone) : "");
   const [district, setDistrict] = useState(client?.district || "");
   const [rooms, setRooms] = useState(client?.rooms || "");
   const [amount, setAmount] = useState(client?.amount ? String(client.amount) : "");
@@ -220,8 +220,8 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
                 <Select label="Не указано" value={rentalPeriod} onChange={setRentalPeriod} options={["Долгосрочно", "Краткосрочно", "Посуточно"]} />
               </div>
             )}
-            {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кто будет проживать</label><Input value={whoLives} onChange={e => setWhoLives(e.target.value)} placeholder="Семья, один, ..." className="text-sm" /></div>}
-            {type !== "Земля" && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во человек</label><Input value={peopleCount} onChange={e => setPeopleCount(e.target.value)} type="number" placeholder="1" className="text-sm" /></div>}
+            {type !== "Земля" && !(category === "prodaja" && (type === "Квартира" || type === "Квартиры")) && <div><label className="text-xs text-gray-500 mb-1 block">Кто будет проживать</label><Input value={whoLives} onChange={e => setWhoLives(e.target.value)} placeholder="Семья, один, ..." className="text-sm" /></div>}
+            {type !== "Земля" && !(category === "prodaja" && (type === "Квартира" || type === "Квартиры")) && <div><label className="text-xs text-gray-500 mb-1 block">Кол-во человек</label><Input value={peopleCount} onChange={e => setPeopleCount(e.target.value)} type="number" placeholder="1" className="text-sm" /></div>}
             {type === "Земля" && (
               <>
                 <div>
@@ -266,7 +266,11 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
             )}
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Статус</label>
-              <Select label="Без статуса" value={completed} onChange={v => { setCompleted(v); setReason(""); setStatusComment(""); }} options={[...CLIENT_FUNNEL_STATUSES]} />
+              <Select label="Без статуса" value={completed} onChange={v => { setCompleted(v); setReason(""); setStatusComment(""); }} options={
+                // «Сделка завершена» вручную не ставится — только через «Завершить сделку».
+                // У уже завершённых показываем текущий статус, чтобы селект не пустел.
+                [...CLIENT_FUNNEL_STATUSES.filter(s => s !== DEAL_DONE_STATUS), ...(completed === DEAL_DONE_STATUS ? [DEAL_DONE_STATUS] : [])]
+              } />
             </div>
             {needsReason(completed) && (
               <div>

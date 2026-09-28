@@ -87,23 +87,9 @@ export default function CompleteDealModal({
     const dealCategory = dealKind === "Продажа" ? "pokupka" : "arenda";
 
     try {
-      // 1. Update client (тип, договор, сумма, статус «Сделка завершена»)
-      const updRes = await fetch(`/api/clients/${category}/${client.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: objectType,
-          contract: contract,
-          amount: parseFloat(amount) || 0,
-          completed: "Сделка завершена",
-        }),
-      });
-      if (!updRes.ok) {
-        const updErr = await updRes.json().catch(() => ({}));
-        throw new Error(updErr.error || "Не удалось обновить клиента");
-      }
-
-      // 2. Create deal with client data
+      // 1. Сначала создаём сделку: если это упадёт, клиент останется
+      // нетронутым (раньше было наоборот — клиент помечался завершённым,
+      // а сделка не создавалась, отсюда расхождение счётчиков).
       const dealRes = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +104,8 @@ export default function CompleteDealModal({
           owner_name: ownerName,
           stage: "Сделка закрыта",
           completed: "Сделка",
-          date: completionDate,
+          // Дата обращения — дата клиента, а не день закрытия
+          date: client.date || completionDate,
           contract: contract,
           phone: client.phone || "",
           district: client.district || "",
@@ -127,7 +114,10 @@ export default function CompleteDealModal({
           address: client.address || "",
           jk: client.jk || "",
           broker: client.broker || "",
-          area_unit: client.area_unit || "сот",
+          // area_unit клиента осмыслен только для участков; квартиры/дома — м²
+          area_unit: objectType === "Участок" || objectType === "Земля"
+            ? (client.area_unit || "сот")
+            : "м²",
           furniture: client.furniture || "",
           rental_period: client.rental_period || "",
           who_lives: client.who_lives || "",
@@ -147,6 +137,28 @@ export default function CompleteDealModal({
       if (!dealRes.ok) {
         const errData = await dealRes.json().catch(() => ({}));
         throw new Error(errData.error || "Не удалось создать сделку");
+      }
+      const createdDeal = await dealRes.json().catch(() => null);
+      const createdId = createdDeal && typeof createdDeal.id === "number" ? createdDeal.id : null;
+
+      // 2. Помечаем клиента завершённым. При ошибке откатываем созданную
+      // сделку, чтобы не было сделки без завершённого клиента.
+      const updRes = await fetch(`/api/clients/${category}/${client.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: objectType,
+          contract: contract,
+          amount: parseFloat(amount) || 0,
+          completed: "Сделка завершена",
+        }),
+      });
+      if (!updRes.ok) {
+        if (createdId) {
+          await fetch(`/api/deals/${createdId}?type=${dealType}`, { method: "DELETE" }).catch(() => {});
+        }
+        const updErr = await updRes.json().catch(() => ({}));
+        throw new Error(updErr.error || "Не удалось обновить клиента");
       }
 
       onDone();

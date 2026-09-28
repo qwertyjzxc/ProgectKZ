@@ -99,7 +99,7 @@ export default function OwnerFormModal({ owner, category, onClose, onSave }: { o
     setFormError("");
     const payload: Record<string, unknown> = {
       name, phone, district, address, rooms, area,
-      area_unit: category === "zemlya" ? areaUnit : areaUnit,
+      area_unit: category === "zemlya" ? areaUnit : "м²",
       house_area: category === "doma" ? houseArea : "",
       land_area: category === "doma" ? landArea : "",
       price: parseInt(price) || 0,

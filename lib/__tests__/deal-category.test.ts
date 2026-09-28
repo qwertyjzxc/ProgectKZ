@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDealCategory, DEAL_CATEGORIES } from "../deal-types";
+import { normalizeDealCategory, DEAL_CATEGORIES, defaultAreaUnit } from "../deal-types";
 import { dealListLink, clientListLink, activityTarget } from "../notify-links";
 
 describe("normalizeDealCategory", () => {
@@ -17,6 +17,21 @@ describe("normalizeDealCategory", () => {
   });
   it("в каноне ровно две категории", () => {
     expect([...DEAL_CATEGORIES]).toEqual(["arenda", "pokupka"]);
+  });
+});
+
+describe("defaultAreaUnit", () => {
+  it("сотки — только участки на продаже", () => {
+    expect(defaultAreaUnit("zemlya", "pokupka")).toBe("сот");
+    expect(defaultAreaUnit("zemlya", "prodaja")).toBe("сот");
+    expect(defaultAreaUnit("Земля", "pokupka")).toBe("сот");
+    expect(defaultAreaUnit("Участок", "pokupka")).toBe("сот");
+  });
+  it("всё остальное — м²", () => {
+    expect(defaultAreaUnit("kvartiry", "arenda")).toBe("м²");
+    expect(defaultAreaUnit("pomescheniya", "pokupka")).toBe("м²");
+    expect(defaultAreaUnit("zemlya", "arenda")).toBe("м²");
+    expect(defaultAreaUnit(undefined, undefined)).toBe("м²");
   });
 });
 

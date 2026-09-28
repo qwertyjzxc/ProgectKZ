@@ -9,7 +9,7 @@ import PhoneInput from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
 import { getReference } from "@/lib/ref-cache";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
-import { type Deal, type DealFormValues, DEAL_STATUSES } from "@/lib/deal-types";
+import { type Deal, type DealFormValues, DEAL_STATUSES, defaultAreaUnit } from "@/lib/deal-types";
 import { Upload, Trash2, FileText, X } from "lucide-react";
 
 const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
@@ -20,7 +20,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
   const [type, setType] = useState(deal?.type || "Квартира");
   useEscapeKey(onClose);
   const [area, setArea] = useState(deal?.area || "");
-  const [areaUnit, setAreaUnit] = useState(deal?.area_unit || "сот");
+  const [areaUnit, setAreaUnit] = useState(deal?.area_unit || defaultAreaUnit(dealType || deal?.dealType, deal?.category || category));
   const [address, setAddress] = useState(deal?.address || "");
   const [jk, setJk] = useState(deal?.jk || "");
   const [contract, setContract] = useState(deal?.contract || "");
@@ -99,7 +99,8 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
       who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker,
       layout, renter_type: renterType, payment, commission: parseInt(commission) || 0, owner_name: ownerName, finishing, premise_type: premiseType,
       plot_type: plotType, purpose, communications: communications.join(", "), access, plot_shape: plotShape, relief, documents: JSON.stringify(documents), restrictions,
-      area_unit: areaUnit, completion_date: completionDate,
+      // Единицы выбираются только для земли; квартиры/помещения — всегда м²
+      area_unit: isZemlya ? areaUnit : "м²", completion_date: completionDate,
       stage: "Первичный контакт",
       category: dealCategory, dealType: dealType || "kvartiry",
     });
@@ -145,6 +146,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
                 <div className="flex gap-2">
                   <Input value={area} onChange={e => setArea(e.target.value)} type="number" placeholder="10" className="text-sm" />
                   <select value={areaUnit} onChange={e => setAreaUnit(e.target.value)} className="h-9 rounded-lg border px-2 text-sm shrink-0">
+                    <option value="м²">м²</option>
                     <option value="сот">Сотки</option>
                     <option value="га">Гектары</option>
                   </select>

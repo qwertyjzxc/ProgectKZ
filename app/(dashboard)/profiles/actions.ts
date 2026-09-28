@@ -80,60 +80,73 @@ export async function adminCreateUser(data: {
   return { success: true };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function adminDeleteUser(profileId: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Не авторизован" };
+  // Весь экшен в try/catch: непойманный throw Next.js на клиенте показывает как
+  // "An unexpected response was received from the server" без деталей.
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Не авторизован" };
 
-  const { data: myProfiles } = await serviceClient
-    .from("profiles")
-    .select("role")
-    .eq("user_id", user.id);
+    const { data: myProfiles } = await serviceClient
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id);
 
-  if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
-    return { error: "Только администратор может удалять пользователей" };
-  }
-
-  // Цель ищем по id профиля: у старых/тестовых строк user_id может быть пустым,
-  // удаление по user_id их бы не нашло.
-  const { data: target } = await serviceClient
-    .from("profiles")
-    .select("id, user_id")
-    .eq("id", profileId)
-    .maybeSingle();
-  if (!target) return { error: "Профиль не найден" };
-  const targetUserId = (target.user_id as string) || "";
-  if (targetUserId && targetUserId === user.id) {
-    return { error: "Нельзя удалить самого себя" };
-  }
-
-  // Связи профиля: задачи, уведомления, связки логинов
-  await serviceClient.from("task_assignees").delete().eq("assignee_id", profileId);
-  await serviceClient.from("notifications").delete().eq("profile_id", profileId);
-  if (targetUserId) {
-    await serviceClient.from("profile_links").delete().eq("user_id", targetUserId);
-  } else {
-    await serviceClient.from("profile_links").delete().eq("profile_id", profileId);
-  }
-
-  // Auth-юзер: может уже отсутствовать (удалён раньше) — это не ошибка,
-  // строку профиля всё равно чистим.
-  if (targetUserId) {
-    const { error } = await serviceClient.auth.admin.deleteUser(targetUserId);
-    if (error && !/not found|not exist|no user/i.test(error.message)) {
-      return { error: error.message };
+    if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
+      return { error: "Только администратор может удалять пользователей" };
     }
+
+    // Цель ищем по id профиля: у старых/тестовых строк user_id может быть пустым,
+    // удаление по user_id их бы не нашло.
+    const { data: target } = await serviceClient
+      .from("profiles")
+      .select("id, user_id")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (!target) return { error: "Профиль не найден" };
+    const targetUserId = (target.user_id as string) || "";
+    if (targetUserId && targetUserId === user.id) {
+      return { error: "Нельзя удалить самого себя" };
+    }
+
+    // Связи профиля: задачи, уведомления, связки логинов
+    await serviceClient.from("task_assignees").delete().eq("assignee_id", profileId);
+    await serviceClient.from("notifications").delete().eq("profile_id", profileId);
+    if (targetUserId) {
+      await serviceClient.from("profile_links").delete().eq("user_id", targetUserId);
+    } else {
+      await serviceClient.from("profile_links").delete().eq("profile_id", profileId);
+    }
+
+    // Auth-юзер: может уже отсутствовать (удалён раньше) — это не ошибка,
+    // строку профиля всё равно чистим. deleteUser бросает throw (а не error),
+    // если user_id вообще не UUID (битые тестовые строки) — ловим и идём дальше.
+    if (targetUserId && UUID_RE.test(targetUserId)) {
+      try {
+        const { error } = await serviceClient.auth.admin.deleteUser(targetUserId);
+        if (error && !/not found|not exist|no user/i.test(error.message)) {
+          return { error: error.message };
+        }
+      } catch (e) {
+        console.warn("[profiles] не удалось удалить auth-юзера, чистим только профиль:", e instanceof Error ? e.message : e);
+      }
+    }
+
+    // Строка профиля: ON DELETE CASCADE из auth.users в живой БД может
+    // отсутствовать, поэтому удаляем явно — иначе человек остаётся в списке.
+    const { error: profileError } = await serviceClient
+      .from("profiles")
+      .delete()
+      .eq("id", profileId);
+    if (profileError) return { error: profileError.message };
+
+    return { success: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Неизвестная ошибка удаления" };
   }
-
-  // Строка профиля: ON DELETE CASCADE из auth.users в живой БД может
-  // отсутствовать, поэтому удаляем явно — иначе человек остаётся в списке.
-  const { error: profileError } = await serviceClient
-    .from("profiles")
-    .delete()
-    .eq("id", profileId);
-  if (profileError) return { error: profileError.message };
-
-  return { success: true };
 }
 
 export async function adminUpdateProfile(profileId: number, data: {

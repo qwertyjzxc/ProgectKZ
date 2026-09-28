@@ -66,6 +66,16 @@ export function normalizeDealCategory(c: unknown): DealCategory {
   return "arenda";
 }
 
+// Единицы площади: сотки — только участки на продаже (земля + покупка).
+// Квартиры, помещения и дома (земля + аренда) — всегда м².
+// Принимает и ключи (zemlya), и подписи типов ("Земля", "Участок").
+export function defaultAreaUnit(dealType?: unknown, category?: unknown): string {
+  const t = String(dealType || "");
+  const isLand = t === "zemlya" || t === "Земля" || t === "Участок";
+  if (isLand && normalizeDealCategory(category) === "pokupka") return "сот";
+  return "м²";
+}
+
 export const DEAL_STATUSES = [
   "В процессе", "Отказ",
   "Заморожено", "Подписание договора", "Оплата",

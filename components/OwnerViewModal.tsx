@@ -4,7 +4,7 @@ import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { maskKzPhone } from "@/components/PhoneInput";
+import { formatPhone } from "@/components/PhoneInput";
 import { type Owner, completedColors } from "@/lib/owner-types";
 import { getInitials } from "@/lib/client-types";
 import { OWNER_CATEGORY_LABELS, type OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
@@ -91,7 +91,7 @@ export default function ViewOwnerModal({ owner, category, onClose, onEdit, onCom
             {owner.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={owner.contract_kind} />}
           </CardSection>
           <CardSection title="Контакт">
-            <DetailItem icon={Phone} label="Телефон" value={owner.phone ? maskKzPhone(owner.phone) : null} />
+              <DetailItem icon={Phone} label="Телефон" value={owner.phone ? formatPhone(owner.phone) : null} />
             <DetailItem icon={User} label="Брокер" value={owner.broker} />
           </CardSection>
           {owner.notes && (

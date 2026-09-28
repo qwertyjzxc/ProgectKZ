@@ -149,13 +149,39 @@ export async function GET(request: NextRequest) {
     return !CLOSED.includes(c) && c !== LOST;
   });
 
+  // Потери на клиентах («Закрыт без сделки»): такие клиенты до сделок не
+  // доходят, но для конверсии это отказы. Считаем в том же периоде/категории.
+  // Ошибка чтения клиентских таблиц конверсию ронять не должна.
+  let lostClients = 0;
+  try {
+    const clientTables = !categoryParam || normalizeDealCategory(categoryParam) === "arenda"
+      ? ["clients_arenda"]
+      : ["clients_prodaja", "clients_pokupka"];
+    if (!categoryParam) clientTables.push("clients_prodaja", "clients_pokupka");
+    const counts = await Promise.all(
+      clientTables.map(async t => {
+        let q = supabase.from(t).select("id", { count: "exact", head: true }).eq("completed", "Закрыт без сделки");
+        if (fromTs !== null) q = q.gte("created_at", new Date(fromTs).toISOString());
+        if (toTs !== null) q = q.lte("created_at", new Date(toTs).toISOString());
+        if (start) q = q.gte("created_at", start.toISOString());
+        const { count, error } = await q;
+        if (error) throw new Error(error.message);
+        return count || 0;
+      })
+    );
+    lostClients = counts.reduce((a, b) => a + b, 0);
+  } catch (e) {
+    console.warn("[analytics] не удалось посчитать потери клиентов:", e instanceof Error ? e.message : e);
+  }
+
   const amounts = closed.map(d => dealCommission(d)).sort((a, b) => a - b);
   const revenue = amounts.reduce((a, b) => a + b, 0);
   const avg = closed.length ? revenue / closed.length : 0;
   const med = median(amounts);
   const total = inRange.length;
-  const winRate = closed.length + lost.length > 0
-    ? (closed.length / (closed.length + lost.length)) * 100
+  const lostTotal = lost.length + lostClients;
+  const winRate = closed.length + lostTotal > 0
+    ? (closed.length / (closed.length + lostTotal)) * 100
     : 0;
   const pipeline = active.reduce((a, d) => a + toNumber(d.amount), 0);
 
@@ -194,16 +220,44 @@ export async function GET(request: NextRequest) {
     .map(([status, count]) => ({ status, count }))
     .sort((a, b) => b.count - a.count);
 
+  // Категория с нормализацией legacy (prodaja -> pokupka), пусто остаётся "—"
+  const normCat = (d: RawDeal): string => (d.category ? normalizeDealCategory(d.category) : "—");
+
   // По категориям
   const catMap = new Map<string, { revenue: number; count: number }>();
   for (const d of closed) {
-    const c = d.category || "—";
+    const c = normCat(d);
     const cur = catMap.get(c) || { revenue: 0, count: 0 };
     cur.revenue += dealCommission(d);
     cur.count += 1;
     catMap.set(c, cur);
   }
   const byCategory = [...catMap.entries()].map(([category, v]) => ({ category, ...v }));
+
+  // Аренда vs покупка по каждому брокеру (для селектора в карточке).
+  // Сделки без брокера пропускаем — псевдо-брокера «Без брокера» нет.
+  const brokerCatMap = new Map<string, Map<string, { revenue: number; count: number }>>();
+  for (const d of closed) {
+    const b = (d.broker || "").trim();
+    if (!b) continue;
+    const c = normCat(d);
+    let inner = brokerCatMap.get(b);
+    if (!inner) {
+      inner = new Map();
+      brokerCatMap.set(b, inner);
+    }
+    const cur = inner.get(c) || { revenue: 0, count: 0 };
+    cur.revenue += dealCommission(d);
+    cur.count += 1;
+    inner.set(c, cur);
+  }
+  const byBrokerCategory = [...brokerCatMap.entries()]
+    .map(([broker, inner]) => ({
+      broker,
+      rows: [...inner.entries()].map(([category, v]) => ({ category, ...v })),
+      total: [...inner.values()].reduce((a, v) => a + v.revenue, 0),
+    }))
+    .sort((a, b) => b.total - a.total);
 
   // По типам объектов
   const typeMap = new Map<string, { revenue: number; count: number }>();
@@ -215,10 +269,11 @@ export async function GET(request: NextRequest) {
   }
   const byType = [...typeMap.entries()].map(([type, v]) => ({ type, ...v }));
 
-  // Топ брокеров по закрытым комиссиям
+  // Топ брокеров по закрытым комиссиям (без брокера — пропускаем)
   const brokerMap = new Map<string, { revenue: number; count: number }>();
   for (const d of closed) {
-    const b = (d.broker || "").trim() || "Без брокера";
+    const b = (d.broker || "").trim();
+    if (!b) continue;
     const cur = brokerMap.get(b) || { revenue: 0, count: 0 };
     cur.revenue += dealCommission(d);
     cur.count += 1;
@@ -237,12 +292,15 @@ export async function GET(request: NextRequest) {
       closedCount: closed.length,
       totalCount: total,
       winRate: Math.round(winRate * 10) / 10,
+      lostDeals: lost.length,
+      lostClients,
       pipeline,
       activeCount: active.length,
     },
     monthly: buckets,
     byStatus,
     byCategory,
+    byBrokerCategory,
     byType,
     topBrokers,
   });

@@ -24,11 +24,11 @@ const dealCategories = [
 
 const navItems = [
   { href: "/tasks", label: "Задачи", icon: ListTodo },
-  { href: "/activity", label: "Журнал действий", icon: History },
 ];
 
 const adminItems = [
   { href: "/analytics", label: "Аналитика", icon: BarChart3 },
+  { href: "/activity", label: "Журнал действий", icon: History },
 ];
 
 interface SidebarProps {

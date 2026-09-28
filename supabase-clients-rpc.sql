@@ -1,6 +1,9 @@
 -- Скоростной список клиентов одним вызовом: строки + тотал + разбивки за 1 хоп.
 -- Выполнить в Supabase Dashboard → SQL Editor → Run.
 -- Вызывает бэкенд через service role; проверка прав остаётся в API.
+-- v2: +byStatusAll — разбивка по статусам со ВСЕМИ фильтрами, кроме самого
+-- статуса (для пилюль: счётчики честно реагируют на брокера/район/поиск).
+-- Перезапуск поверх v1 безопасен (CREATE OR REPLACE, сигнатура та же).
 
 CREATE OR REPLACE FUNCTION get_clients_page(
   p_table text,
@@ -31,10 +34,13 @@ AS $$
 DECLARE
   v_where_type text := 'TRUE';
   v_where_full text := 'TRUE';
+  v_where_facet text := 'TRUE';
   v_w text;
   v_total bigint := 0;
+  v_total_facet bigint := 0;
   v_by_type json := '{}'::json;
   v_by_status json := '{}'::json;
+  v_by_facet json := '{}'::json;
   v_rows json := '[]'::json;
 BEGIN
   IF p_table NOT IN ('clients_arenda', 'clients_prodaja', 'test_clients') THEN
@@ -49,6 +55,8 @@ BEGIN
     v_where_type := 'type = ANY (string_to_array(' || quote_literal(p_types) || ', '',''))';
   END IF;
   v_where_full := v_where_type;
+  -- фасетный scope: всё, кроме статуса (статусный фильтр сюда не попадает)
+  v_where_facet := v_where_type;
 
   -- статус
   IF p_completed IS NOT NULL AND p_completed <> '' THEN
@@ -62,18 +70,22 @@ BEGIN
     v_where_full := v_where_full || ' AND (completed <> ''Сделка завершена'' OR completed IS NULL)';
   END IF;
 
-  -- точные совпадения
+  -- точные совпадения (дублируем во фасетный scope — всё, кроме статуса)
   IF p_district IS NOT NULL AND p_district <> '' THEN
     v_where_full := v_where_full || ' AND district = ' || quote_literal(p_district);
+    v_where_facet := v_where_facet || ' AND district = ' || quote_literal(p_district);
   END IF;
   IF p_broker IS NOT NULL AND p_broker <> '' THEN
     v_where_full := v_where_full || ' AND broker = ' || quote_literal(p_broker);
+    v_where_facet := v_where_facet || ' AND broker = ' || quote_literal(p_broker);
   END IF;
   IF p_jk IS NOT NULL AND p_jk <> '' THEN
     v_where_full := v_where_full || ' AND jk = ' || quote_literal(p_jk);
+    v_where_facet := v_where_facet || ' AND jk = ' || quote_literal(p_jk);
   END IF;
   IF p_rooms IS NOT NULL AND p_rooms <> '' THEN
     v_where_full := v_where_full || ' AND rooms LIKE ' || quote_literal(p_rooms || '%');
+    v_where_facet := v_where_facet || ' AND rooms LIKE ' || quote_literal(p_rooms || '%');
   END IF;
 
   -- слова: каждое — в любом из полей (AND между словами)
@@ -87,6 +99,13 @@ BEGIN
           ' OR address ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
           ' OR jk ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
           ' OR broker ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%'')';
+        v_where_facet := v_where_facet ||
+          ' AND (name ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
+          ' OR phone ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
+          ' OR district ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
+          ' OR address ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
+          ' OR jk ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''' ||
+          ' OR broker ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%'')';
       END IF;
     END LOOP;
   END IF;
@@ -94,6 +113,7 @@ BEGIN
     FOREACH v_w IN ARRAY p_name_words LOOP
       IF v_w <> '' THEN
         v_where_full := v_where_full || ' AND name ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''';
+        v_where_facet := v_where_facet || ' AND name ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''';
       END IF;
     END LOOP;
   END IF;
@@ -101,6 +121,7 @@ BEGIN
     FOREACH v_w IN ARRAY p_address_words LOOP
       IF v_w <> '' THEN
         v_where_full := v_where_full || ' AND address ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''';
+        v_where_facet := v_where_facet || ' AND address ILIKE ''%'' || ' || quote_literal(v_w) || ' || ''%''';
       END IF;
     END LOOP;
   END IF;
@@ -108,18 +129,24 @@ BEGIN
   -- суммы (числовая колонка)
   IF p_amount_min IS NOT NULL THEN
     v_where_full := v_where_full || ' AND amount >= ' || p_amount_min::text;
+    v_where_facet := v_where_facet || ' AND amount >= ' || p_amount_min::text;
   END IF;
   IF p_amount_max IS NOT NULL THEN
     v_where_full := v_where_full || ' AND amount <= ' || p_amount_max::text;
+    v_where_facet := v_where_facet || ' AND amount <= ' || p_amount_max::text;
   END IF;
 
   -- площадь: текстовая колонка — только числовые значения участвуют (как Number() на клиенте)
   IF p_area_min IS NOT NULL THEN
     v_where_full := v_where_full ||
       ' AND area ~ ''^[0-9]+(\.[0-9]+)?$'' AND area::numeric >= ' || p_area_min::text;
+    v_where_facet := v_where_facet ||
+      ' AND area ~ ''^[0-9]+(\.[0-9]+)?$'' AND area::numeric >= ' || p_area_min::text;
   END IF;
   IF p_area_max IS NOT NULL THEN
     v_where_full := v_where_full ||
+      ' AND area ~ ''^[0-9]+(\.[0-9]+)?$'' AND area::numeric <= ' || p_area_max::text;
+    v_where_facet := v_where_facet ||
       ' AND area ~ ''^[0-9]+(\.[0-9]+)?$'' AND area::numeric <= ' || p_area_max::text;
   END IF;
 
@@ -128,9 +155,15 @@ BEGIN
     v_where_full := v_where_full ||
       ' AND date ~ ''^\d{2}\.\d{2}\.\d{4}$'' AND to_date(date, ''DD.MM.YYYY'') >= to_date(' ||
       quote_literal(p_date_from) || ', ''DD.MM.YYYY'')';
+    v_where_facet := v_where_facet ||
+      ' AND date ~ ''^\d{2}\.\d{2}\.\d{4}$'' AND to_date(date, ''DD.MM.YYYY'') >= to_date(' ||
+      quote_literal(p_date_from) || ', ''DD.MM.YYYY'')';
   END IF;
   IF p_date_to IS NOT NULL AND p_date_to ~ '^\d{2}\.\d{2}\.\d{4}$' THEN
     v_where_full := v_where_full ||
+      ' AND date ~ ''^\d{2}\.\d{2}\.\d{4}$'' AND to_date(date, ''DD.MM.YYYY'') <= to_date(' ||
+      quote_literal(p_date_to) || ', ''DD.MM.YYYY'')';
+    v_where_facet := v_where_facet ||
       ' AND date ~ ''^\d{2}\.\d{2}\.\d{4}$'' AND to_date(date, ''DD.MM.YYYY'') <= to_date(' ||
       quote_literal(p_date_to) || ', ''DD.MM.YYYY'')';
   END IF;
@@ -141,11 +174,23 @@ BEGIN
     p_table, v_where_type
   ) INTO v_total, v_by_type;
 
+  -- тотал пилюли «Всего»: все фильтры, кроме статуса (реагирует на брокера)
+  EXECUTE format(
+    'SELECT count(*) FROM %I WHERE %s',
+    p_table, v_where_facet
+  ) INTO v_total_facet;
+
   -- разбивка: полный scope
   EXECUTE format(
     'SELECT COALESCE(json_object_agg(s, c), ''{}''::json) FROM (SELECT COALESCE(completed, ''Без статуса'') AS s, count(*) AS c FROM %I WHERE %s GROUP BY 1) t',
     p_table, v_where_full
   ) INTO v_by_status;
+
+  -- разбивка для пилюль: все фильтры, кроме статуса
+  EXECUTE format(
+    'SELECT COALESCE(json_object_agg(s, c), ''{}''::json) FROM (SELECT COALESCE(completed, ''Без статуса'') AS s, count(*) AS c FROM %I WHERE %s GROUP BY 1) t',
+    p_table, v_where_facet
+  ) INTO v_by_facet;
 
   -- страница строк
   EXECUTE format(
@@ -153,7 +198,7 @@ BEGIN
     p_table, v_where_full, p_limit, p_offset
   ) INTO v_rows;
 
-  RETURN json_build_object('rows', v_rows, 'total', v_total, 'byType', v_by_type, 'byStatus', v_by_status);
+  RETURN json_build_object('rows', v_rows, 'total', v_total, 'totalAll', v_total_facet, 'byType', v_by_type, 'byStatus', v_by_status, 'byStatusAll', v_by_facet);
 END;
 $$;
 

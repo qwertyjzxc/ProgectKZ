@@ -11,7 +11,7 @@ import { getRentCategoryLabel, type RentCategory } from "@/components/RentCatego
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
+import { formatPhone, phoneToWa } from "@/components/PhoneInput";
 import MoneyInput from "@/components/MoneyInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney } from "@/lib/format";
@@ -87,7 +87,8 @@ const CompleteDealModal = dynamic(() => import("@/components/CompleteDealModal")
 // Перф: кэш списка в памяти модуля (stale-while-revalidate) — повторный вход
 // на страницу рисуется мгновенно без повторной выгрузки ~3МБ, фоном данные обновляются.
 // Мутации инвалидируют кэш, следующий монт тянет свежие данные.
-const clientsCache: Record<string, { rows: Client[]; total: number; counts: { byType: Record<string, number>; byStatus: Record<string, number> } }> = {};
+type StatusCounts = { byType: Record<string, number>; byStatus: Record<string, number>; byStatusAll: Record<string, number> | null };
+const clientsCache: Record<string, { rows: Client[]; total: number; totalAll: number | null; counts: StatusCounts }> = {};
 // distincts меняются редко (новый район/ЖК) — кэшируем на сессию
 const distinctsCache: Record<string, { districts: string[]; jk: string[] }> = {};
 
@@ -242,9 +243,11 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const roomsFilterOptions = ["1", "2", "3", "4", "5"];
   const brokerNames = useMemo(() => allProfiles.map(p => profileName(p)).filter(Boolean).sort(), [allProfiles]);
 
-  // Тоталы с counts-endpoint: total — scope типа, byStatus — полный scope фильтров
+  // Тоталы с counts-endpoint: total — scope типа, totalAll — все фильтры кроме
+  // статуса (для «Всего»; null пока RPC старый), byStatusAll — то же по статусам
   const [totalCount, setTotalCount] = useState(0);
-  const [statusCounts, setStatusCounts] = useState<{ byType: Record<string, number>; byStatus: Record<string, number> }>({ byType: {}, byStatus: {} });
+  const [totalAll, setTotalAll] = useState<number | null>(null);
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({ byType: {}, byStatus: {}, byStatusAll: null });
   const [loadingMore, setLoadingMore] = useState(false);
   // Есть ли ещё страницы: страница короче PAGE_SIZE = конец выборки.
   // Надёжнее сравнения с total (в нём и завершённые, которых activeOnly не отдаёт).
@@ -306,6 +309,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       if (cached) {
         setClients(cached.rows);
         setTotalCount(cached.total);
+        setTotalAll(cached.totalAll);
         setStatusCounts(cached.counts);
         setLoading(false);
       } else if (!hadRows) {
@@ -325,14 +329,16 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       // Legacy-массив (на случай отката API): режем страницу на клиенте
       const page = Array.isArray(data) ? rows.slice(offset, offset + PAGE_SIZE) : rows;
       const total: number = Array.isArray(data) ? data.length : data.total || 0;
-      const counts = Array.isArray(data)
-        ? { byType: {} as Record<string, number>, byStatus: {} as Record<string, number> }
-        : { byType: data.byType || {}, byStatus: data.byStatus || {} };
+      const counts: StatusCounts = Array.isArray(data)
+        ? { byType: {}, byStatus: {}, byStatusAll: null }
+        : { byType: data.byType || {}, byStatus: data.byStatus || {}, byStatusAll: data.byStatusAll ?? null };
       if (reset) {
+        const fetchedTotalAll: number | null = Array.isArray(data) ? null : (data.totalAll ?? null);
         setClients(page);
         setTotalCount(total);
+        setTotalAll(fetchedTotalAll);
         setStatusCounts(counts);
-        if (isDefaultView && !Array.isArray(data)) clientsCache[cacheKey] = { rows: page, total, counts };
+        if (isDefaultView && !Array.isArray(data)) clientsCache[cacheKey] = { rows: page, total, totalAll: fetchedTotalAll, counts };
       } else {
         setClients(prev => [...prev, ...page]);
         if (page.length < PAGE_SIZE) setHasMore(false);
@@ -401,7 +407,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const clientStatusList = useMemo(() => {
     return Object.entries(statusCounts.byType)
       .sort((a, b) => b[1] - a[1])
-      .map(([s]) => s);
+      .map(([s]) => s)
+      // Мусорные статусы (числа вроде "1" из старых импортов) пилюлями не показываем
+      .filter(s => s.trim() !== "" && isNaN(Number(s)));
   }, [statusCounts.byType]);
 
   const pillVis = usePillVisibility("clients");
@@ -676,10 +684,14 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           className="flex items-center gap-1.5 rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 transition-colors"
         >
           <span>Всего</span>
-          <span className="font-bold">{totalCount}</span>
+          <span className="font-bold">{totalAll ?? totalCount}</span>
         </button>
         {visibleStatuses.map(s => {
-          const count = statusCounts.byStatus[s] ?? 0;
+          // Счётчики пилюль — из byStatusAll (все фильтры, включая брокера,
+          // кроме самого статуса). Пока RPC старый (byStatusAll null) —
+          // fallback на byType (scope вкладки без фильтров).
+          const facet = statusCounts.byStatusAll ?? statusCounts.byType;
+          const count = facet[s] ?? 0;
           const active = filterCompleted === s;
           return (
             <button
@@ -806,7 +818,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       <div className="min-w-0 text-left">
                         <div className="text-sm font-medium text-gray-900">{c.name || "—"}</div>
                         <div className="text-xs text-gray-400 flex items-center gap-1">
-                          <Phone className="w-3 h-3 shrink-0" />{c.phone_masked ? "Скрыт" : c.phone ? maskKzPhone(c.phone) : "—"}
+                          <Phone className="w-3 h-3 shrink-0" />{c.phone_masked ? "Скрыт" : c.phone ? formatPhone(c.phone) : "—"}
                         </div>
                       </div>
                     </div>

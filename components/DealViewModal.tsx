@@ -5,8 +5,8 @@ import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { formatMoney } from "@/lib/format";
-import { maskKzPhone } from "@/components/PhoneInput";
+import { formatMoney, formatDateOnly } from "@/lib/format";
+import { formatPhone } from "@/components/PhoneInput";
 import { type Deal, completedColors, DEAL_TABLE_MAP } from "@/lib/deal-types";
 import type { ActivityEntry } from "@/lib/activity";
 import { CalendarDays, CheckCircle2, ListTodo, Edit3, X, History, Loader2, Trash2, Home, MapPin, Building2, Ruler, Briefcase, FileText, Banknote, Phone, User, Users } from "lucide-react";
@@ -112,7 +112,7 @@ export default function DealViewModal({ deal: viewDeal, dealType, category, onCl
                 <Badge className={"text-sm px-3 py-1 " + (completedColors[viewDeal.completed || ""] || "bg-gray-100 text-gray-700")}>
                   {viewDeal.completed || "Без статуса"}
                 </Badge>
-                <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{viewDeal.date}</span>
+                <span className="text-sm text-gray-500 flex items-center gap-1"><CalendarDays className="w-4 h-4" />{viewDeal.date ? formatDateOnly(viewDeal.date) : "—"}</span>
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -199,12 +199,12 @@ export default function DealViewModal({ deal: viewDeal, dealType, category, onCl
               <DetailItem icon={FileText} label="Номер договора" value={viewDeal.contract} />
               <DetailItem icon={Banknote} label="Сумма сделки" value={viewDeal.amount ? formatMoney(viewDeal.amount) : null} />
               <DetailItem icon={Home} label="Стадия" value={viewDeal.stage} />
-              <DetailItem icon={CalendarDays} label="Дата обращения" value={viewDeal.date} />
-              <DetailItem icon={CalendarDays} label="Дата завершения" value={viewDeal.completion_date} />
+              <DetailItem icon={CalendarDays} label="Дата обращения" value={viewDeal.date ? formatDateOnly(viewDeal.date) : null} />
+              <DetailItem icon={CalendarDays} label="Дата завершения" value={viewDeal.completion_date ? formatDateOnly(viewDeal.completion_date) : null} />
               {isPomescheniya && <DetailItem icon={Briefcase} label="Меблировка" value={viewDeal.furniture} />}
             </CardSection>
             <CardSection title="Контакт">
-              <DetailItem icon={Phone} label="Телефон" value={viewDeal.phone ? maskKzPhone(viewDeal.phone) : null} />
+              <DetailItem icon={Phone} label="Телефон" value={viewDeal.phone ? formatPhone(viewDeal.phone) : null} />
               <DetailItem icon={User} label="Кто будет проживать" value={viewDeal.who_lives} />
               <DetailItem icon={Users} label="Кол-во человек" value={viewDeal.people_count} />
               <DetailItem icon={User} label="Брокер" value={viewDeal.broker} />

@@ -148,6 +148,11 @@ function ActivityContent() {
 
   const isAdmin = currentProfile?.role === "admin";
 
+  // Журнал — только для админа (сотрудники видят историю в карточках)
+  useEffect(() => {
+    if (currentProfile && !isAdmin) router.replace("/overview");
+  }, [currentProfile, isAdmin, router]);
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -249,6 +254,8 @@ function ActivityContent() {
       setConfirmDelete(false);
     }
   };
+
+  if (currentProfile && !isAdmin) return null;
 
   return (
     <div className="max-w-4xl">

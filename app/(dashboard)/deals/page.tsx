@@ -21,9 +21,9 @@ const DealViewModal = dynamic(() => import("@/components/DealViewModal"), { ssr:
 const AssignTaskModalDyn = dynamic(() => import("@/components/AssignTaskModal"), { ssr: false });
 const CompleteDealModalForDealDyn = dynamic(() => import("@/components/CompleteDealModalForDeal"), { ssr: false });
 import MoneyInput from "@/components/MoneyInput";
-import { maskKzPhone, phoneToWa } from "@/components/PhoneInput";
-import { formatMoney } from "@/lib/format";
-import { type Deal, type DealFormValues, DEAL_STATUSES, completedColors, DEAL_TABLE_MAP, normalizeDealCategory } from "@/lib/deal-types";
+import { formatPhone, phoneToWa } from "@/components/PhoneInput";
+import { formatMoney, formatDateOnly } from "@/lib/format";
+import { type Deal, type DealFormValues, DEAL_STATUSES, completedColors, DEAL_TABLE_MAP, normalizeDealCategory, defaultAreaUnit } from "@/lib/deal-types";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { useProfile } from "@/lib/profile-context";
 import { getReference } from "@/lib/ref-cache";
@@ -563,7 +563,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     </>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Сумма сделки</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Сумма комиссии</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата завершения</th>
@@ -627,9 +627,9 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.name || "—"}</td>
                     {isZemlya ? (
                       <>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.phone ? maskKzPhone(d.phone) : "—"}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{d.phone ? formatPhone(d.phone) : "—"}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{d.plot_type || "—"}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " " + (d.area_unit || "сот") : "—"}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{d.area ? d.area + " " + (d.area_unit || defaultAreaUnit("zemlya", category)) : "—"}</td>
                       </>
                     ) : null}
                     {isZemlya ? null : isPomescheniya ? (
@@ -649,9 +649,9 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                     )}
                     <td className="px-4 py-3 text-sm text-gray-600">{d.broker || "—"}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {d.amount ? formatMoney(d.amount) : "—"}
+                      {d.commission ? formatMoney(d.commission) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.date || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.date ? formatDateOnly(d.date) : "—"}</td>
                     <td className="px-4 py-3">
                       <Badge className={"text-xs " + (completedColors[d.completed || ""] || "bg-gray-100 text-gray-700")}>
                         {d.completed || "—"}

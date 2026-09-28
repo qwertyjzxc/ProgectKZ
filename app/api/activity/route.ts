@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
 import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
+import { requireAdmin } from "@/lib/route-auth";
 
 const CLIENT_TABLES = ["clients_arenda", "clients_prodaja"];
 
@@ -11,6 +12,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const clientTable = searchParams.get("client_table");
     const clientId = searchParams.get("client_id");
+
+    // Общая лента — только для админа. Лента конкретной карточки
+    // (client_table + client_id) доступна сотрудникам как раньше.
+    if (!(clientTable && clientId)) {
+      const { denied } = await requireAdmin();
+      if (denied) return denied;
+    }
 
     let query = supabase.from("client_activity").select("*");
 

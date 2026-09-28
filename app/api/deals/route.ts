@@ -7,7 +7,7 @@ import { notifyAll, getActorUserId } from "@/lib/notify";
 import { dealListLink } from "@/lib/notify-links";
 import { formatMoney } from "@/lib/format";
 import { isAdminUser } from "@/lib/admin";
-import { normalizeDealCategory } from "@/lib/deal-types";
+import { normalizeDealCategory, defaultAreaUnit } from "@/lib/deal-types";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "deals_kvartiry",
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     plot_type: body.plot_type || "",
     purpose: body.purpose || "",
     communications: body.communications || "",
-    area_unit: body.area_unit || "сот",
+    area_unit: body.area_unit || defaultAreaUnit(body.dealType || body.type, body.category),
     access: body.access || "",
     plot_shape: body.plot_shape || "",
     relief: body.relief || "",

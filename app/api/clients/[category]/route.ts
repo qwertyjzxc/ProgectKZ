@@ -93,8 +93,11 @@ export async function GET(
     return NextResponse.json({
       rows: maskRowsPhones((data?.rows || []) as Array<{ broker?: string; phone?: string }>, vis),
       total: data?.total || 0,
+      // null, пока в БД старая версия RPC, — фронт откатится на total/byType
+      totalAll: data?.totalAll ?? null,
       byType: data?.byType || {},
       byStatus: data?.byStatus || {},
+      byStatusAll: data?.byStatusAll ?? null,
     });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });

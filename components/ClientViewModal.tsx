@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ClientDeals from "@/components/ClientDeals";
 import { formatMoney } from "@/lib/format";
-import { maskKzPhone } from "@/components/PhoneInput";
+import { formatPhone } from "@/components/PhoneInput";
 import { parseTags } from "@/lib/client-status";
 import { type Client, completedColors, getInitials } from "@/lib/client-types";
 import type { ActivityEntry } from "@/lib/activity";
@@ -172,9 +172,9 @@ export default function ViewClientModal({ client, category, isAdmin, onClose, on
               <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />
             </CardSection>
             <CardSection title="Контакт">
-              <DetailItem icon={Phone} label="Телефон" value={client.phone_masked ? "Скрыт" : client.phone ? maskKzPhone(client.phone) : null} />
-              <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />
-              <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />
+              <DetailItem icon={Phone} label="Телефон" value={client.phone_masked ? "Скрыт" : client.phone ? formatPhone(client.phone) : null} />
+              {!(category === "prodaja" && (client.type === "Квартира" || client.type === "Квартиры")) && <DetailItem icon={User} label="Кто будет проживать" value={client.who_lives} />}
+              {!(category === "prodaja" && (client.type === "Квартира" || client.type === "Квартиры")) && <DetailItem icon={Users} label="Кол-во человек" value={client.people_count} />}
               <DetailItem icon={User} label="Брокер" value={client.broker} />
               {client.premise_type && <DetailItem icon={Building} label="Тип помещения" value={client.premise_type} />}
               {!(category === "arenda" && (client.type === "Квартира" || client.type === "Квартиры")) && client.finishing && <DetailItem icon={Home} label="Отделка" value={client.finishing} />}

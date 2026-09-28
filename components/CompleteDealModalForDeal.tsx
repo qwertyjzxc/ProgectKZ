@@ -14,7 +14,7 @@ export default function CompleteDealModalForDeal({
   onClose,
   onDone,
 }: {
-  deal: { id: number; name: string; contract?: string; amount?: number; type?: string; category?: string; completion_date?: string };
+  deal: { id: number; name: string; contract?: string; amount?: number; type?: string; category?: string; date?: string; completion_date?: string };
   dealType?: string;
   category?: string;
   onClose: () => void;
@@ -47,7 +47,9 @@ export default function CompleteDealModalForDeal({
           amount: parseFloat(amount) || 0,
           completed: "Сделка",
           stage: "Сделка закрыта",
-          date: completionDate,
+          // Дату обращения не трогаем — у сделки она уже есть, иначе
+          // затрётся датой закрытия. completion_date — день закрытия.
+          ...(deal.date ? { date: deal.date } : {}),
           completion_date: completionDate,
           type: dealType || deal.type || "kvartiry",
           category: category || deal.category || "arenda",

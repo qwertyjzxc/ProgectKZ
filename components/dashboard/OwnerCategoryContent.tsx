@@ -12,7 +12,7 @@ import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Hom
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import MoneyInput from "@/components/MoneyInput";
-import { maskKzPhone } from "@/components/PhoneInput";
+import { formatPhone } from "@/components/PhoneInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 import { useProfile, profileName } from "@/lib/profile-context";
@@ -262,13 +262,8 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
     const dealType = OWNER_TO_DEAL_TYPE[category];
     const typeLabel = OWNER_TO_DEAL_TYPE_LABEL[category];
     try {
-      const updRes = await fetch("/api/owners/" + original.id + "?category=" + category, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Сделка" }),
-      });
-      if (!updRes.ok) throw new Error("Не удалось обновить собственника");
-
+      // Сначала сделка: если её создание упадёт, собственник останется
+      // нетронутым (иначе — пометка «Сделка» без самой сделки).
       const dealRes = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -281,7 +276,8 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
           amount: data.amount,
           stage: "Сделка закрыта",
           completed: "Сделка",
-          date: data.completion_date,
+          // Дата обращения — дата собственника, а не день закрытия
+          date: original.date || data.completion_date,
           contract: data.contract,
           phone: original.phone || "",
           district: original.district || "",
@@ -290,13 +286,26 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
           address: original.address || "",
           jk: original.jk || "",
           broker: original.broker || "",
-          area_unit: category === "doma" ? "м²" : (original.area_unit || "сот"),
+          area_unit: category === "zemlya" ? (original.area_unit || "сот") : "м²",
           notes: original.notes || "",
           completion_date: data.completion_date,
         }),
       });
       if (!dealRes.ok) throw new Error("Не удалось создать сделку");
-      await dealRes.json();
+      const createdDeal = await dealRes.json().catch(() => null);
+      const createdId = createdDeal && typeof createdDeal.id === "number" ? createdDeal.id : null;
+
+      const updRes = await fetch("/api/owners/" + original.id + "?category=" + category, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Сделка" }),
+      });
+      if (!updRes.ok) {
+        if (createdId) {
+          await fetch(`/api/deals/${createdId}?type=${dealType}`, { method: "DELETE" }).catch(() => {});
+        }
+        throw new Error("Не удалось обновить собственника");
+      }
 
       setOwners(prev => prev.map(o => o.id === original.id ? { ...o, status: "Сделка" } : o));
       setCompleteOwner(null);
@@ -549,7 +558,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900">{o.name || "—"}</div>
                         <div className="text-xs text-gray-400 flex items-center gap-1">
-                          <Phone className="w-3 h-3 shrink-0" />{o.phone ? maskKzPhone(o.phone) : "—"}
+                          <Phone className="w-3 h-3 shrink-0" />{o.phone ? formatPhone(o.phone) : "—"}
                         </div>
                       </div>
                     </div>

@@ -11,7 +11,7 @@ import { formatMoney } from "@/lib/format";
 import { useProfile } from "@/lib/profile-context";
 import DatePicker from "@/components/DatePicker";
 
-type MonthsKey = "3" | "6" | "12" | "all";
+type MonthsKey = "1" | "3" | "6" | "12" | "all";
 
 interface AnalyticsData {
   kpi: {
@@ -21,17 +21,21 @@ interface AnalyticsData {
     closedCount: number;
     totalCount: number;
     winRate: number;
+    lostDeals: number;
+    lostClients: number;
     pipeline: number;
     activeCount: number;
   };
   monthly: MonthPoint[];
   byStatus: Array<{ status: string; count: number }>;
   byCategory: Array<{ category: string; revenue: number; count: number }>;
+  byBrokerCategory: Array<{ broker: string; rows: Array<{ category: string; revenue: number; count: number }> }>;
   byType: Array<{ type: string; revenue: number; count: number }>;
   topBrokers: Array<{ broker: string; revenue: number; count: number }>;
 }
 
 const PERIODS: Array<{ key: MonthsKey; label: string }> = [
+  { key: "1", label: "1 мес" },
   { key: "3", label: "3 мес" },
   { key: "6", label: "6 мес" },
   { key: "12", label: "Год" },
@@ -91,6 +95,7 @@ function AnalyticsContent() {
 
   const [months, setMonths] = useState<MonthsKey>("12");
   const [category, setCategory] = useState("");
+  const [catBroker, setCatBroker] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -233,7 +238,7 @@ function AnalyticsContent() {
             <KpiCard icon={Scale} label="Медиана комиссии" value={data.kpi.closedCount ? formatMoney(data.kpi.median) : "—"} hint="типичная комиссия без выбросов" />
             <KpiCard icon={Calculator} label="Средняя комиссия" value={data.kpi.closedCount ? formatMoney(data.kpi.average) : "—"} hint="комиссия / закрытые" />
             <KpiCard icon={CheckCircle2} label="Закрыто сделок" value={String(data.kpi.closedCount)} hint={`всего в периоде: ${data.kpi.totalCount}`} />
-            <KpiCard icon={Percent} label="Конверсия в продажу" value={data.kpi.totalCount > 0 ? data.kpi.winRate + " %" : "—"} hint="закрытые / (закрытые + отказы)" />
+            <KpiCard icon={Percent} label="Конверсия в продажу" value={data.kpi.closedCount + data.kpi.lostDeals + data.kpi.lostClients > 0 ? data.kpi.winRate + " %" : "—"} hint={`закрытые / (закрытые + отказы ${data.kpi.lostDeals} + без сделки ${data.kpi.lostClients})`} />
             <KpiCard icon={Briefcase} label="В работе" value={formatMoney(data.kpi.pipeline)} hint={`${data.kpi.activeCount} активных сделок · суммы сделок`} />
           </div>
 
@@ -268,23 +273,41 @@ function AnalyticsContent() {
               )}
             </Card>
             <Card icon={Calculator} title="Аренда vs покупка" subtitle="Закрытые сделки по категориям">
-              {data.byCategory.length === 0 ? (
-                <p className="text-sm text-gray-400">Нет закрытых сделок за период</p>
-              ) : (
-                <div className="space-y-4">
-                  {data.byCategory.map(c => (
-                    <div key={c.category} className="flex items-center justify-between text-sm border rounded-lg px-4 py-3">
-                      <div>
-                        <p className="font-medium text-gray-900">{CATEGORY_LABELS[c.category] || c.category}</p>
-                        <p className="text-xs text-gray-400">{c.count} закрытых</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900">{formatMoney(c.revenue)}</p>
-                      </div>
-                    </div>
-                  ))}
+              {data.byBrokerCategory.length > 0 && (
+                <div className="mb-3">
+                  <select
+                    value={catBroker}
+                    onChange={e => setCatBroker(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-400"
+                  >
+                    <option value="">Все брокеры</option>
+                    {data.byBrokerCategory.map(b => (
+                      <option key={b.broker} value={b.broker}>{b.broker}</option>
+                    ))}
+                  </select>
                 </div>
               )}
+              {(() => {
+                const rows = catBroker
+                  ? (data.byBrokerCategory.find(b => b.broker === catBroker)?.rows || [])
+                  : data.byCategory;
+                if (rows.length === 0) return <p className="text-sm text-gray-400">Нет закрытых сделок за период</p>;
+                return (
+                  <div className="space-y-4">
+                    {rows.map(c => (
+                      <div key={c.category} className="flex items-center justify-between text-sm border rounded-lg px-4 py-3">
+                        <div>
+                          <p className="font-medium text-gray-900">{CATEGORY_LABELS[c.category] || c.category}</p>
+                          <p className="text-xs text-gray-400">{c.count} закрытых</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">{formatMoney(c.revenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </Card>
           </div>
         </>

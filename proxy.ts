@@ -25,9 +25,13 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  // getUser (а не getSession): валидирует токен на сервере и при необходимости
+  // молча обновляет пару access/refresh, записывая свежие куки через setAll.
+  // getSession только читает куки и протухшую/битую сессию не чинит —
+  // отсюда периодические вылеты на /login при живом пользователе.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
@@ -41,21 +45,21 @@ export async function proxy(request: NextRequest) {
     publicPrefixes.some((r) => pathname.startsWith(r));
 
   // 1. Гость → /login
-  if (!session && !isPublic) {
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
   // 2. Авторизованный на /login или /signup → /overview
-  if (session && publicRoutes.includes(pathname)) {
+  if (user && publicRoutes.includes(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/overview";
     return NextResponse.redirect(url);
   }
 
   // 3. Авторизованный на корне → /overview
-  if (session && pathname === "/") {
+  if (user && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/overview";
     return NextResponse.redirect(url);
