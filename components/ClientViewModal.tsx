@@ -207,7 +207,7 @@ export default function ViewClientModal({ client, category, isAdmin, onClose, on
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
-            {!client.phone_masked && <ClientDeals phone={client.phone || ""} name={client.name || ""} />}
+            {isAdmin && !client.phone_masked && <ClientDeals phone={client.phone || ""} name={client.name || ""} />}
             {(client.documents || "").trim() && ((() => {
               try {
                 const docs = JSON.parse(client.documents || "[]");

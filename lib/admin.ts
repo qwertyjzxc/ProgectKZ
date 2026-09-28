@@ -25,3 +25,10 @@ export async function isAdminUser(userId: string | null | undefined): Promise<bo
     return false;
   }
 }
+
+// Сброс кэша роли: вызывается при смене/удалении профиля, чтобы повышение
+// в админы не «дожидалось» TTL — иначе до 60с новые права не видны.
+export function invalidateAdminCache(userId?: string | null) {
+  if (userId) adminCache.delete(userId);
+  else adminCache.clear();
+}

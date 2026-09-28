@@ -236,20 +236,30 @@ function ProfileCard({ profile, onEdit, onDelete }: { profile: Profile; onEdit: 
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [loadingPass, setLoadingPass] = useState(false);
+  const [passError, setPassError] = useState("");
   const initials = profileInitials(profileName(profile) || profile.username);
   const avatarClass = colorMap[profile.avatar_color] || colorMap.blue;
 
   const togglePassword = async () => {
     if (showPassword) {
       setShowPassword(false);
+      setPassError("");
       return;
     }
     if (!password) {
       setLoadingPass(true);
-      const res = await getProfilePassword(profile.id);
-      setLoadingPass(false);
-      if (res.password !== undefined) {
-        setPassword(res.password);
+      setPassError("");
+      try {
+        const res = await getProfilePassword(profile.id);
+        if (res.password !== undefined) {
+          setPassword(res.password);
+        } else {
+          setPassError(res.error || "Не удалось получить пароль");
+        }
+      } catch {
+        setPassError("Сервер не ответил — попробуйте ещё раз");
+      } finally {
+        setLoadingPass(false);
       }
     }
     setShowPassword(true);
@@ -272,18 +282,21 @@ function ProfileCard({ profile, onEdit, onDelete }: { profile: Profile; onEdit: 
         {profile.username && <p>🔑 Логин: {profile.username}</p>}
         {profile.phone && <p>📱 {formatPhone(profile.phone)}</p>}
         {profile.has_password && (
-          <p className="flex items-center gap-1.5">
-            🔒 Пароль:{" "}
-            <span className="font-mono">{showPassword ? password : "••••••"}</span>
-            <button
-              type="button"
-              onClick={togglePassword}
-              className="text-gray-400 hover:text-gray-600 ml-auto"
-              title={showPassword ? "Скрыть пароль" : "Показать пароль"}
-            >
-              {loadingPass ? <Loader2 className="w-4 h-4 animate-spin" /> : showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </p>
+          <>
+            <p className="flex items-center gap-1.5">
+              🔒 Пароль:{" "}
+              <span className="font-mono">{showPassword ? password : "••••••"}</span>
+              <button
+                type="button"
+                onClick={togglePassword}
+                className="text-gray-400 hover:text-gray-600 ml-auto"
+                title={showPassword ? "Скрыть пароль" : "Показать пароль"}
+              >
+                {loadingPass ? <Loader2 className="w-4 h-4 animate-spin" /> : showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </p>
+            {passError && <p className="text-xs text-red-500">⚠ {passError}</p>}
+          </>
         )}
       </div>
 

@@ -1,34 +1,52 @@
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
+import { isAdminUser } from "@/lib/admin";
 
 export interface PhoneVisibility {
   isAdmin: boolean;
   profileNames: string[];
+  // null = нет живой сессии. Списки обязаны отвечать 401, а не тихо
+  // маскировать телефоны (админ с протухшей кукой получал "Скрыт").
+  userId: string | null;
 }
 
 // Кэш на инстанс (TTL 60с): visibility дёргается каждым списочным GET
 // (клиенты), без кэша это +1-2 хопа (~200-400мс) к каждому запросу.
-const visCache = new Map<string, { vis: PhoneVisibility; at: number }>();
+const visCache = new Map<string, { vis: Omit<PhoneVisibility, "userId">; at: number }>();
 const VIS_TTL_MS = 60 * 1000;
 
 // Профили auth-пользователя: собственные (user_id = userId) + подключённые (profile_links).
 // Имя профиля = "Имя Фамилия" (как в profile-context.profileName).
 // Перф: getSession читает JWT из кук локально (0 хопов) вместо getUser (целый
-// roundtrip к Auth API). Для чтения списков этого достаточно — proxy.ts уже
-// весь роутинг строит на getSession; строгий getUser остаётся на записи.
+// roundtrip к Auth API). Для чтения списков этого достаточно; если куки нет или
+// истекли — дёргаем getUser как фолбэк, чтобы залогиненный админ не считался
+// анонимом и не видел сплошную маску.
 export async function getPhoneVisibility(): Promise<PhoneVisibility> {
+  let userId: string | null = null;
   try {
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) return { isAdmin: false, profileNames: [] };
-    const hit = visCache.get(user.id);
-    if (hit && Date.now() - hit.at < VIS_TTL_MS) return hit.vis;
+    let user = session?.user ?? null;
+    if (!user) {
+      try {
+        const { data: { user: fresh } } = await supabase.auth.getUser();
+        user = fresh;
+      } catch {
+        user = null;
+      }
+    }
+    if (!user) return { isAdmin: false, profileNames: [], userId: null };
+    userId = user.id;
+    const hit = visCache.get(userId);
+    if (hit && Date.now() - hit.at < VIS_TTL_MS) return { ...hit.vis, userId };
 
-    const { data: ownedRaw } = await serviceClient
+    const { data: ownedRaw, error: ownedErr } = await serviceClient
       .from("profiles")
       .select("id, user_id, first_name, last_name, full_name, role")
       .eq("user_id", user.id);
+    // Ошибка БД раньше молча читалась как «не админ» — админ получал маску
+    // без единого следа в логах. Пробрасываем в catch: там лог + фолбэк.
+    if (ownedErr) throw new Error("profiles: " + ownedErr.message);
 
     const owned = (ownedRaw || []) as Array<{
       id: number; user_id: string; first_name?: string; last_name?: string; full_name?: string; role?: string;
@@ -57,16 +75,26 @@ export async function getPhoneVisibility(): Promise<PhoneVisibility> {
       .map(p => [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.full_name || "")
       .filter(Boolean);
 
-    const vis: PhoneVisibility = { isAdmin, profileNames };
-    visCache.set(user.id, { vis, at: Date.now() });
+    const vis: Omit<PhoneVisibility, "userId"> = { isAdmin, profileNames };
+    visCache.set(userId, { vis, at: Date.now() });
     if (visCache.size > 500) {
       const oldest = visCache.keys().next().value;
       if (oldest) visCache.delete(oldest);
     }
-    return vis;
-  } catch {
-    return { isAdmin: false, profileNames: [] };
+    return { ...vis, userId };
+  } catch (e) {
+    // Деградация обязана быть видимой в логах. isAdminUser (свой кэш +
+    // отдельный запрос) даёт админу второй шанс остаться админом.
+    console.error("[phone-visibility] не удалось получить видимость, телефоны замаскированы:", e);
+    const adminFallback = userId ? await isAdminUser(userId) : false;
+    return { isAdmin: adminFallback, profileNames: [], userId };
   }
+}
+
+// Сброс кэша видимости (смена роли/имени профиля, удаление пользователя).
+export function invalidatePhoneVisibility(userId?: string | null) {
+  if (userId) visCache.delete(userId);
+  else visCache.clear();
 }
 
 // Клиент считается «своим», если его broker совпадает с именем профиля текущего пользователя.

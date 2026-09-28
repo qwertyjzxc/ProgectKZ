@@ -7,6 +7,7 @@ import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
+import { unauthorized } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -89,6 +90,9 @@ export async function GET(
     ]);
     const { data, error } = rpcRes;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Без живой сессии — 401: раньше здесь был serviceClient без проверки,
+    // и запрос без кук отдавал всю базу (телефоны маскировались, остальное нет).
+    if (!vis.userId) return unauthorized();
     // Телефоны видит только тот, кто добавил клиента; админу видны все.
     return NextResponse.json({
       rows: maskRowsPhones((data?.rows || []) as Array<{ broker?: string; phone?: string }>, vis),

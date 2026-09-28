@@ -3,6 +3,16 @@
 import { serviceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { invalidateAdminCache } from "@/lib/admin";
+import { invalidatePhoneVisibility } from "@/lib/phone-visibility";
+
+// Роль/имя/составность профиля живут в серверных кэшах (60с): без сброса
+// повышение в админы и переименования до минуты не видны спискам.
+function bustProfileCaches(userId?: string | null) {
+  if (!userId) return;
+  invalidateAdminCache(userId);
+  invalidatePhoneVisibility(userId);
+}
 
 export async function adminCreateUser(data: {
   username: string;
@@ -143,6 +153,7 @@ export async function adminDeleteUser(profileId: number) {
       .eq("id", profileId);
     if (profileError) return { error: profileError.message };
 
+    bustProfileCaches(targetUserId);
     return { success: true };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Неизвестная ошибка удаления" };
@@ -199,6 +210,7 @@ export async function adminUpdateProfile(profileId: number, data: {
   if (error) return { error: error.message };
 
   const ownerId = (target?.user_id as string) || "";
+  bustProfileCaches(ownerId);
   if (ownerId && typeof update.username === "string" && update.username) {
     const { data: authUser } = await serviceClient.auth.admin.getUserById(ownerId);
     const meta = (authUser?.user?.user_metadata || {}) as Record<string, unknown>;
@@ -240,27 +252,39 @@ export async function getAllProfiles() {
 }
 
 export async function getProfilePassword(profileId: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Не авторизован" };
+  // try/catch обязателен: непойманный throw серверный экшен превращает в
+  // "unexpected response", а на клиенте это выглядит как вечная загрузка.
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Не авторизован" };
 
-  const { data: myProfiles } = await serviceClient
-    .from("profiles")
-    .select("role")
-    .eq("user_id", user.id);
+    const { data: myProfiles } = await serviceClient
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id);
 
-  if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
-    return { error: "Только администратор может просматривать пароли" };
+    if (!myProfiles || !myProfiles.some(p => p.role === "admin")) {
+      return { error: "Только администратор может просматривать пароли" };
+    }
+
+    const { data: profile, error: profileError } = await serviceClient
+      .from("profiles")
+      .select("password_enc")
+      .eq("id", profileId)
+      .maybeSingle();
+
+    if (profileError) return { error: "Не прочитать пароль из базы: " + profileError.message };
+    if (!profile) return { error: "Пользователь не найден" };
+    let pwd = "";
+    try {
+      pwd = decryptSecret((profile.password_enc as string) || "");
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Ошибка расшифровки" };
+    }
+    if (!pwd) return { error: "Сохранённый пароль не расшифровывается текущим ключом APP_PASSWORD_KEY. Задайте пароль заново через редактирование профиля." };
+    return { password: pwd };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Неизвестная ошибка" };
   }
-
-  const { data: profile } = await serviceClient
-    .from("profiles")
-    .select("password_enc")
-    .eq("id", profileId)
-    .single();
-
-  if (!profile) return { error: "Пользователь не найден" };
-  const pwd = decryptSecret((profile.password_enc as string) || "");
-  if (!pwd) return { error: "Сохранённый пароль не расшифровывается текущим ключом APP_PASSWORD_KEY. Задайте пароль заново через редактирование профиля." };
-  return { password: pwd };
 }
