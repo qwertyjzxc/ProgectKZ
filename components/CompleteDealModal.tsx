@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
 import { useEscapeKey } from "@/lib/use-escape";
+import { todayLocalISO } from "@/lib/format";
 
 const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
 
@@ -67,7 +68,7 @@ export default function CompleteDealModal({
   const [contract, setContract] = useState(client.contract || "");
   const [payment, setPayment] = useState("");
   const [ownerName, setOwnerName] = useState("");
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [completionDate, setCompletionDate] = useState(todayLocalISO());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

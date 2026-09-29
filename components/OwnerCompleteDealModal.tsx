@@ -9,11 +9,12 @@ import DatePicker from "@/components/DatePicker";
 import { OWNER_CATEGORY_LABELS, type OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
 import type { Owner } from "@/lib/owner-types";
 import { CheckCircle2, Loader2, X } from "lucide-react";
+import { todayLocalISO } from "@/lib/format";
 
 export default function OwnerCompleteDealModal({ owner, category, onClose, onDone }: { owner: Owner; category: OwnerCategory; onClose: () => void; onDone: (data: { contract: string; amount: number; completion_date: string }) => void }) {
   const [contract, setContract] = useState("");
   useEscapeKey(onClose);
-  const [amount, setAmount] = useState(owner.price ? String(owner.price) : "");  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState(owner.price ? String(owner.price) : "");  const [completionDate, setCompletionDate] = useState(todayLocalISO());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { ownerListLink } from "@/lib/notify-links";
+import { requireUser } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
   kvartiry: "owners_kvartiry",
@@ -20,6 +21,8 @@ const COLUMNS: Record<string, string[]> = {
 };
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const category = request.nextUrl.searchParams.get("category") || "";
   const table = TABLE_MAP[category];
   if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
@@ -51,6 +54,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const category = _request.nextUrl.searchParams.get("category") || "";
   const table = TABLE_MAP[category];
   if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });

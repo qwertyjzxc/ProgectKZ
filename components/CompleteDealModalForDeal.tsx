@@ -6,6 +6,7 @@ import DatePicker from "@/components/DatePicker";
 import { X, Loader2, CheckCircle2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
 import { useEscapeKey } from "@/lib/use-escape";
+import { todayLocalISO } from "@/lib/format";
 
 export default function CompleteDealModalForDeal({
   deal,
@@ -23,7 +24,7 @@ export default function CompleteDealModalForDeal({
   useEscapeKey(onClose);
   const [contract, setContract] = useState(deal.contract || "");
   const [amount, setAmount] = useState(deal.amount ? String(deal.amount) : "");
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [completionDate, setCompletionDate] = useState(todayLocalISO());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -51,7 +52,10 @@ export default function CompleteDealModalForDeal({
           // затрётся датой закрытия. completion_date — день закрытия.
           ...(deal.date ? { date: deal.date } : {}),
           completion_date: completionDate,
-          type: dealType || deal.type || "kvartiry",
+          // Таблицу определяет dealType (ключ вкладки); type не подменяем ключом —
+          // иначе в колонку типа попадает «kvartiry» и select в форме пустеет.
+          dealType: dealType || undefined,
+          ...(deal.type && !["kvartiry", "pomescheniya", "zemlya"].includes(deal.type) ? { type: deal.type } : {}),
           category: category || deal.category || "arenda",
           name: deal.name,
         }),

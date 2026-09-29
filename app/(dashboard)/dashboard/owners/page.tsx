@@ -20,8 +20,10 @@ function OwnersContent() {
     router.replace("/dashboard/owners?cat=" + category);
   };
 
+  // Выход из подстраницы: router.replace на тот же pathname без query
+  // Next дедуплицирует, поэтому полный переход (см. clients/page.tsx).
   const handleBack = () => {
-    router.replace("/dashboard/owners");
+    window.location.replace("/dashboard/owners");
   };
 
   return selectedCategory === null ? (

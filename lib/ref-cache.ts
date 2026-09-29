@@ -7,12 +7,19 @@ export function getReference(table: "districts" | "residential_complexes" | "res
   let p = cache.get(key);
   if (!p) {
     p = fetch("/api/" + key)
-      .then(res => res.json())
-      .then((data: unknown) => {
+      .then(async res => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data: unknown = await res.json();
         if (!Array.isArray(data)) return [];
         return (data as Array<{ name?: string }>).map(d => d.name || "").filter(Boolean);
       })
-      .catch(() => []);
+      .catch((err: Error) => {
+        // Ошибку не кэшируем на всю сессию: следующий вызов попробует ещё раз,
+        // а не покажет закэшированный пустой список справочников.
+        cache.delete(key);
+        console.warn("[ref-cache] Не удалось загрузить «" + key + "»:", err?.message || err);
+        return [] as string[];
+      });
     cache.set(key, p);
   }
   return p;

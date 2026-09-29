@@ -5,7 +5,7 @@ import { logActivity, buildChanges, DEAL_LABELS } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { dealListLink } from "@/lib/notify-links";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, todayRuAlmaty, toISODate } from "@/lib/format";
 import { isAdminUser } from "@/lib/admin";
 import { normalizeDealCategory, defaultAreaUnit } from "@/lib/deal-types";
 
@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
     commission: body.commission || 0,
     owner_name: body.owner_name || "",
     stage: body.stage || "Первичный контакт",
-    date: body.date || new Date().toLocaleDateString("ru-RU"),
+    // toLocaleDateString("ru-RU") на сервере (Vercel=UTC) писал вчерашний день
+    // до 05:00 по Алматы — дефолт считаем явно в Asia/Almaty.
+    date: body.date || todayRuAlmaty(),
     category: normalizeDealCategory(body.category),
     type: body.type || "",
     area: body.area || "",
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
     relief: body.relief || "",
     documents: body.documents || "",
     restrictions: body.restrictions || "",
-    completion_date: body.completion_date || "",
+    completion_date: toISODate(body.completion_date) || "",
   };
   const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

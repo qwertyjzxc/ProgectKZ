@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { Paperclip, Loader2, FileText, FileImage, X, File } from "lucide-react";
+import { validateUploadFile } from "@/lib/upload-guard";
 
 export interface AttachmentFile {
   name: string;
@@ -36,19 +37,29 @@ interface FileUploaderProps {
 
 export default function FileUploader({ files, onChange, title, accept, multiple = true }: FileUploaderProps) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const sel = Array.from(e.target.files || []);
     if (!sel.length || !multiple && sel.length > 1) return;
+    // Проверка до отправки: большой/запрещённый файл не уйдёт на сервер
+    for (const f of sel) {
+      const invalid = validateUploadFile(f);
+      if (invalid) { setError(invalid); e.target.value = ""; return; }
+    }
+    setError("");
     setUploading(true);
     try {
       const fd = new FormData();
       for (const f of sel) fd.append("files", f);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.files?.length) onChange([...files, ...data.files]);
-    } catch { /* ignore */ }
+      if (!res.ok) setError((data.error as string) || "Не удалось загрузить файл");
+      else if (data.files?.length) onChange([...files, ...data.files]);
+    } catch {
+      setError("Не удалось загрузить файл");
+    }
     setUploading(false);
     e.target.value = "";
   };
@@ -70,6 +81,7 @@ export default function FileUploader({ files, onChange, title, accept, multiple 
   return (
     <div>
       {title && <label className="text-xs text-gray-500 mb-1.5 block">{title}</label>}
+      {error && <p className="text-xs text-red-600 mb-1.5">{error}</p>}
       {files.length > 0 && (
         <ul className="space-y-1.5 mb-2">
           {files.map((f, i) => (

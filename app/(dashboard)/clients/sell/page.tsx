@@ -20,8 +20,10 @@ function SellClientsContent() {
     router.replace("/clients/sell?cat=" + category);
   };
 
+  // Выход из подстраницы: router.replace на тот же pathname без query
+  // Next дедуплицирует, поэтому полный переход (см. clients/page.tsx).
   const handleBack = () => {
-    router.replace("/clients/sell");
+    window.location.replace("/clients/sell");
   };
 
   return selectedCategory === null ? (

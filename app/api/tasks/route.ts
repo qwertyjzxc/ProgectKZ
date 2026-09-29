@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
+import { requireUser } from "@/lib/route-auth";
 
 export async function GET(request: NextRequest) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
 
   // Чистка завершённых задач — в GET /api/cleanup по крону, не здесь.
@@ -33,6 +36,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const body = await request.json();
   const status = body.status || "В работе";
@@ -86,6 +91,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const body = await request.json().catch(() => ({}));
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];

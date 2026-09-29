@@ -6,6 +6,7 @@ import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, canSeePhone, maskRowsPhones } from "@/lib/phone-visibility";
+import { requireUser } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -21,6 +22,8 @@ export async function GET(
     const { category, id } = await params;
     const table = TABLE_MAP[category];
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
+    const gate = await requireUser();
+    if (gate.denied) return gate.denied;
     const supabase = await createClient();
     const { data, error } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -41,6 +44,8 @@ export async function PUT(
     const table = TABLE_MAP[category];
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
+    const gate = await requireUser();
+    if (gate.denied) return gate.denied;
     const supabase = await createClient();
     const body = await request.json();
     const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
@@ -137,6 +142,8 @@ export async function DELETE(
     const table = TABLE_MAP[category];
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
+    const gate = await requireUser();
+    if (gate.denied) return gate.denied;
     const supabase = await createClient();
     // Удаление сразу возвращает строки — отдельный select не нужен.
     // Удаление и id автора — независимо, параллельно.

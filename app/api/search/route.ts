@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/admin";
+import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
+import { unauthorized } from "@/lib/route-auth";
 
 export interface SearchHit {
   kind: string;
@@ -32,15 +34,25 @@ export async function GET(request: NextRequest) {
   if (raw.length < 2) return NextResponse.json([]);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const isAdmin = user ? await isAdminUser(user.id) : false;
+  // Без сессии поиск не работает вовсе: раньше отдавал клиентов (с телефонами
+  // в подсказках) всем подряд — это обход маскировки из phone-visibility.
+  if (!user) return unauthorized();
+  const isAdmin = await isAdminUser(user.id);
+  // Телефон в подсказке показываем только если его вообще можно видеть
+  // (админ или брокер клиента) — иначе пустая строка.
+  const vis = await getPhoneVisibility();
+  const phoneOr = (phone: unknown, broker: unknown) =>
+    canSeePhone(typeof broker === "string" ? broker : undefined, vis)
+      ? String(phone || "")
+      : "";
 
   const [clientsA, clientsP, dealsK, dealsP, dealsZ, tasks, props] = await Promise.all([
-    safeQuery(supabase, "clients_arenda", "id,name,phone,address", raw, ["name", "phone", "address"], r => ({
-      kind: "Клиент", title: String(r.name || "—"), subtitle: [r.phone, r.address].filter(Boolean).join(" · ") + " · Аренда",
+    safeQuery(supabase, "clients_arenda", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
+      kind: "Клиент", title: String(r.name || "—"), subtitle: [phoneOr(r.phone, r.broker), r.address].filter(Boolean).join(" · ") + " · Аренда",
       href: "/clients",
     })),
-    safeQuery(supabase, "clients_prodaja", "id,name,phone,address", raw, ["name", "phone", "address"], r => ({
-      kind: "Клиент", title: String(r.name || "—"), subtitle: [r.phone, r.address].filter(Boolean).join(" · ") + " · Покупка",
+    safeQuery(supabase, "clients_prodaja", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
+      kind: "Клиент", title: String(r.name || "—"), subtitle: [phoneOr(r.phone, r.broker), r.address].filter(Boolean).join(" · ") + " · Покупка",
       href: "/clients/sell",
     })),
     ...(isAdmin ? [

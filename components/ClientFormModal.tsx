@@ -19,6 +19,7 @@ import {
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
 import { type Client, type ClientFormData } from "@/lib/client-types";
+import { todayLocalISO } from "@/lib/format";
 import { ChevronDown, X } from "lucide-react";
 
 function toDateInputValue(v: string): string {
@@ -63,7 +64,7 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
   const [address, setAddress] = useState(client?.address || "");
   const [jk, setJk] = useState(client?.jk || "");
   const [contract, setContract] = useState(client?.contract || "");
-  const [date, setDate] = useState(client?.date ? toDateInputValue(client.date) : new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(client?.date ? toDateInputValue(client.date) : todayLocalISO());
   const [name, setName] = useState(client?.name || "");
   const [phone, setPhone] = useState(client?.phone ? formatPhone(client.phone) : "");
   const [district, setDistrict] = useState(client?.district || "");

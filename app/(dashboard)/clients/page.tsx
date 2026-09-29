@@ -20,8 +20,11 @@ function ClientsContent() {
     router.replace("/clients?cat=" + category);
   };
 
+  // Выход из ?cat=/?view= подстраницы. router.replace("/clients") с текущего
+  // /clients?cat=... Next дедуплицирует (тот же pathname, query не указан) —
+  // URL не меняется и выйти невозможно. Полный переход гарантированно сбросит query.
   const handleBack = () => {
-    router.replace("/clients");
+    window.location.replace("/clients");
   };
 
   return selectedCategory === null ? (

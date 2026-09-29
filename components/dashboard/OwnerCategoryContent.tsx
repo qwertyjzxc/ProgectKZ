@@ -11,7 +11,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, CalendarDays, Banknote, FileText, User, Ruler, Building, Loader2, ArrowLeft, Check, ChevronDown, CheckSquare, Square, CheckCircle2 } from "lucide-react";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
-import MoneyInput from "@/components/MoneyInput";
 import { formatPhone } from "@/components/PhoneInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney, formatDateOnly } from "@/lib/format";
@@ -122,6 +121,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
   const [filterAreaMax, setFilterAreaMax] = useState("");
   const [filterAmountMin, setFilterAmountMin] = useState("");
   const [filterAmountMax, setFilterAmountMax] = useState("");
+  const [budgetInput, setBudgetInput] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -145,9 +145,32 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
     setFilterAreaMax("");
     setFilterAmountMin("");
     setFilterAmountMax("");
+    setBudgetInput("");
     setFilterDateFrom("");
     setFilterDateTo("");
     setSearchQuery("");
+  };
+
+  // Одно поле цены: "1500" → ровно 1500, "1000-1500" → диапазон от и до
+  const onBudgetChange = (text: string) => {
+    setBudgetInput(text);
+    const t = text.trim();
+    if (!t.includes("-")) {
+      const v = t.replace(/[^\d]/g, "");
+      setFilterAmountMin(v);
+      setFilterAmountMax(v);
+      return;
+    }
+    const parts = t.split("-");
+    const min = (parts[0] || "").replace(/[^\d]/g, "");
+    const max = (parts[1] || "").replace(/[^\d]/g, "");
+    if (!min || !max) {
+      setFilterAmountMin("");
+      setFilterAmountMax("");
+      return;
+    }
+    setFilterAmountMin(min);
+    setFilterAmountMax(max);
   };
 
   const fetchOwners = () => {
@@ -432,11 +455,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Цена, ₸</label>
-              <div className="flex items-center gap-2">
-                <MoneyInput value={filterAmountMin} onChange={setFilterAmountMin} placeholder="От" className="w-full h-9" />
-                <span className="text-xs text-gray-400">—</span>
-                <MoneyInput value={filterAmountMax} onChange={setFilterAmountMax} placeholder="До" className="w-full h-9" />
-              </div>
+              <Input value={budgetInput} onChange={e => onBudgetChange(e.target.value)} placeholder="Например: 1000-1500" className="h-9 w-full text-sm" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Дата обращения</label>

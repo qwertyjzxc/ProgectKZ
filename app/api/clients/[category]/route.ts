@@ -7,7 +7,8 @@ import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
-import { unauthorized } from "@/lib/route-auth";
+import { requireUser, unauthorized } from "@/lib/route-auth";
+import { todayRuAlmaty } from "@/lib/format";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -32,6 +33,17 @@ function splitWords(s: string | null): string[] {
   return s.split(/[^\p{L}\p{N}]+/gu).map(cleanWord).filter(w => w.length > 0);
 }
 
+// DatePicker шлёт ISO (YYYY-MM-DD), а RPC принимает только DD.MM.YYYY —
+// без конвертации условие в RPC не срабатывало и фильтр даты молча
+// игнорировался (пользователь получал все записи).
+function toRuDate(v: string | null): string | null {
+  const s = (v || "").trim();
+  if (!s) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  return s;
+}
+
 const LIST_DEFAULT_LIMIT = 200;
 const LIST_MAX_LIMIT = 500;
 
@@ -47,6 +59,10 @@ export async function GET(
 
     // --- Режим distincts: опции фильтров (район/ЖК) на всю категорию ---
     if (sp.get("distincts") === "1") {
+      // Сессия до данных: ветка раньше шла мимо проверки и отдавала списки
+      // районов/ЖК анониму через serviceClient.
+      const vis = await getPhoneVisibility();
+      if (!vis.userId) return unauthorized();
       const { data, error } = await serviceClient.rpc("get_clients_distincts", { p_table: table });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ districts: data?.districts || [], jk: data?.jk || [] });
@@ -83,8 +99,8 @@ export async function GET(
       p_amount_max: numOrNull(sp.get("amountMax")),
       p_area_min: numOrNull(sp.get("areaMin")),
       p_area_max: numOrNull(sp.get("areaMax")),
-      p_date_from: sp.get("dateFrom")?.trim() || null,
-      p_date_to: sp.get("dateTo")?.trim() || null,
+      p_date_from: toRuDate(sp.get("dateFrom")),
+      p_date_to: toRuDate(sp.get("dateTo")),
       }),
       getPhoneVisibility(),
     ]);
@@ -115,6 +131,8 @@ export async function POST(
   try {
     const { category } = await params;
     const { supabase, table } = await getTable(category);
+    const gate = await requireUser();
+    if (gate.denied) return gate.denied;
     const body = await request.json();
     const insertRow: Record<string, unknown> = {
       type: body.type || "",
@@ -122,7 +140,7 @@ export async function POST(
       address: body.address || "",
       jk: body.jk || "",
       contract: body.contract || "",
-      date: body.date || new Date().toLocaleDateString("ru-RU"),
+      date: body.date || todayRuAlmaty(),
       name: body.name || "",
       rooms: body.rooms || "",
       district: body.district || "",
@@ -221,6 +239,8 @@ export async function DELETE(
   try {
     const { category } = await params;
     const { supabase, table } = await getTable(category);
+    const gate = await requireUser();
+    if (gate.denied) return gate.denied;
     const body = await request.json().catch(() => ({}));
     const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];
     if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных клиентов" }, { status: 400 });

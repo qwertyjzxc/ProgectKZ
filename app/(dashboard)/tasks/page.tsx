@@ -128,6 +128,7 @@ function TasksContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editTask, setEditTask] = useState<EditableTask | null>(null);
 
@@ -283,12 +284,18 @@ function TasksContent() {
     setConfirmComplete(null);
     const newStatus = currentStatus === "Завершено" ? "В работе" : "Завершено";
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus, completed_at: newStatus === "Завершено" ? new Date().toISOString() : null } : t));
-    const res = await fetch("/api/tasks/" + id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
-    if (res.ok) {
-      const updated = await res.json();
-      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
-    } else {
+    try {
+      const res = await fetch("/api/tasks/" + id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
+      if (res.ok) {
+        const updated = await res.json();
+        setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+      } else {
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, status: currentStatus, completed_at: currentStatus === "Завершено" ? new Date().toISOString() : null } : t));
+        setActionError("Не удалось изменить статус задачи");
+      }
+    } catch {
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: currentStatus, completed_at: currentStatus === "Завершено" ? new Date().toISOString() : null } : t));
+      setActionError("Не удалось изменить статус задачи");
     }
   };
 
@@ -303,9 +310,11 @@ function TasksContent() {
         setTasks(prev => prev.map(x => x.id === temp.id ? saved : x));
       } else {
         setTasks(prev => prev.filter(x => x.id !== temp.id));
+        setActionError("Не удалось создать задачу");
       }
     } catch {
       setTasks(prev => prev.filter(x => x.id !== temp.id));
+      setActionError("Не удалось создать задачу");
     }
   };
 
@@ -320,15 +329,22 @@ function TasksContent() {
         setTasks(prevTasks => prevTasks.map(x => x.id === updated.id ? updated : x));
       } else if (prev) {
         setTasks(prevTasks => prevTasks.map(x => x.id === prev.id ? { ...x, ...prev } as Task : x));
+        setActionError("Не удалось сохранить задачу");
       }
     } catch {
       if (prev) setTasks(prevTasks => prevTasks.map(x => x.id === prev.id ? { ...x, ...prev } as Task : x));
+      setActionError("Не удалось сохранить задачу");
     }
   };
 
   const handleDelete = async (id: number) => {
-    const res = await fetch("/api/tasks/" + id, { method: "DELETE" });
-    if (res.ok) setTasks(prev => prev.filter(t => t.id !== id));
+    try {
+      const res = await fetch("/api/tasks/" + id, { method: "DELETE" });
+      if (res.ok) setTasks(prev => prev.filter(t => t.id !== id));
+      else setActionError("Не удалось удалить задачу");
+    } catch {
+      setActionError("Не удалось удалить задачу");
+    }
   };
 
   const allVisibleSelected = filtered.length > 0 && filtered.every(t => selectedIds.has(t.id));
@@ -349,7 +365,11 @@ function TasksContent() {
       if (res.ok) {
         setTasks(prev => prev.filter(t => !selectedIds.has(t.id)));
         exitDeleteMode();
+      } else {
+        setActionError("Не удалось удалить задачи");
       }
+    } catch {
+      setActionError("Не удалось удалить задачи");
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -472,6 +492,12 @@ function TasksContent() {
 
       {loading && <div className="bg-white rounded-xl shadow-sm border p-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /><p className="text-gray-500 mt-2">Загрузка из Supabase...</p></div>}
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700">Ошибка: {error}<button onClick={() => { setLoading(true); setError(null); fetchTasks(); }} className="ml-3 underline text-red-600 hover:text-red-800">Повторить</button></div>}
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700 flex items-center justify-between">
+          <span>Ошибка: {actionError}</span>
+          <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-600 text-lg leading-none px-1">×</button>
+        </div>
+      )}
 
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">

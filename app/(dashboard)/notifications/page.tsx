@@ -35,16 +35,23 @@ function NotificationsContent() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [taskModal, setTaskModal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchAll = useCallback(() => {
-    if (!currentProfile?.id) return;
-    fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setNotifications(data);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const fetchAll = useCallback(async () => {
+    // Профиль ещё грузится — не вешаем вечный спиннер, useEffect перезапустит
+    // функцию, когда профиль появится.
+    if (!currentProfile?.id) { setLoading(false); return; }
+    try {
+      const res = await fetch("/api/notifications?profile_id=" + currentProfile.id + "&all=1");
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error as string) || "Не удалось загрузить уведомления");
+      setNotifications(Array.isArray(data) ? data : []);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось загрузить уведомления");
+    } finally {
+      setLoading(false);
+    }
   }, [currentProfile]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -55,7 +62,8 @@ function NotificationsContent() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     window.dispatchEvent(new Event("notifications-updated"));
     try {
-      await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error("Не удалось отметить уведомление");
     } catch {
       fetchAll();
     }
@@ -66,7 +74,8 @@ function NotificationsContent() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     window.dispatchEvent(new Event("notifications-updated"));
     try {
-      await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
+      const res = await fetch("/api/notifications", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mark_all: true, profile_id: currentProfile.id }) });
+      if (!res.ok) throw new Error("Не удалось отметить уведомления");
     } catch {
       fetchAll();
     }
@@ -76,7 +85,8 @@ function NotificationsContent() {
     setNotifications(prev => prev.filter(n => n.id !== id));
     window.dispatchEvent(new Event("notifications-updated"));
     try {
-      await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error("Не удалось удалить уведомление");
     } catch {
       fetchAll();
     }
@@ -89,7 +99,8 @@ function NotificationsContent() {
     setNotifications([]);
     window.dispatchEvent(new Event("notifications-updated"));
     try {
-      await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true, profile_id: currentProfile.id }) });
+      const res = await fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true, profile_id: currentProfile.id }) });
+      if (!res.ok) throw new Error("Не удалось удалить уведомления");
     } catch {
       fetchAll();
     }
@@ -150,6 +161,17 @@ function NotificationsContent() {
       {loading ? (
         <div className="flex items-center justify-center py-24 text-gray-400">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />Загрузка…
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>Ошибка: {error}</span>
+          <button
+            type="button"
+            onClick={() => { setLoading(true); fetchAll(); }}
+            className="text-sm font-medium text-red-700 hover:text-red-900 border border-red-200 rounded-lg px-3 py-1.5 bg-white hover:bg-red-50 shrink-0"
+          >
+            Повторить
+          </button>
         </div>
       ) : notifications.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border p-12 text-center">

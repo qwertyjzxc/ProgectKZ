@@ -57,13 +57,24 @@ function ReferenceBooks() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    const [dRes, cRes] = await Promise.all([
-      fetch("/api/districts"),
-      fetch("/api/residential-complexes"),
-    ]);
-    if (dRes.ok) setDistricts(await dRes.json());
-    if (cRes.ok) setComplexes(await cRes.json());
-    setLoading(false);
+    // Сетевой сбой раньше оставлял вечный скелетон: finally ниже всегда снимает
+    // загрузку, а ошибка попадает в баннер (а не «Пусто» без объяснений).
+    let firstError = "";
+    try {
+      const [dRes, cRes] = await Promise.all([
+        fetch("/api/districts"),
+        fetch("/api/residential-complexes"),
+      ]);
+      if (dRes.ok) setDistricts(await dRes.json());
+      else firstError = firstError || (await dRes.json().catch(() => ({}))).error || "Не удалось загрузить районы";
+      if (cRes.ok) setComplexes(await cRes.json());
+      else firstError = firstError || (await cRes.json().catch(() => ({}))).error || "Не удалось загрузить жилые комплексы";
+    } catch {
+      firstError = firstError || "Не удалось загрузить справочники";
+    } finally {
+      setError(firstError);
+      setLoading(false);
+    }
   }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount; setState происходит после await
@@ -72,53 +83,81 @@ function ReferenceBooks() {
   const addDistrict = async () => {
     if (!newDistrict.trim()) return;
     setError("");
-    const res = await fetch("/api/districts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newDistrict }),
-    });
-    if (res.ok) {
-      setNewDistrict("");
-      load();
-    } else {
-      const data = await res.json();
-      setError(data.error || "Ошибка");
+    try {
+      const res = await fetch("/api/districts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newDistrict }),
+      });
+      if (res.ok) {
+        setNewDistrict("");
+        load();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Ошибка");
+      }
+    } catch {
+      setError("Не удалось добавить район");
     }
   };
 
   const deleteDistrict = async (id: number) => {
-    await fetch("/api/districts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    load();
+    try {
+      const res = await fetch("/api/districts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Не удалось удалить район");
+        return;
+      }
+      setError("");
+      load();
+    } catch {
+      setError("Не удалось удалить район");
+    }
   };
 
   const addComplex = async () => {
     if (!newComplex.trim()) return;
     setError("");
-    const res = await fetch("/api/residential-complexes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newComplex }),
-    });
-    if (res.ok) {
-      setNewComplex("");
-      load();
-    } else {
-      const data = await res.json();
-      setError(data.error || "Ошибка");
+    try {
+      const res = await fetch("/api/residential-complexes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newComplex }),
+      });
+      if (res.ok) {
+        setNewComplex("");
+        load();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Ошибка");
+      }
+    } catch {
+      setError("Не удалось добавить жилой комплекс");
     }
   };
 
   const deleteComplex = async (id: number) => {
-    await fetch("/api/residential-complexes", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    load();
+    try {
+      const res = await fetch("/api/residential-complexes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Не удалось удалить жилой комплекс");
+        return;
+      }
+      setError("");
+      load();
+    } catch {
+      setError("Не удалось удалить жилой комплекс");
+    }
   };
 
   if (loading) {

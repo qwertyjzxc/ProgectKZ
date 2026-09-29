@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,14 @@ import MoneyInput from "@/components/MoneyInput";
 import { getReference } from "@/lib/ref-cache";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { type Deal, type DealFormValues, DEAL_STATUSES, defaultAreaUnit } from "@/lib/deal-types";
-import { Upload, Trash2, FileText, X } from "lucide-react";
+import { toISODate } from "@/lib/format";
+import { Upload, Trash2, FileText, X, Loader2 } from "lucide-react";
 
 const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
 
 const COMMUNICATIONS_OPTIONS = ["Свет", "Вода", "Газ", "Интернет"];
 
-export default function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: Deal; onClose: () => void; onSave: (d: DealFormValues) => void; dealType?: string; category?: string }) {
+export default function DealFormModal({ deal, onClose, onSave, dealType, category }: { deal?: Deal; onClose: () => void; onSave: (d: DealFormValues) => void | Promise<void>; dealType?: string; category?: string }) {
   const [type, setType] = useState(deal?.type || "Квартира");
   useEscapeKey(onClose);
   const [area, setArea] = useState(deal?.area || "");
@@ -38,7 +39,9 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
   const [peopleCount, setPeopleCount] = useState(deal?.people_count ? String(deal.people_count) : "1");
   const [notes, setNotes] = useState(deal?.notes || "");
   const [completed, setCompleted] = useState(deal?.completed || "В процессе");
-  const [completionDate, setCompletionDate] = useState(deal?.completion_date || "");
+  // В БД лежит DD.MM.YYYY или ISO — <input type="date"> принимает только YYYY-MM-DD,
+  // иначе поле молча пустеет и «Сохранить» стирает дату завершения.
+  const [completionDate, setCompletionDate] = useState(deal?.completion_date ? toISODate(deal.completion_date) : "");
   const [broker, setBroker] = useState(deal?.broker || "");
   const [layout, setLayout] = useState(deal?.layout || "");
   const [renterType, setRenterType] = useState(deal?.renter_type || "");
@@ -62,6 +65,8 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
     try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return raw ? [{ name: raw, url: raw }] : []; }
   });
   const [docUploading, setDocUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const submitRef = useRef(false);
   const [restrictions, setRestrictions] = useState(deal?.restrictions || "");
   const dealCategory = deal?.category || category || "arenda";
   const isPomescheniya = (dealType || deal?.dealType) === "pomescheniya";
@@ -91,9 +96,15 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
     getReference("residential-complexes").then(c => { if (c.length) setJkOptions(c); });
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    // Двойной клик кнопки или Enter+клик раньше слали два POST/PUT на сервер —
+    // в БД появлялась дублирующая сделка (и две записи в журнале/уведомлениях).
+    if (submitRef.current) return;
+    submitRef.current = true;
+    setSaving(true);
+    try {
+      await onSave({
       type, area, address, jk, contract, date, name, phone, district, rooms,
       amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod,
       who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker,
@@ -101,9 +112,15 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
       plot_type: plotType, purpose, communications: communications.join(", "), access, plot_shape: plotShape, relief, documents: JSON.stringify(documents), restrictions,
       // Единицы выбираются только для земли; квартиры/помещения — всегда м²
       area_unit: isZemlya ? areaUnit : "м²", completion_date: completionDate,
-      stage: "Первичный контакт",
+      // Стадию при редактировании не сбрасываем — раньше каждое сохранение
+      // возвращало сделку в «Первичный контакт».
+      stage: deal?.stage || "Первичный контакт",
       category: dealCategory, dealType: dealType || "kvartiry",
-    });
+      });
+    } finally {
+      submitRef.current = false;
+      setSaving(false);
+    }
   };
 
   return (
@@ -216,7 +233,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
                     <label className={"flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors " + (docUploading ? "bg-gray-50 text-gray-400" : "hover:bg-blue-50 hover:border-blue-300 text-gray-500 hover:text-blue-600")}>
                       <Upload className="w-4 h-4" />
                       <span className="text-sm">{docUploading ? "Загрузка..." : "Загрузить файл"}</span>
-                      <input type="file" multiple className="hidden" onChange={handleDocUpload} disabled={docUploading} />
+                      <input type="file" multiple className="hidden" onChange={handleDocUpload} disabled={docUploading} accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" />
                     </label>
                   </div>
                 </div>
@@ -271,7 +288,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
           <div><label className="text-xs text-gray-500 mb-1 block">Заметки</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Заметки..." className="w-full rounded-lg border px-3 py-2 text-sm resize-y" /></div>
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" type="button" onClick={onClose} size="sm">Отмена</Button>
-            <Button type="submit" size="sm" className="bg-blue-600">{deal ? "Сохранить" : "Добавить"}</Button>
+            <Button type="submit" size="sm" className="bg-blue-600" disabled={saving}>{saving && <Loader2 className="w-4 h-4 animate-spin inline mr-1" />}{deal ? "Сохранить" : "Добавить"}</Button>
           </div>
         </form>
       </div>

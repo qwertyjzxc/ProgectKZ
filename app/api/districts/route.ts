@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireUser, requireAdmin } from "@/lib/route-auth";
 
 export async function GET() {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { data, error } = await supabase.from("districts").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -9,6 +12,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Справочник в UI — только у админа; раньше писать/удалять мог кто угодно.
+  const gate = await requireAdmin();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { name } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
@@ -21,6 +27,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const gate = await requireAdmin();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "ID обязателен" }, { status: 400 });

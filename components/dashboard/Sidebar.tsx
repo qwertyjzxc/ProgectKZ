@@ -88,6 +88,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (group === "deals") setDealsOpen(true);
   };
 
+  // Клик по пункту меню, который уже является текущим pathname, но с query
+  // в адресе (глубокая ссылка ?cat=/?view=?tab=...): Next дедуплицирует такой
+  // переход, и query не сбрасывается — делаем полный переход.
+  const subLinkGuard = (href: string) => (e: React.MouseEvent) => {
+    if (pathname === href && searchParams.toString()) {
+      e.preventDefault();
+      window.location.assign(href);
+    }
+  };
+
   return (
     <aside className={"fixed left-0 top-0 h-screen bg-white border-r flex flex-col z-30 transition-[width] duration-200 " + (collapsed ? "w-16" : "w-64")}>
       {/* Logo */}
@@ -161,6 +171,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <Link
                     key={sub.href}
                     href={sub.href}
+                    onClick={subLinkGuard(sub.href)}
                     className={
                       "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
                       + (isSubActive
@@ -206,6 +217,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <Link
                     key={sub.href}
                     href={sub.href}
+                    onClick={subLinkGuard(sub.href)}
                     className={
                       "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
                       + (isSubActive

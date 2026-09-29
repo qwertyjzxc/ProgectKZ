@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, buildUpdateMessage, TASK_LABELS } from "@/lib/activity";
+import { requireUser } from "@/lib/route-auth";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { id } = await params;
   const { data, error } = await supabase.from("tasks").select("*").eq("id", id).single();
@@ -12,6 +15,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { id } = await params;
   const body = await request.json();
@@ -95,6 +100,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const gate = await requireUser();
+  if (gate.denied) return gate.denied;
   const supabase = await createClient();
   const { id } = await params;
   const { data: existing } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();

@@ -301,7 +301,9 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const handleEdit = async (data: DealFormValues) => {
     if (!editDeal) return;
     setSaveError(null);
-    const res = await fetch("/api/deals/" + editDeal.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, type: dealType, category: category }) });
+    // type не подменяем ключом вкладки (это ломало select и портило данные):
+    // таблицу API выбирает по data.dealType, а type хранит человеческое значение.
+    const res = await fetch("/api/deals/" + editDeal.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, category: category }) });
     if (res.ok) {
       const updated = await res.json();
       setDeals(prev => prev.map(d => d.id === updated.id ? updated : d));
@@ -657,7 +659,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                         {d.completed || "—"}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.completion_date || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.completion_date ? formatDateOnly(d.completion_date) : "—"}</td>
                     <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                       {!deleteMode && (
                         <DropdownMenu>
@@ -697,7 +699,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
       )}
 
       {showAdd && <DealFormModal onClose={() => setShowAdd(false)} onSave={handleAdd} dealType={dealType} category={category} />}
-      {editDeal && <DealFormModal deal={editDeal} onClose={() => setEditDeal(null)} onSave={handleEdit} />}
+      {editDeal && <DealFormModal deal={editDeal} onClose={() => setEditDeal(null)} onSave={handleEdit} dealType={dealType} category={category} />}
 
       {viewDeal && (
         <DealViewModal
@@ -787,7 +789,7 @@ function DealsPageInner() {
       <DealTypeSelector
         category={selectedCategory}
         onSelect={handleSelectType}
-        onBack={() => router.replace("/deals")}
+        onBack={() => window.location.replace("/deals")}
       />
     );
   }
@@ -796,7 +798,7 @@ function DealsPageInner() {
     <DealsContent
       dealType={selectedType}
       category={selectedCategory}
-      onBack={() => router.replace("/deals?category=" + selectedCategory)}
+      onBack={() => window.location.replace("/deals?category=" + selectedCategory)}
     />
   );
 }

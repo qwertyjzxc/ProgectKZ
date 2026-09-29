@@ -12,7 +12,6 @@ import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatPhone, phoneToWa } from "@/components/PhoneInput";
-import MoneyInput from "@/components/MoneyInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney } from "@/lib/format";
 import { useProfile, profileName } from "@/lib/profile-context";
@@ -169,6 +168,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [filterAreaMax, setFilterAreaMax] = useState("");
   const [filterAmountMin, setFilterAmountMin] = useState("");
   const [filterAmountMax, setFilterAmountMax] = useState("");
+  const [budgetInput, setBudgetInput] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -194,9 +194,32 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     setFilterAreaMax("");
     setFilterAmountMin("");
     setFilterAmountMax("");
+    setBudgetInput("");
     setFilterDateFrom("");
     setFilterDateTo("");
     setSearchQuery("");
+  };
+
+  // Одно поле бюджета: "1500" → ровно 1500, "1000-1500" → диапазон от и до
+  const onBudgetChange = (text: string) => {
+    setBudgetInput(text);
+    const t = text.trim();
+    if (!t.includes("-")) {
+      const v = t.replace(/[^\d]/g, "");
+      setFilterAmountMin(v);
+      setFilterAmountMax(v);
+      return;
+    }
+    const parts = t.split("-");
+    const min = (parts[0] || "").replace(/[^\d]/g, "");
+    const max = (parts[1] || "").replace(/[^\d]/g, "");
+    if (!min || !max) {
+      setFilterAmountMin("");
+      setFilterAmountMax("");
+      return;
+    }
+    setFilterAmountMin(min);
+    setFilterAmountMax(max);
   };
 
   useEffect(() => {
@@ -312,11 +335,17 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         setTotalAll(cached.totalAll);
         setStatusCounts(cached.counts);
         setLoading(false);
+        setHasMore(cached.rows.length >= PAGE_SIZE);
       } else if (!hadRows) {
         setLoading(true);
       }
       setHasMore(true);
       setError(null);
+      // Новый сброс перебивает зависшую догрузку: устаревший «Показать ещё» уже
+      // прерван AbortController выше, а его finally выходит по неактуальному
+      // контроллеру, не сбрасывая флаг — иначе кнопка навсегда бы осталась
+      // disabled с «Загрузка…».
+      setLoadingMore(false);
     } else {
       setLoadingMore(true);
     }
@@ -338,6 +367,9 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         setTotalCount(total);
         setTotalAll(fetchedTotalAll);
         setStatusCounts(counts);
+        // Страница короче PAGE_SIZE — конец выборки; не ждать повторного клика
+        // «Показать ещё», чтобы поймать пустую вторую страницу.
+        setHasMore(page.length >= PAGE_SIZE);
         if (isDefaultView && !Array.isArray(data)) clientsCache[cacheKey] = { rows: page, total, totalAll: fetchedTotalAll, counts };
       } else {
         setClients(prev => [...prev, ...page]);
@@ -382,6 +414,12 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
     });
     delete distinctsCache[category];
   }, [category]);
+
+  // Опции фильтров Район/ЖК, пока список грузится (отдельный запрос, кэш на категорию)
+  useEffect(() => {
+    loadDistincts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadDistincts]);
 
   // Селекты/пилюли/категория — немедленно (без дебаунса): сервер отвечает ~130мс
   useEffect(() => {
@@ -506,8 +544,8 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const categoryLabel = CATEGORY_LABELS[category] || category;
 
   const isHouses = propertyType === "houses";
-  const isZemlyaSell = isHouses && category === "prodaja";
-  const showRoomsCol = !isZemlyaSell && false;
+  // Комнаты: показываем в разделе «Квартиры» (в остальных убраны по просьбе)
+  const showRoomsCol = propertyType === "apartments";
   const showJkCol = !isHouses && false;
 
   return (
@@ -648,11 +686,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label>
-              <div className="flex items-center gap-2">
-                <MoneyInput value={filterAmountMin} onChange={setFilterAmountMin} placeholder="От" className="w-full h-9" />
-                <span className="text-xs text-gray-400">—</span>
-                <MoneyInput value={filterAmountMax} onChange={setFilterAmountMax} placeholder="До" className="w-full h-9" />
-              </div>
+              <Input value={budgetInput} onChange={e => onBudgetChange(e.target.value)} placeholder="Например: 1000-1500" className="text-sm h-9" />
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Дата обращения</label>

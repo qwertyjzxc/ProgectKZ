@@ -33,7 +33,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const supabase = await createClient();
   const { id } = await params;
   const body = await request.json();
-  const table = getTable(body.type);
+  // Таблицу выбираем по dealType (ключ вкладки), а не по type: type в форме —
+  // это «Квартира/Дома/Помещение», по нему таблица не определить.
+  const table = getTable(body.dealType || body.type);
 
   const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
 
@@ -102,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         notifyAll({
           key: "deals_update",
           message: "Изменена сделка: «" + (snapshot.data.name || snapshot.existing?.name || "") + "»",
-          related_to: dealListLink(snapshot.body.type, snapshot.data.category || snapshot.existing?.category, snapshot.data.id),
+          related_to: dealListLink(snapshot.body.dealType || snapshot.body.type, snapshot.data.category || snapshot.existing?.category, snapshot.data.id),
           related_id: snapshot.data.id,
           actorUserId,
         }),

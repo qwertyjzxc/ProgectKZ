@@ -18,6 +18,7 @@ import {
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
 import type { OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
+import { todayLocalISO } from "@/lib/format";
 import { ChevronDown, X } from "lucide-react";
 
 function toDateInputValue(v: string): string {
@@ -76,7 +77,7 @@ export default function OwnerFormModal({ owner, category, onClose, onSave }: { o
   const [contractKind, setContractKind] = useState(owner?.contract_kind || "");
   const [status, setStatus] = useState(owner?.status || "Новый собственник");
   const [broker, setBroker] = useState(owner ? owner.broker || "" : profileName(currentProfile) || "");
-  const [date, setDate] = useState(owner?.date ? toDateInputValue(owner.date) : new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(owner?.date ? toDateInputValue(owner.date) : todayLocalISO());
   const [notes, setNotes] = useState(owner?.notes || "");
   const [documents, setDocuments] = useState<AttachmentFile[]>(() => {
     try {
