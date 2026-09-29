@@ -40,6 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
   rooms: "Кол-во комнат",
   area: "Площадь",
   amount: "Бюджет",
+  amount_min: "Бюджет (от)",
   type: "Тип недвижимости",
   contract: "Договор",
   furniture: "Меблировка",
@@ -121,7 +122,7 @@ function normalizeForCompare(key: string, v: unknown): string {
     else if (digits.length === 11 && digits.startsWith("7")) digits = digits.slice(1);
     return digits;
   }
-  if (key === "amount" || key === "people_count") {
+  if (key === "amount" || key === "amount_min" || key === "people_count") {
     const n = Number(v);
     return Number.isFinite(n) ? String(n) : "";
   }

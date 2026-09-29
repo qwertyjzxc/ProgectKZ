@@ -9,6 +9,7 @@ import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
 import { requireUser, unauthorized } from "@/lib/route-auth";
 import { todayRuAlmaty } from "@/lib/format";
+import { DEAL_DONE_STATUS } from "@/lib/client-status";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -86,8 +87,10 @@ export async function GET(
       p_limit: limit,
       p_offset: offset,
       p_types: sp.get("types") || null,
-      p_completed: sp.get("completed") || null,
+      p_completed: sp.get("completed") === "Без статуса" ? null : (sp.get("completed") || null),
+      p_no_status: sp.get("completed") === "Без статуса",
       p_active_only: sp.get("activeOnly") !== "0",
+      p_exclude_status: sp.get("activeOnly") !== "0" ? DEAL_DONE_STATUS : null,
       p_words: wordsOrNull(sp.get("search")),
       p_name_words: wordsOrNull(sp.get("name")),
       p_district: sp.get("district") || null,
@@ -145,6 +148,7 @@ export async function POST(
       rooms: body.rooms || "",
       district: body.district || "",
       amount: body.amount || 0,
+      amount_min: body.amount_min ?? null,
       furniture: body.furniture || "",
       rental_period: body.rental_period || "",
       phone: body.phone || "",

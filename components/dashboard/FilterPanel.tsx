@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import MoneyInput from "@/components/MoneyInput";
+import { parseBudgetRange } from "@/lib/budget-range";
 
 export interface SearchFilters {
   dealType: string;
@@ -30,6 +31,7 @@ export default function FilterPanel({
   const [rooms, setRooms] = useState<string | null>(null);
   const [budgetFrom, setBudgetFrom] = useState("");
   const [budgetTo, setBudgetTo] = useState("");
+  const [budgetInput, setBudgetInput] = useState("");
   const [areaFrom, setAreaFrom] = useState("");
   const [areaTo, setAreaTo] = useState("");
 
@@ -75,6 +77,14 @@ export default function FilterPanel({
     return () => clearTimeout(timer);
   }, [autoApply, dealType, propType, district, jc, rooms, budgetFrom, budgetTo, areaFrom, areaTo]);
 
+  // Одно поле бюджета: "1500" → ровно 1500, "1500-2000" → диапазон от и до
+  const onBudgetChange = (text: string) => {
+    setBudgetInput(text);
+    const r = parseBudgetRange(text);
+    setBudgetFrom(r.min);
+    setBudgetTo(r.max);
+  };
+
   const handleSearch = () => {
     onSearchRef.current?.({
       dealType,
@@ -97,6 +107,7 @@ export default function FilterPanel({
     setRooms(null);
     setBudgetFrom("");
     setBudgetTo("");
+    setBudgetInput("");
     setAreaFrom("");
     setAreaTo("");
   };
@@ -113,7 +124,7 @@ export default function FilterPanel({
         <div><label className="text-xs text-gray-500 mb-1.5 block">Район</label><select value={district} onChange={e => setDistrict(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Любой</option>{districtOptions.map(d => <option key={d}>{d}</option>)}</select></div>
         <div><label className="text-xs text-gray-500 mb-1.5 block">Жилой комплекс</label><select value={jc} onChange={e => setJc(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 px-3 py-1 text-sm bg-white focus:border-blue-400 outline-none"><option value="">Любой</option>{complexOptions.map(c => <option key={c}>{c}</option>)}</select></div>
         <div><label className="text-xs text-gray-500 mb-1.5 block">Кол-во комнат</label><div className="flex gap-1">{["1","2","3","4","5+"].map(v => (<button key={v} type="button" onClick={() => setRooms(rooms === v ? null : v)} className={"flex-1 h-9 rounded-lg border text-sm font-medium transition-colors " + (rooms === v ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50")}>{v}</button>))}</div></div>
-        <div className="flex gap-2"><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">Бюджет от</label><MoneyInput value={budgetFrom} onChange={setBudgetFrom} placeholder="От, ₸" className="bg-gray-50" /></div><div className="flex-1"><label className="text-xs text-gray-500 mb-1.5 block">до</label><MoneyInput value={budgetTo} onChange={setBudgetTo} placeholder="До, ₸" className="bg-gray-50" /></div></div>
+        <div><label className="text-xs text-gray-500 mb-1.5 block">Бюджет, ₸</label><Input value={budgetInput} onChange={e => onBudgetChange(e.target.value)} placeholder="Например: 1500-2000" className="h-9 bg-gray-50 text-sm" /></div>
       </div>
       {autoApply ? (
         <p className="text-xs text-gray-400 mt-4">Объявления обновляются автоматически при изменении фильтров.</p>

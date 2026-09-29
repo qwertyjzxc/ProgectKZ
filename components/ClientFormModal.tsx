@@ -8,7 +8,6 @@ import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import PhoneInput, { formatPhone } from "@/components/PhoneInput";
-import MoneyInput from "@/components/MoneyInput";
 import FileUploader, { type AttachmentFile } from "@/components/FileUploader";
 import { getReference } from "@/lib/ref-cache";
 import {
@@ -20,6 +19,7 @@ import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { useProfile, profileName } from "@/lib/profile-context";
 import { type Client, type ClientFormData } from "@/lib/client-types";
 import { todayLocalISO } from "@/lib/format";
+import { parseBudgetCard, budgetToInput, formatBudgetInput } from "@/lib/budget-range";
 import { ChevronDown, X } from "lucide-react";
 
 function toDateInputValue(v: string): string {
@@ -69,7 +69,7 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
   const [phone, setPhone] = useState(client?.phone ? formatPhone(client.phone) : "");
   const [district, setDistrict] = useState(client?.district || "");
   const [rooms, setRooms] = useState(client?.rooms || "");
-  const [amount, setAmount] = useState(client?.amount ? String(client.amount) : "");
+  const [amount, setAmount] = useState(client ? formatBudgetInput(budgetToInput(client.amount_min ?? null, client.amount ?? 0)) : "");
   const [furniture, setFurniture] = useState(client?.furniture || "");
   const [rentalPeriod, setRentalPeriod] = useState(client?.rental_period || "");
   const [whoLives, setWhoLives] = useState(client?.who_lives || "");
@@ -137,9 +137,10 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
       return;
     }
     setFormError("");
+    const budget = parseBudgetCard(amount);
     const payload: ClientFormData = {
       type, area, address, jk, contract, date: fromDateInputValue(date), name, phone, district, rooms,
-      amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod, who_lives: whoLives,
+      amount: budget.max ?? 0, amount_min: budget.min, furniture, rental_period: rentalPeriod, who_lives: whoLives,
       people_count: parseInt(peopleCount) || 1, notes, completed, broker,
       documents: JSON.stringify(documents),
       preferences, client_category: clientCategory, tags: JSON.stringify(tags),
@@ -208,7 +209,7 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
               <div><label className="text-xs text-gray-500 mb-1 block">Площадь, м²</label><Input value={area} onChange={e => setArea(e.target.value)} placeholder="120" className="text-sm" /></div>
             )}
             <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
-            <div><label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label><MoneyInput value={amount} onChange={setAmount} placeholder="0" /></div>
+            <div><label className="text-xs text-gray-500 mb-1 block">Бюджет, ₸</label><Input value={amount} onChange={e => setAmount(formatBudgetInput(e.target.value))} placeholder="Например: 1000-1500" className="text-sm" /></div>
             {type !== "Земля" && (
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Меблировка</label>

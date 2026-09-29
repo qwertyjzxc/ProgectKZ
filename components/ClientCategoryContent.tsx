@@ -14,6 +14,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatPhone, phoneToWa } from "@/components/PhoneInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney } from "@/lib/format";
+import { formatBudgetRange } from "@/lib/budget-range";
+import { parseBudgetRange } from "@/lib/budget-range";
 import { useProfile, profileName } from "@/lib/profile-context";
 
 const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
@@ -445,7 +447,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const clientStatusList = useMemo(() => {
     return Object.entries(statusCounts.byType)
       .sort((a, b) => b[1] - a[1])
-      .map(([s]) => s)
+      .map(([s]) => (s === "" ? "Без статуса" : s))
       // Мусорные статусы (числа вроде "1" из старых импортов) пилюлями не показываем
       .filter(s => s.trim() !== "" && isNaN(Number(s)));
   }, [statusCounts.byType]);
@@ -725,7 +727,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           // кроме самого статуса). Пока RPC старый (byStatusAll null) —
           // fallback на byType (scope вкладки без фильтров).
           const facet = statusCounts.byStatusAll ?? statusCounts.byType;
-          const count = facet[s] ?? 0;
+          const count = s === "Без статуса" ? (facet[""] ?? 0) : (facet[s] ?? 0);
           const active = filterCompleted === s;
           return (
             <button
@@ -863,7 +865,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                   {showJkCol && <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.jk || "—"}</td>}
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
-                    {c.amount ? formatMoney(c.amount) : "—"}
+                    {formatBudgetRange(c.amount_min ?? null, c.amount ?? null) || "—"}
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-500">{c.date || "—"}</td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>

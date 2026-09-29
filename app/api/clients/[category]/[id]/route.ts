@@ -66,6 +66,7 @@ export async function PUT(
       rooms: body.rooms,
       district: body.district,
       amount: body.amount,
+      amount_min: body.amount_min,
       furniture: body.furniture,
       rental_period: body.rental_period,
       phone: canEditPhone ? body.phone : existing?.phone,

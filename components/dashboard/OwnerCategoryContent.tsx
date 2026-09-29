@@ -14,6 +14,7 @@ import DatePicker from "@/components/DatePicker";
 import { formatPhone } from "@/components/PhoneInput";
 import PillSettingsGear, { usePillVisibility } from "@/components/PillSettingsGear";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import { parseBudgetRange } from "@/lib/budget-range";
 import { useProfile, profileName } from "@/lib/profile-context";
 import { OWNER_CATEGORY_LABELS, type OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
 import { type Owner, OWNER_STATUSES, completedColors } from "@/lib/owner-types";
@@ -154,23 +155,9 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
   // Одно поле цены: "1500" → ровно 1500, "1000-1500" → диапазон от и до
   const onBudgetChange = (text: string) => {
     setBudgetInput(text);
-    const t = text.trim();
-    if (!t.includes("-")) {
-      const v = t.replace(/[^\d]/g, "");
-      setFilterAmountMin(v);
-      setFilterAmountMax(v);
-      return;
-    }
-    const parts = t.split("-");
-    const min = (parts[0] || "").replace(/[^\d]/g, "");
-    const max = (parts[1] || "").replace(/[^\d]/g, "");
-    if (!min || !max) {
-      setFilterAmountMin("");
-      setFilterAmountMax("");
-      return;
-    }
-    setFilterAmountMin(min);
-    setFilterAmountMax(max);
+    const r = parseBudgetRange(text);
+    setFilterAmountMin(r.min);
+    setFilterAmountMax(r.max);
   };
 
   const fetchOwners = () => {

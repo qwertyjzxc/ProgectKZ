@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ClientDeals from "@/components/ClientDeals";
 import { formatMoney } from "@/lib/format";
+import { formatBudgetRange } from "@/lib/budget-range";
 import { formatPhone } from "@/components/PhoneInput";
 import { parseTags } from "@/lib/client-status";
 import { type Client, completedColors, getInitials } from "@/lib/client-types";
@@ -166,7 +167,7 @@ export default function ViewClientModal({ client, category, isAdmin, onClose, on
             </CardSection>
             <CardSection title="Договор и бюджет">
               <DetailItem icon={FileText} label="Номер договора" value={client.contract} />
-              <DetailItem icon={Banknote} label="Бюджет" value={client.amount ? formatMoney(client.amount) : null} />
+              <DetailItem icon={Banknote} label="Бюджет" value={formatBudgetRange(client.amount_min ?? null, client.amount ?? null) || null} />
               <DetailItem icon={CalendarDays} label="Дата обращения" value={client.date} />
               <DetailItem icon={Briefcase} label="Меблировка" value={client.furniture} />
               <DetailItem icon={CalendarDays} label="Срок аренды" value={client.rental_period} />

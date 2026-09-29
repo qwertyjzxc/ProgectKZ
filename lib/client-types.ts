@@ -9,6 +9,7 @@ export interface Client {
   rooms: string;
   district: string;
   amount: number;
+  amount_min?: number | null;
   furniture: string;
   rental_period: string;
   phone: string;
