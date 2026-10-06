@@ -197,6 +197,7 @@ export default function DealViewModal({ deal: viewDeal, dealType, category, onCl
             </CardSection>
             <CardSection title="Договор и бюджет">
               <DetailItem icon={FileText} label="Номер договора" value={viewDeal.contract} />
+              {viewDeal.contract_kind && <DetailItem icon={FileText} label="Вид договора" value={viewDeal.contract_kind} />}
               <DetailItem icon={Banknote} label="Сумма сделки" value={viewDeal.amount ? formatMoney(viewDeal.amount) : null} />
               <DetailItem icon={Home} label="Стадия" value={viewDeal.stage} />
               <DetailItem icon={CalendarDays} label="Дата обращения" value={viewDeal.date ? formatDateOnly(viewDeal.date) : null} />

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyAll } from "@/lib/notify";
 import { propertyListLink } from "@/lib/notify-links";
 import { toWebp } from "@/lib/image-convert";
+import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -16,6 +18,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const propertyType = formData.get("property_type")?.toString() || "";
   const rooms = parseInt(formData.get("rooms")?.toString() || "0") || null;
   const address = formData.get("address")?.toString() || "";
+  const district = formData.get("district")?.toString() || "";
   const city = formData.get("city")?.toString() || "";
   const buildingType = formData.get("building_type")?.toString() || "";
   const complexName = formData.get("complex_name")?.toString() || "";
@@ -41,20 +44,39 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (!ue) { const { data: ud } = supabase.storage.from("property-images").getPublicUrl(fileName); newUrls.push(ud.publicUrl); }
     }
   }
-const updateData: Record<string, any> = { title, price, property_type: propertyType, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts };
+  // Старая строка — для журнала изменений (что именно поменялось)
+  const { data: existing } = await supabase.from("properties").select("*").eq("id", id).maybeSingle();
+  const updateData: Record<string, unknown> = { title, price, property_type: propertyType, rooms, address, district, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts };
   if (newUrls.length > 0) { updateData.image_url = newUrls[0]; updateData.image_urls = newUrls; }
-  const { data, error } = await supabase.from("properties").update(updateData).eq("id", id).select().single();
+  // updateWithColumnFallback: пока миграция properties-district не применена, поле сбросится, а не сломает сохранение
+  const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, "properties", updateData, id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const updated = data;
   const link = propertyListLink(data.id);
+  const changes = buildChanges(
+    (existing || {}) as Record<string, unknown>,
+    updated as Record<string, unknown>
+  );
   after(async () => {
-    await notifyAll({
-      key: "objects_update",
-      message: "Изменён объект: «" + (updated.title || "") + "»",
-      related_to: link,
-      related_id: null,
-      actorUserId: user.id,
-    });
+    await Promise.all([
+      changes.length > 0
+        ? logActivity({
+            client_table: "properties",
+            client_id: updated.id,
+            client_name: updated.title || "",
+            action: "update",
+            message: buildUpdateMessage(changes),
+            changes,
+          })
+        : Promise.resolve(),
+      notifyAll({
+        key: "objects_update",
+        message: "Изменён объект: «" + (updated.title || "") + "»",
+        related_to: link,
+        related_id: null,
+        actorUserId: user.id,
+      }),
+    ]);
   });
   return NextResponse.json(data);
 }
@@ -71,12 +93,21 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const goneTitle = property?.title || "";
   const goneUserId = user.id;
   after(async () => {
-    await notifyAll({
-      key: "objects_delete",
-      message: "Удалён объект: «" + goneTitle + "»",
-      related_to: "/dashboard/ours",
-      actorUserId: goneUserId,
-    });
+    await Promise.all([
+      logActivity({
+        client_table: "properties",
+        client_id: id,
+        client_name: goneTitle,
+        action: "delete",
+        message: "Удалил объект: «" + goneTitle + "»",
+      }),
+      notifyAll({
+        key: "objects_delete",
+        message: "Удалён объект: «" + goneTitle + "»",
+        related_to: "/dashboard/ours",
+        actorUserId: goneUserId,
+      }),
+    ]);
   });
   return NextResponse.json({ success: true });
 }

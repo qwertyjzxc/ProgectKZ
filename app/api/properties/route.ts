@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { propertyListLink } from "@/lib/notify-links";
 import { toWebp } from "@/lib/image-convert";
+import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
+import { logActivity, buildChanges } from "@/lib/activity";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -59,6 +61,7 @@ export async function POST(request: NextRequest) {
   const propertyType = formData.get("property_type")?.toString() || "";
   const rooms = parseInt(formData.get("rooms")?.toString() || "0") || null;
   const address = formData.get("address")?.toString() || "";
+  const district = formData.get("district")?.toString() || "";
   const city = formData.get("city")?.toString() || "";
   const buildingType = formData.get("building_type")?.toString() || "";
   const complexName = formData.get("complex_name")?.toString() || "";
@@ -86,20 +89,31 @@ export async function POST(request: NextRequest) {
     }
   }
   const mainImage = imageUrls[0] || "";
-  const { data, error } = await supabase.from("properties").insert({ title, price, property_type: propertyType, rooms, address, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts, image_url: mainImage, image_urls: imageUrls }).select().single();
+  // insertWithColumnFallback: пока миграция properties-district не применена, поле сбросится, а не сломает создание
+  const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, "properties", { title, price, property_type: propertyType, rooms, address, district, city, building_type: buildingType, complex_name: complexName, year_built: yearBuilt, area, bathroom, ceiling_height: ceilingHeight, description, status, contract_number: contractNumber, payment_method: paymentMethod, contacts, image_url: mainImage, image_urls: imageUrls });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const created = data;
     const link = propertyListLink(data.id);
     after(async () => {
       const actorUserId = await getActorUserId(supabase);
-      await notifyAll({
-        key: "objects_create",
-        message: "Новый объект: «" + (created.title || "") + "»",
-        related_to: link,
-        // id объекта — UUID, в related_id (int) не влезает
-        related_id: null,
-        actorUserId,
-      });
+      await Promise.all([
+        logActivity({
+          client_table: "properties",
+          client_id: created.id,
+          client_name: created.title || "",
+          action: "create",
+          message: "Добавил объект",
+          changes: buildChanges({}, created as Record<string, unknown>),
+        }),
+        notifyAll({
+          key: "objects_create",
+          message: "Новый объект: «" + (created.title || "") + "»",
+          related_to: link,
+          // id объекта — UUID, в related_id (int) не влезает
+          related_id: null,
+          actorUserId,
+        }),
+      ]);
     });
     return NextResponse.json(data, { status: 201 });
 }

@@ -98,12 +98,20 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
   const [tags, setTags] = useState<string[]>(() => parseTags(client?.tags));
   const [premiseType, setPremiseType] = useState(client?.premise_type || "");
   const [finishing, setFinishing] = useState(client?.finishing || "");
-  const [contractType, setContractType] = useState(client?.contract_type || "");
+  const contractType = client?.contract_type || "";
   const [contractKind, setContractKind] = useState(client?.contract_kind || "");
   const [reason, setReason] = useState(client?.reason || "");
   const [statusComment, setStatusComment] = useState(client?.status_comment || "");
   const [resumeDate, setResumeDate] = useState(client?.resume_date || "");
   const [formError, setFormError] = useState("");
+
+  // ТЗ: причины приостановки различаются по разделам (аренда/покупка);
+  // уже сохранённую причину показываем, даже если её нет в новом списке
+  const reasonOptions = useMemo(() => {
+    const opts = reasonsFor(completed, category);
+    if (reason && !opts.includes(reason)) return [...opts, reason];
+    return opts;
+  }, [completed, category, reason]);
 
   const toggleTag = (tag: string) => {
     setTags(prev => (prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]));
@@ -277,7 +285,7 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
             {needsReason(completed) && (
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Причина *</label>
-                <Select label="Выберите причину" value={reason} onChange={setReason} options={reasonsFor(completed)} />
+                <Select label="Выберите причину" value={reason} onChange={setReason} options={reasonOptions} />
               </div>
             )}
             {needsReason(completed) && reason === "Другое" && (
@@ -307,12 +315,6 @@ export default function ClientFormModal({ client, onClose, onSave, defaultType, 
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Отделка</label>
                 <Select label="Не указано" value={finishing} onChange={setFinishing} options={[...FINISHING_TYPES]} />
-              </div>
-            )}
-            {!(category === "arenda" && (type === "Квартира" || type === "Квартиры")) && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Тип договора</label>
-                <Input value={contractType} onChange={e => setContractType(e.target.value)} placeholder="Агентский, ..." className="text-sm" />
               </div>
             )}
             <div>

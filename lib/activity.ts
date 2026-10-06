@@ -4,7 +4,8 @@ import { serviceClient } from "@/lib/supabase/service";
 export interface ActivityEntry {
   id: number;
   client_table: string;
-  client_id: number;
+  // properties: id объекта — UUID, остальные таблицы — числовые
+  client_id: number | string;
   client_name: string;
   action: string;
   message: string;
@@ -28,6 +29,11 @@ export const ACTIVITY_TABLE_LABELS: Record<string, string> = {
   deals_kvartiry: "Квартиры",
   deals_pomescheniya: "Помещения",
   deals_zemlya: "Земля",
+  owners_kvartiry: "Собственники · Квартиры",
+  owners_pomescheniya: "Собственники · Коммерция",
+  owners_doma: "Собственники · Дома",
+  owners_zemlya: "Собственники · Участки",
+  properties: "Объекты",
   tasks: "Задачи",
 };
 
@@ -73,6 +79,26 @@ const FIELD_LABELS: Record<string, string> = {
   commission: "Комиссия",
   payment: "Способ оплаты",
   owner_name: "Собственник",
+  // Поля собственников (owners_*)
+  price: "Цена",
+  status: "Статус",
+  condition: "Состояние",
+  house_area: "Площадь дома",
+  land_area: "Площадь участка",
+  location_line: "Расположение",
+  // Поля объектов (properties)
+  title: "Название",
+  city: "Город",
+  property_type: "Тип объекта",
+  building_type: "Тип дома",
+  complex_name: "Жилой комплекс",
+  year_built: "Год постройки",
+  bathroom: "Санузел",
+  ceiling_height: "Высота потолков",
+  contract_number: "Номер договора",
+  payment_method: "Способ оплаты",
+  contacts: "Контакты",
+  description: "Описание",
 };
 
 export const DEAL_LABELS: Record<string, string> = {
@@ -100,11 +126,20 @@ const NOTIFICATION_ENTITY_LABELS: Record<string, string> = {
   clients: "Клиенты",
   deals: "Сделки",
   tasks: "Задачи",
+  owners: "Собственники",
+  properties: "Объекты",
 };
 
+// Сущность по таблице: clients_* → клиенты, deals_* → сделки, owners_* → собственники
+function entityOf(clientTable: string): string {
+  if (clientTable.startsWith("clients_")) return "clients";
+  if (clientTable.startsWith("deals_")) return "deals";
+  if (clientTable.startsWith("owners_")) return "owners";
+  return clientTable;
+}
+
 export function notificationKey(clientTable: string, action: string): string {
-  const entity = clientTable.startsWith("clients_") ? "clients" : clientTable.startsWith("deals_") ? "deals" : clientTable;
-  return `${entity}_${action}`;
+  return `${entityOf(clientTable)}_${action}`;
 }
 
 function fmtValue(v: unknown): string {
@@ -148,7 +183,7 @@ export function buildUpdateMessage(changes: FieldChange[]): string {
 
 export async function logActivity(entry: {
   client_table: string;
-  client_id: number;
+  client_id: number | string;
   client_name: string;
   action: "create" | "update" | "delete";
   message: string;
@@ -178,7 +213,7 @@ export async function logActivity(entry: {
       actor_name: actorName || "Сотрудник",
     });
 
-    const entity = entry.client_table.startsWith("clients_") ? "clients" : entry.client_table.startsWith("deals_") ? "deals" : entry.client_table;
+    const entity = entityOf(entry.client_table);
     const key = notificationKey(entry.client_table, entry.action);
     const skipIds = new Set<number>();
     if (user) {
@@ -206,7 +241,8 @@ export async function logActivity(entry: {
         message: `${actorName || "Сотрудник"} · ${entityLabel}: ${entry.message}${entry.client_name ? " — " + entry.client_name : ""}`,
         type: "activity",
         related_to: `/activity?table=${entry.client_table}&client=${entry.client_id}`,
-        related_id: entry.client_id,
+        // related_id в notifications — числовой; для UUID (properties) не подходит
+        related_id: typeof entry.client_id === "number" ? entry.client_id : null,
       }));
     if (rows.length > 0) {
       await serviceClient.from("notifications").insert(rows);

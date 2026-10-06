@@ -10,6 +10,7 @@ import MoneyInput from "@/components/MoneyInput";
 import { getReference } from "@/lib/ref-cache";
 import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { type Deal, type DealFormValues, DEAL_STATUSES, defaultAreaUnit } from "@/lib/deal-types";
+import { CONTRACT_KINDS } from "@/lib/client-status";
 import { toISODate } from "@/lib/format";
 import { Upload, Trash2, FileText, X, Loader2 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
   const [address, setAddress] = useState(deal?.address || "");
   const [jk, setJk] = useState(deal?.jk || "");
   const [contract, setContract] = useState(deal?.contract || "");
+  const [contractKind, setContractKind] = useState(deal?.contract_kind || "");
   const [date] = useState(deal?.date || new Date().toLocaleString("ru-RU").replace(",", "").slice(0, 16));
   const [name, setName] = useState(deal?.name || "");
   const [phone, setPhone] = useState(deal?.phone || "");
@@ -105,7 +107,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
     setSaving(true);
     try {
       await onSave({
-      type, area, address, jk, contract, date, name, phone, district, rooms,
+      type, area, address, jk, contract, contract_kind: contractKind, date, name, phone, district, rooms,
       amount: parseInt(amount) || 0, furniture, rental_period: rentalPeriod,
       who_lives: whoLives, people_count: parseInt(peopleCount) || 1, notes, completed, broker,
       layout, renter_type: renterType, payment, commission: parseInt(commission) || 0, owner_name: ownerName, finishing, premise_type: premiseType,
@@ -174,6 +176,13 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
             )}
             <div><label className="text-xs text-gray-500 mb-1 block">Сумма сделки, ₸</label><MoneyInput value={amount} onChange={setAmount} placeholder="25000000" /></div>
             <div><label className="text-xs text-gray-500 mb-1 block">Номер договора</label><Input value={contract} onChange={e => setContract(e.target.value)} placeholder="№ договора" className="text-sm" /></div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Вид договора</label>
+              <select value={contractKind} onChange={e => setContractKind(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
+                <option value="">Не указано</option>
+                {CONTRACT_KINDS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
             <div><label className="text-xs text-gray-500 mb-1 block">Комиссия агентства, ₸</label><MoneyInput value={commission} onChange={setCommission} placeholder="500 000" /></div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Способ оплаты</label>

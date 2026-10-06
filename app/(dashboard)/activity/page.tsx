@@ -127,7 +127,7 @@ function ActivityContent() {
     setLastNotifKey(notifKey);
     setTableFilter(notifTable!);
     setFromNotif(true);
-    const target = entries.find(e => e.client_table === notifTable && String(e.client_id) === String(Number(notifClient)));
+    const target = entries.find(e => e.client_table === notifTable && String(e.client_id) === String(notifClient));
     if (target) {
       setExpandedId(target.id);
       const tid = target.id;

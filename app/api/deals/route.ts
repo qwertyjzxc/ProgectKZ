@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     address: body.address || "",
     jk: body.jk || "",
     contract: body.contract || "",
+    contract_kind: body.contract_kind || "",
     phone: body.phone || "",
     district: body.district || "",
     rooms: body.rooms || "",

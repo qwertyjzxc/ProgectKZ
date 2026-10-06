@@ -157,7 +157,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const totalCols = (isZemlya ? 11 : isPomescheniya ? 14 : 10) + (deleteMode ? 1 : 0);
+  const totalCols = (isZemlya ? 12 : isPomescheniya ? 15 : 11) + (deleteMode ? 1 : 0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [completeDealTarget, setCompleteDealTarget] = useState<Deal | null>(null);
   const [showTask, setShowTask] = useState(false);
@@ -245,7 +245,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
     let result = deals;
     if (searchQuery) {
       result = result.filter(d =>
-        smartMatch(d.name, searchQuery) || smartMatch(d.phone, searchQuery) || smartMatch(d.district, searchQuery) || smartMatch(d.broker, searchQuery) || smartMatch(d.address, searchQuery) || smartMatch(d.jk, searchQuery)
+        smartMatch(d.name, searchQuery) || smartMatch(d.phone, searchQuery) || smartMatch(d.district, searchQuery) || smartMatch(d.broker, searchQuery) || smartMatch(d.address, searchQuery) || smartMatch(d.jk, searchQuery) || smartMatch(d.contract, searchQuery)
       );
     }
     if (filterClient) {
@@ -569,6 +569,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата завершения</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Договор</th>
                   <th className="px-4 py-3 w-12 sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300 rounded-tr-xl"></th>
                 </tr>
               </thead>
@@ -660,6 +661,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{d.completion_date ? formatDateOnly(d.completion_date) : "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{d.contract || "—"}</td>
                     <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                       {!deleteMode && (
                         <DropdownMenu>

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useEscapeKey } from "@/lib/use-escape";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, MapPin, Home, CalendarDays, Banknote, FileText, User, Ruler, Building, Loader2, ArrowLeft, Check, ChevronDown, CheckSquare, Square, CheckCircle2 } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Loader2, ArrowLeft, Check } from "lucide-react";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
 import { formatPhone } from "@/components/PhoneInput";
@@ -327,7 +327,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
     }
   };
 
-  const colCount = category === "kvartiry" ? 9 : category === "pomescheniya" ? 12 : category === "doma" ? 11 : 9;
+  const colCount = category === "zemlya" ? 10 : 13;
 
   return (
     <div>
@@ -518,22 +518,26 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
       {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border">
           <div className="table-scroll overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
-          <table className="w-full table-fixed text-left">
+          <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-100">
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Собственник</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Телефон</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район</th>
+                {(category === "kvartiry" || category === "doma") && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Кол-во комнат</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Тип</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Расположение</th>}
                 {category === "pomescheniya" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Отделка</th>}
                 {category === "doma" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Пл. дома</th>}
                 {category === "doma" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Пл. участка</th>}
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
+                {category !== "doma" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Адрес</th>
+                {category === "kvartiry" && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">ЖК</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Цена</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
+                {(category === "kvartiry" || category === "doma") && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Состояние</th>}
                 <th className="px-2 py-3 rounded-tr-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300"></th>
               </tr>
             </thead>
@@ -555,7 +559,7 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                   onClick={() => setViewOwner(o)}
                   className="cursor-pointer hover:bg-blue-50/40 transition-colors group"
                 >
-                  <td className="px-3 py-3 text-sm text-gray-500">{o.date ? formatDateOnly(o.date) : formatDateOnly(o.created_at)}</td>
+                  <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{o.date ? formatDateOnly(o.date) : formatDateOnly(o.created_at)}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-xs font-semibold shrink-0">
@@ -563,32 +567,35 @@ export default function OwnerCategoryContent({ category, onBack }: { category: O
                       </div>
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900">{o.name || "—"}</div>
-                        <div className="text-xs text-gray-400 flex items-center gap-1">
-                          <Phone className="w-3 h-3 shrink-0" />{o.phone ? formatPhone(o.phone) : "—"}
-                        </div>
                       </div>
                     </div>
                   </td>
+                  <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{o.phone ? formatPhone(o.phone) : "—"}</td>
                   <td className="px-3 py-3 text-sm text-gray-600">{o.district || "—"}</td>
+                  {(category === "kvartiry" || category === "doma") && <td className="px-3 py-3 text-sm text-gray-600">{o.rooms || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-600">{o.premise_type || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.location_line || "—"}</td>}
                   {category === "pomescheniya" && <td className="px-3 py-3 text-sm text-gray-600">{o.finishing || "—"}</td>}
                   {category === "doma" && <td className="px-3 py-3 text-sm text-gray-600">{o.house_area ? o.house_area + " м²" : "—"}</td>}
                   {category === "doma" && <td className="px-3 py-3 text-sm text-gray-600">{o.land_area ? o.land_area + " сот" : "—"}</td>}
-                  <td className="px-3 py-3 text-sm text-gray-600">
-                    {o.area ? o.area + (category === "zemlya" ? " " + (o.area_unit || "сот") : " м²") : "—"}
-                  </td>
+                  {category !== "doma" && (
+                    <td className="px-3 py-3 text-sm text-gray-600">
+                      {o.area ? o.area + (category === "zemlya" ? " " + (o.area_unit || "сот") : " м²") : "—"}
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.address || "—"}</td>
+                  {category === "kvartiry" && <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.jk || "—"}</td>}
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{o.broker || "—"}</td>
-                  <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                     {o.price ? formatMoney(o.price) : "—"}
                   </td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                     <Badge className={"text-xs " + (completedColors[o.status || ""] || "bg-gray-100 text-gray-700")}>
                       {o.status || "—"}
                     </Badge>
-                    {o.condition && <span className="block text-xs text-gray-500 mt-1">{o.condition}</span>}
+                    {(category === "pomescheniya" || category === "zemlya") && o.condition && <span className="block text-xs text-gray-500 mt-1">{o.condition}</span>}
                   </td>
+                  {(category === "kvartiry" || category === "doma") && <td className="px-3 py-3 text-sm text-gray-600">{o.condition || "—"}</td>}
                   <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">

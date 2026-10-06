@@ -23,12 +23,14 @@ export async function GET(request: NextRequest) {
     let query = supabase.from("client_activity").select("*");
 
     if (clientTable && clientId) {
-      query = query.eq("client_table", clientTable).eq("client_id", Number(clientId));
+      // Значение передаём строкой: PostgREST приведёт его к типу колонки —
+      // bigint (клиенты/сделки/собственники) и text (UUID объектов) оба работают
+      query = query.eq("client_table", clientTable).eq("client_id", clientId);
     }
 
     const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    const rows = (data || []) as Array<Record<string, unknown> & { client_table: string; client_id: number; changes: Array<{ field: string; label: string; oldValue: string; newValue: string }> | null }>;
+    const rows = (data || []) as Array<Record<string, unknown> & { client_table: string; client_id: number | string; changes: Array<{ field: string; label: string; oldValue: string; newValue: string }> | null }>;
 
     // Чужим сотрудникам телефон в журнале не показываем, админ видит всё
     const vis = await getPhoneVisibility();

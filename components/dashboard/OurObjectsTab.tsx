@@ -10,10 +10,11 @@ const AddPropertyForm = dynamic(() => import("@/components/AddPropertyForm"), { 
 import { useEscapeKey } from "@/lib/use-escape";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatMoney } from "@/lib/format";
+import { formatPhone } from "@/components/PhoneInput";
 
 interface Property {
   id: string; title: string; price: number; rooms: number | null;
-  address: string; city?: string; building_type?: string; complex_name?: string;
+  address: string; district?: string; city?: string; building_type?: string; complex_name?: string;
   year_built?: number; area?: number; bathroom?: string; ceiling_height?: number;
   description: string; image_url: string; image_urls?: string[]; status?: string;
   property_type?: string; contract_number?: string; payment_method?: string; contacts?: string; created_at?: string;
@@ -300,6 +301,7 @@ export default function OurObjectsTab() {
                   {p.property_type&&<span className="text-blue-600 font-medium">{p.property_type}</span>}
                   {p.rooms!=null&&<span>{p.rooms}-комн.</span>}
                   {p.area!=null&&<span>{p.area} м²</span>}
+                  {p.district&&<span>{p.district}</span>}
                   {p.city&&<span>{p.city}</span>}
                   {p.building_type&&<span>{p.building_type}</span>}
                   {p.complex_name&&<span>{p.complex_name}</span>}
@@ -312,7 +314,7 @@ export default function OurObjectsTab() {
                   <div className="pt-2 border-t mt-1.5 space-y-0.5 text-xs">
                     {p.contract_number&&<p><span className="text-gray-400">Договор:</span> <span className="text-gray-700 font-medium">{p.contract_number}</span></p>}
                     {p.payment_method&&<p><span className="text-gray-400">Оплата:</span> <span className="text-gray-700">{p.payment_method}</span></p>}
-                    {p.contacts&&<p><span className="text-gray-400">Контакты:</span> <span className="text-gray-700">{p.contacts}</span></p>}
+                    {p.contacts&&<p><span className="text-gray-400">Контакты:</span> <span className="text-gray-700">{formatPhone(p.contacts)||p.contacts}</span></p>}
                   </div>
                 )}
                 {!deleteMode && (
@@ -327,8 +329,8 @@ export default function OurObjectsTab() {
           })}
         </div>
       )}
-      {showAdd&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={()=>setShowAdd(false)}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={()=>setShowAdd(false)} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm onSuccess={()=>{load();setShowAdd(false);}}/></div></div>)}
-      {editProp&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeEdit}><div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={closeEdit} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm property={editProp} onSuccess={()=>{load();closeEdit();}}/></div></div>)}
+      {showAdd&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={()=>setShowAdd(false)}><div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={()=>setShowAdd(false)} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm onSuccess={()=>{load();setShowAdd(false);}}/></div></div>)}
+      {editProp&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeEdit}><div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-end mb-2"><Button variant="ghost" size="icon" onClick={closeEdit} className="text-white"><X className="w-5 h-5"/></Button></div><AddPropertyForm property={editProp} onSuccess={()=>{load();closeEdit();}}/></div></div>)}
 
       <ConfirmDialog
         open={deleteId !== null}

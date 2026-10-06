@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { ownerListLink } from "@/lib/notify-links";
+import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { requireUser } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
@@ -36,19 +37,41 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body[col] !== undefined) row[col] = body[col];
   }
 
+  const { data: existing } = await supabase
+    .from(table)
+    .select("*")
+    .eq("id", parseInt(id, 10))
+    .maybeSingle();
+
   const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row, parseInt(id, 10));
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const updated = data;
   const link = ownerListLink(category, data.id);
+  const changes = buildChanges(
+    (existing || {}) as Record<string, unknown>,
+    updated as Record<string, unknown>
+  );
   after(async () => {
     const actorUserId = await getActorUserId(supabase);
-    await notifyAll({
-      key: "objects_update",
-      message: "Изменён собственник: «" + (updated.name || "") + "»",
-      related_to: link,
-      related_id: updated.id,
-      actorUserId,
-    });
+    await Promise.all([
+      changes.length > 0
+        ? logActivity({
+            client_table: table,
+            client_id: updated.id,
+            client_name: updated.name || "",
+            action: "update",
+            message: buildUpdateMessage(changes),
+            changes,
+          })
+        : Promise.resolve(),
+      notifyAll({
+        key: "objects_update",
+        message: "Изменён собственник: «" + (updated.name || "") + "»",
+        related_to: link,
+        related_id: updated.id,
+        actorUserId,
+      }),
+    ]);
   });
   return NextResponse.json(data);
 }
@@ -71,12 +94,21 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const existingName = (nameRes.data as { name?: string } | null)?.name || "";
   const listLink = ownerListLink(category);
   after(async () => {
-    await notifyAll({
-      key: "objects_delete",
-      message: "Удалён собственник: «" + existingName + "»",
-      related_to: listLink,
-      actorUserId,
-    });
+    await Promise.all([
+      logActivity({
+        client_table: table,
+        client_id: parseInt(id, 10),
+        client_name: existingName,
+        action: "delete",
+        message: "Удалил собственника: «" + existingName + "»",
+      }),
+      notifyAll({
+        key: "objects_delete",
+        message: "Удалён собственник: «" + existingName + "»",
+        related_to: listLink,
+        actorUserId,
+      }),
+    ]);
   });
   return NextResponse.json({ success: true });
 }

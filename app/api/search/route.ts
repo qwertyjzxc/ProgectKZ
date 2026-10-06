@@ -58,15 +58,15 @@ export async function GET(request: NextRequest) {
     ...(isAdmin ? [
     safeQuery(supabase, "deals_kvartiry", "id,name,client,phone,amount,category", raw, ["name", "client", "phone"], r => ({
       kind: "Сделка", title: String(r.name || r.client || "—"), subtitle: [r.phone, r.amount ? Number(r.amount).toLocaleString("ru-RU") + " ₸" : ""].filter(Boolean).join(" · ") + " · Квартиры",
-      href: "/deals?category=" + (r.category || "arenda"),
+      href: "/deals?category=" + (r.category === "pokupka" || r.category === "prodaja" ? "pokupka" : "arenda") + "&type=kvartiry&view=" + r.id,
     })),
     safeQuery(supabase, "deals_pomescheniya", "id,name,client,phone,amount,category", raw, ["name", "client", "phone"], r => ({
       kind: "Сделка", title: String(r.name || r.client || "—"), subtitle: [r.phone, r.amount ? Number(r.amount).toLocaleString("ru-RU") + " ₸" : ""].filter(Boolean).join(" · ") + " · Помещения",
-      href: "/deals?category=" + (r.category || "arenda"),
+      href: "/deals?category=" + (r.category === "pokupka" || r.category === "prodaja" ? "pokupka" : "arenda") + "&type=pomescheniya&view=" + r.id,
     })),
     safeQuery(supabase, "deals_zemlya", "id,name,client,phone,amount,category", raw, ["name", "client", "phone"], r => ({
       kind: "Сделка", title: String(r.name || r.client || "—"), subtitle: [r.phone, r.amount ? Number(r.amount).toLocaleString("ru-RU") + " ₸" : ""].filter(Boolean).join(" · ") + " · Земля",
-      href: "/deals?category=" + (r.category || "arenda"),
+      href: "/deals?category=" + (r.category === "pokupka" || r.category === "prodaja" ? "pokupka" : "arenda") + "&type=zemlya&view=" + r.id,
     })),
     ] : [Promise.resolve([]), Promise.resolve([]), Promise.resolve([])]),
     safeQuery(supabase, "tasks", "id,title,client", raw, ["title", "client"], r => ({

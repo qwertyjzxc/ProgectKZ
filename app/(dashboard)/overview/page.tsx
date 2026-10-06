@@ -22,6 +22,8 @@ interface DealItem {
   name: string;
   amount: number;
   completed: string;
+  category?: string;
+  type?: string;
 }
 
 interface ActivityItem {
@@ -110,7 +112,7 @@ function OverviewContent() {
     { label: "Просрочено задач", value: data?.stats.overdue ?? "—", icon: AlertCircle, alert: (data?.stats.overdue || 0) > 0, href: "/tasks" },
     { label: "Срок сегодня", value: data?.stats.dueToday ?? "—", icon: CalendarDays, alert: false, href: "/tasks" },
     { label: "Моих задач", value: data?.stats.mine ?? "—", icon: UserCheck, alert: false, href: "/tasks" },
-    ...(isAdmin ? [{ label: "Активных сделок", value: data?.stats.activeDeals ?? "—", icon: Handshake, alert: false, href: "/deals?category=arenda" }] : []),
+    ...(isAdmin ? [{ label: "Активных сделок", value: data?.stats.activeDeals ?? "—", icon: Handshake, alert: false, href: "/deals" }] : []),
   ];
 
   return (
@@ -195,14 +197,14 @@ function OverviewContent() {
                   </h2>
                   <p className="text-sm text-gray-500 mt-0.5">Последние созданные</p>
                 </div>
-                <Link href="/deals?category=arenda" className="text-sm text-blue-600 hover:underline shrink-0">Все сделки</Link>
+                <Link href="/deals" className="text-sm text-blue-600 hover:underline shrink-0">Все сделки</Link>
               </div>
               {data.recentDeals.length === 0 ? (
                 <p className="text-sm text-gray-400">Сделок пока нет</p>
               ) : (
                 <div className="space-y-1">
                   {data.recentDeals.map(d => (
-                    <Link key={d.id} href="/deals?category=arenda" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors">
+                    <Link key={d.id} href={"/deals?category=" + d.category + "&type=" + d.type + "&view=" + d.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors">
                       <span className="flex-1 min-w-0">
                         <span className="block text-sm font-medium text-gray-900 truncate">{d.name || "Без названия"}</span>
                         <span className="block text-xs text-gray-400 mt-0.5">{d.completed || "—"}</span>

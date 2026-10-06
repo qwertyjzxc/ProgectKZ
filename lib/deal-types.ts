@@ -16,6 +16,7 @@ export interface Deal {
   address?: string;
   jk?: string;
   contract?: string;
+  contract_kind?: string;
   phone?: string;
   district?: string;
   rooms?: string;

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       }
       const { data, error } = await query;
       if (error || !data) continue;
-      for (const d of data as Record<string, unknown>[]) out.push({ ...d, dealType: t.table, typeLabel: t.label });
+      for (const d of data as Record<string, unknown>[]) out.push({ ...d, dealType: t.table, typeKey: t.table.replace(/^deals_/, ""), typeLabel: t.label });
     } catch {
       continue;
     }

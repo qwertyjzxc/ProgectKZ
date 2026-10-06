@@ -51,6 +51,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     address: body.address,
     jk: body.jk,
     contract: body.contract,
+    contract_kind: body.contract_kind,
     phone: body.phone,
     district: body.district,
     rooms: body.rooms,

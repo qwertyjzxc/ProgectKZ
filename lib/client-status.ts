@@ -30,6 +30,26 @@ export const PAUSE_REASONS = [
   "Другое",
 ];
 
+// ТЗ: эти причины приостановки — только для раздела «Покупка»
+export const PAUSE_REASONS_BUY_ONLY = [
+  "Ждёт продажи своей недвижимости",
+  "Ждёт одобрения ипотеки",
+  "Не определился с бюджетом",
+];
+
+// Причины приостановки по разделу: формулировка «отложил» и списки различаются
+// arenda — без покупных причин, prodaja — все, без категории — прежний общий вариант
+export function pauseReasonsFor(category?: string): string[] {
+  const postponed =
+    category === "arenda" ? "Отложил аренду" :
+    category === "prodaja" ? "Отложил покупку" :
+    "Отложил покупку/аренду";
+  const rest = PAUSE_REASONS.filter(
+    r => r !== "Отложил покупку/аренду" && !(category === "arenda" && PAUSE_REASONS_BUY_ONLY.includes(r))
+  );
+  return [postponed, ...rest];
+}
+
 export const CLOSE_REASONS = [
   "Купил/арендовал самостоятельно",
   "Купил/арендовал через другое агентство",
@@ -43,9 +63,32 @@ export const CLOSE_REASONS = [
   "Другое",
 ];
 
-export function reasonsFor(status: string): string[] {
-  if (status === PAUSED_STATUS) return PAUSE_REASONS;
-  if (status === CLOSED_LOST_STATUS) return CLOSE_REASONS;
+// ТЗ: причина закрытия — только для раздела «Покупка»
+export const CLOSE_REASONS_BUY_ONLY = ["Отказ банка / ипотеки"];
+
+// Причины закрытия по разделу: «купил/арендовал»-формулировки различаются,
+// «Отказ банка / ипотеки» — только покупка, без категории — прежний общий вариант
+export function closeReasonsFor(category?: string): string[] {
+  const arenda = category === "arenda";
+  const prodaja = category === "prodaja";
+  const split = (a: string, p: string, both: string) => (arenda ? a : prodaja ? p : both);
+  return [
+    split("Арендовал самостоятельно", "Купил самостоятельно", "Купил/арендовал самостоятельно"),
+    split("Арендовал через другое агентство", "Купил через другое агентство", "Купил/арендовал через другое агентство"),
+    split("Передумал арендовать", "Передумал покупать", "Передумал покупать/арендовать"),
+    "Не устроили цены",
+    "Не найден подходящий объект",
+    "Не выходит на связь",
+    "Нет финансирования",
+    ...(arenda ? [] : CLOSE_REASONS_BUY_ONLY),
+    "Изменились планы",
+    "Другое",
+  ];
+}
+
+export function reasonsFor(status: string, category?: string): string[] {
+  if (status === PAUSED_STATUS) return pauseReasonsFor(category);
+  if (status === CLOSED_LOST_STATUS) return closeReasonsFor(category);
   return [];
 }
 

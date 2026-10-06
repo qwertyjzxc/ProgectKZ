@@ -12,6 +12,7 @@ interface ClientDeal {
   amount: number;
   completed: string;
   category: string;
+  typeKey: string;
   typeLabel: string;
 }
 
@@ -54,7 +55,7 @@ export default function ClientDeals({ phone, name }: { phone: string; name: stri
         {deals.map(d => (
           <Link
             key={d.typeLabel + d.id}
-            href={"/deals?category=" + (d.category || "arenda")}
+            href={"/deals?category=" + (d.category === "pokupka" || d.category === "prodaja" ? "pokupka" : "arenda") + "&type=" + d.typeKey + "&view=" + d.id}
             className="flex items-center gap-3 border rounded-lg px-3 py-2.5 hover:border-blue-200 hover:bg-blue-50/40 transition-colors"
           >
             <span className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">

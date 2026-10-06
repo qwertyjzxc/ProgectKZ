@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId } from "@/lib/notify";
 import { ownerListLink } from "@/lib/notify-links";
+import { logActivity, buildChanges } from "@/lib/activity";
 import { requireUser } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
@@ -57,13 +58,23 @@ export async function POST(request: NextRequest) {
   const link = ownerListLink(category, data.id);
   after(async () => {
     const actorUserId = await getActorUserId(supabase);
-    await notifyAll({
-      key: "objects_create",
-      message: "Новый собственник: «" + (created.name || "") + "»",
-      related_to: link,
-      related_id: created.id,
-      actorUserId,
-    });
+    await Promise.all([
+      logActivity({
+        client_table: table,
+        client_id: created.id,
+        client_name: created.name || "",
+        action: "create",
+        message: "Добавил собственника",
+        changes: buildChanges({}, created as Record<string, unknown>),
+      }),
+      notifyAll({
+        key: "objects_create",
+        message: "Новый собственник: «" + (created.name || "") + "»",
+        related_to: link,
+        related_id: created.id,
+        actorUserId,
+      }),
+    ]);
   });
   return NextResponse.json(data, { status: 201 });
 }

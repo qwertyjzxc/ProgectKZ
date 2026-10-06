@@ -1,20 +1,24 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 import { formatPhone } from "@/components/PhoneInput";
 import { type Owner, completedColors } from "@/lib/owner-types";
 import { getInitials } from "@/lib/client-types";
+import type { ActivityEntry } from "@/lib/activity";
+import { useProfile } from "@/lib/profile-context";
 import { OWNER_CATEGORY_LABELS, type OwnerCategory } from "@/components/dashboard/OwnerCategorySelector";
-import { type LucideIcon, CalendarDays, CheckCircle2, Edit3, X, Home, MapPin, Building, Ruler, Building2, Banknote, FileText, Phone, User, Paperclip } from "lucide-react";
+import { type LucideIcon, CalendarDays, CheckCircle2, Edit3, X, History, Loader2, Trash2, Home, MapPin, Building, Ruler, Building2, Banknote, FileText, Phone, User, Paperclip } from "lucide-react";
 
 function CardSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-50/60 rounded-xl p-4">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</p>
-      <div className="space-y-3">{children}</div>
+    <div>
+      <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
     </div>
   );
 }
@@ -32,11 +36,46 @@ function DetailItem({ icon: Icon, label, value }: { icon: LucideIcon; label: str
   );
 }
 
+function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr || "";
+  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function ViewOwnerModal({ owner, category, onClose, onEdit, onComplete }: { owner: Owner; category: OwnerCategory; onClose: () => void; onEdit: () => void; onComplete: () => void }) {
   useEscapeKey(onClose);
+  const { currentProfile } = useProfile();
+  const isAdmin = currentProfile?.role === "admin";
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<ActivityEntry | null>(null);
+  const clientTable = "owners_" + category;
+
+  const loadActivity = useCallback(() => {
+    fetch("/api/activity?client_table=" + clientTable + "&client_id=" + owner.id)
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setActivity(data); })
+      .catch(() => {})
+      .finally(() => setActivityLoading(false));
+  }, [clientTable, owner.id]);
+
+  useEffect(() => { loadActivity(); }, [loadActivity]);
+
+  const handleDeleteActivity = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch("/api/activity/" + deleteTarget.id, { method: "DELETE" });
+      if (!res.ok) throw new Error("Ошибка удаления");
+      setActivity(prev => prev.filter(a => a.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b shrink-0 bg-white rounded-t-2xl z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -59,7 +98,53 @@ export default function ViewOwnerModal({ owner, category, onClose, onEdit, onCom
             </div>
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <div className="w-[320px] shrink-0 border-r bg-gray-50/80 flex flex-col">
+            <div className="px-4 py-3 border-b shrink-0">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><History className="w-3.5 h-3.5" />Журнал действий</h3>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+              {activityLoading ? (
+                <div className="text-sm text-gray-400 flex items-center gap-2 py-2"><Loader2 className="w-4 h-4 animate-spin" />Загрузка...</div>
+              ) : activity.length === 0 ? (
+                <p className="text-sm text-gray-400 py-2">Действий пока нет</p>
+              ) : (
+                activity.map(a => (
+                  <div key={a.id} className="flex items-start gap-2.5 group">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">{getInitials(a.actor_name)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-800 leading-relaxed">
+                        <span className="font-medium">{a.actor_name || "Сотрудник"}</span>{" "}{a.message}
+                        {isAdmin && (
+                          <button
+                            onClick={() => setDeleteTarget(a)}
+                            title="Удалить"
+                            className="ml-1 p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </p>
+                      {a.changes && a.changes.length > 0 && (
+                        <div className="mt-1 space-y-0.5 rounded bg-white border border-gray-100 px-2 py-1.5">
+                          {a.changes.map(ch => (
+                            <p key={ch.field} className="text-[11px] text-gray-500 flex flex-wrap items-baseline gap-x-1">
+                              <span className="text-gray-400">{ch.label}:</span>
+                              <span className="text-gray-400 line-through">{ch.oldValue}</span>
+                              <span>→</span>
+                              <span className="font-medium text-gray-700">{ch.newValue}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-gray-400 mt-0.5">{formatDateTime(a.created_at)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <CardSection title="Объект">
             <DetailItem icon={Home} label="Тип недвижимости" value={OWNER_CATEGORY_LABELS[category]} />
             <DetailItem icon={MapPin} label="Район" value={owner.district} />
@@ -120,8 +205,20 @@ export default function ViewOwnerModal({ owner, category, onClose, onEdit, onCom
               return null;
             }
           })())}
+          </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Удаление записи"
+        message={deleteTarget ? "Удалить действие из журнала для этого собственника?" : ""}
+        hint="Запись будет удалена без возможности восстановления."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={handleDeleteActivity}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         DEAL_TABLES.map(t =>
           supabase
             .from(t)
-            .select("id,name,amount,completed,created_at")
+            .select("id,name,amount,completed,created_at,category")
             .order("created_at", { ascending: false })
             .limit(3)
         )
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     : [];
 
   // Последние сделки по трём таблицам — только админам (данные уже загружены выше параллельно)
-  const recentDeals: Array<{ id: number; name: string; amount: number; completed: string; created_at: string; dealType: string }> = [];
+  const recentDeals: Array<{ id: number; name: string; amount: number; completed: string; created_at: string; dealType: string; category: string; type: string }> = [];
   let activeTotal = 0;
   if (isAdmin) {
     const tables = [...DEAL_TABLES];
@@ -130,6 +130,10 @@ export async function GET(request: NextRequest) {
           completed: (d.completed || "") as string,
           created_at: (d.created_at || "") as string,
           dealType: tables[i],
+          // Ключ ветки таблицы (deals_kvartiry → kvartiry) и канон категории:
+          // без них ссылка вела в /deals?category=arenda для любой сделки
+          type: tables[i].replace(/^deals_/, ""),
+          category: d.category === "pokupka" || d.category === "prodaja" ? "pokupka" : "arenda",
         });
       }
     });
