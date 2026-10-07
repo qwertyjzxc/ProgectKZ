@@ -357,7 +357,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         <div>
           {onBack && (
             <button onClick={onBack} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium mb-2 rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
-              <ArrowLeft className="w-4 h-4" />Назад к категориям
+              <ArrowLeft className="w-4 h-4" />Назад
             </button>
           )}
           <h1 className="text-xl font-bold text-gray-900">Сделки · {category ? (DEAL_CATEGORY_LABELS[category] || category) : ""}{dealType ? " · " + getDealTypeLabel(dealType, category) : ""}</h1>
@@ -774,12 +774,15 @@ function DealsPageInner() {
   const selectedCategory: string | null = normalizedCategoryParam && VALID_CATEGORIES.includes(normalizedCategoryParam) ? normalizedCategoryParam : null;
   const selectedType: string | null = VALID_TYPES.includes(typeParam ?? "") ? typeParam! : null;
 
+  // Выбор категории/типа — полным переходом: клиентская навигация с тем же
+  // pathname (/deals -> /deals?category=...) не всегда обновляет страницу,
+  // и дальше открывается таблица не той категории. Как кнопки «Назад» ниже.
   const handleSelectCategory = (cat: string) => {
-    router.replace("/deals?category=" + cat);
+    window.location.replace("/deals?category=" + cat);
   };
 
   const handleSelectType = (type: string) => {
-    router.replace("/deals?category=" + selectedCategory + "&type=" + type);
+    window.location.replace("/deals?category=" + selectedCategory + "&type=" + type);
   };
 
   if (!selectedCategory) {
@@ -791,7 +794,6 @@ function DealsPageInner() {
       <DealTypeSelector
         category={selectedCategory}
         onSelect={handleSelectType}
-        onBack={() => window.location.replace("/deals")}
       />
     );
   }

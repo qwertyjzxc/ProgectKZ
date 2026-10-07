@@ -5,8 +5,6 @@ import { useEscapeKey } from "@/lib/use-escape";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import ClientDeals from "@/components/ClientDeals";
-import { formatMoney } from "@/lib/format";
 import { formatBudgetRange } from "@/lib/budget-range";
 import { formatPhone } from "@/components/PhoneInput";
 import { parseTags } from "@/lib/client-status";
@@ -208,7 +206,6 @@ export default function ViewClientModal({ client, category, isAdmin, onClose, on
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
-            {isAdmin && !client.phone_masked && <ClientDeals phone={client.phone || ""} name={client.name || ""} />}
             {(client.documents || "").trim() && ((() => {
               try {
                 const docs = JSON.parse(client.documents || "[]");

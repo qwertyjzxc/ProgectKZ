@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Building, Building2, Home, type LucideIcon } from "lucide-react";
+import { Building, Building2, Home, type LucideIcon } from "lucide-react";
 
 const DEAL_TYPES: { id: string; label: string; subtitle: string; icon: LucideIcon }[] = [
   { id: "kvartiry", label: "Квартиры", subtitle: "Квартиры в жилых комплексах", icon: Building },
@@ -20,23 +20,15 @@ export function getDealTypeLabel(id: string, category: string): string {
 export default function DealTypeSelector({
   category,
   onSelect,
-  onBack,
 }: {
   category: string;
   onSelect: (type: string) => void;
-  onBack: () => void;
 }) {
   const categoryLabel = DEAL_CATEGORY_LABELS[category] || category;
 
   return (
     <div>
       <div className="mb-6">
-        <button
-          onClick={onBack}
-          className="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 shadow-sm hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />Назад к категориям
-        </button>
         <h1 className="text-2xl font-bold text-gray-900">Сделки · {categoryLabel}</h1>
         <p className="text-sm text-gray-500 mt-1">Выберите тип недвижимости</p>
       </div>

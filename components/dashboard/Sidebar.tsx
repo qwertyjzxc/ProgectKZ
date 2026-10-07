@@ -98,6 +98,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     }
   };
 
+  // Подпункты сделок: переход всегда внутри /deals, меняется только query
+  // (?category=arenda <-> ?category=pokupka). Клиентский переход с тем же
+  // pathname не всегда обновляет страницу — остаётся старая категория, и
+  // следующий клик по типу открывает таблицу НЕ ТОЙ категории.
+  // Поэтому внутри /deals всегда делаем полный переход.
+  const dealsLinkGuard = (href: string) => (e: React.MouseEvent) => {
+    if (pathname === "/deals" && currentHref !== href) {
+      e.preventDefault();
+      window.location.assign(href);
+    }
+  };
+
   return (
     <aside className={"fixed left-0 top-0 h-screen bg-white border-r flex flex-col z-30 transition-[width] duration-200 " + (collapsed ? "w-16" : "w-64")}>
       {/* Logo */}
@@ -266,6 +278,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     <Link
                       key={cat.id}
                       href={href}
+                      onClick={dealsLinkGuard(href)}
                       className={
                         "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors "
                         + (isSubActive
