@@ -22,11 +22,13 @@ interface NotifyOpts {
 // Ошибки только логируются — уведомление никогда не должно ронять API.
 export async function notifyAll(opts: NotifyOpts): Promise<void> {
   try {
-    // Профили и связки автора независимы — параллельно, а не цепочкой
+    // Профили и связки автора независимы — параллельно, а не цепочкой.
+    // Только активные: уволенным профилей уведомления не копятся.
     const [profilesRes, linksRes] = await Promise.all([
       serviceClient
         .from("profiles")
-        .select("id, user_id, role, notification_settings"),
+        .select("id, user_id, role, notification_settings")
+        .eq("is_active", true),
       opts.actorUserId
         ? serviceClient.from("profile_links").select("profile_id").eq("user_id", opts.actorUserId)
         : Promise.resolve({ data: [] as Array<{ profile_id: number }> }),

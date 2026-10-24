@@ -8,6 +8,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 import { formatPhone } from "@/components/PhoneInput";
 import { type Owner, completedColors } from "@/lib/owner-types";
+import { fileViewHref } from "@/lib/file-links";
 import { getInitials } from "@/lib/client-types";
 import type { ActivityEntry } from "@/lib/activity";
 import { useProfile } from "@/lib/profile-context";
@@ -195,7 +196,7 @@ export default function ViewOwnerModal({ owner, category, onClose, onEdit, onCom
                   <ul className="space-y-1.5">
                     {docs.map((d: { name: string; url: string }, i: number) => (
                       <li key={i}>
-                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
+                        <a href={fileViewHref(d.url)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
                       </li>
                     ))}
                   </ul>

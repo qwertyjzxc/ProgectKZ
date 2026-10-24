@@ -9,6 +9,7 @@ import { formatMoney, formatDateOnly } from "@/lib/format";
 import { formatPhone } from "@/components/PhoneInput";
 import { type Deal, completedColors, DEAL_TABLE_MAP } from "@/lib/deal-types";
 import type { ActivityEntry } from "@/lib/activity";
+import { fileViewHref } from "@/lib/file-links";
 import { CalendarDays, CheckCircle2, ListTodo, Edit3, X, History, Loader2, Trash2, Home, MapPin, Building2, Ruler, Briefcase, FileText, Banknote, Phone, User, Users } from "lucide-react";
 
 function getInitials(name: string): string {
@@ -223,7 +224,7 @@ export default function DealViewModal({ deal: viewDeal, dealType, category, onCl
                   <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Документы</p>
                   <div className="space-y-1">
                     {docs.map((d: { name: string; url: string }, i: number) => (
-                      <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
+                      <a key={i} href={fileViewHref(d.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
                     ))}
                   </div>
                 </div>

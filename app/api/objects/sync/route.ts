@@ -10,7 +10,15 @@ import {
 
 export const maxDuration = 300;
 
-async function syncCategory(dealType: string, propType: string, maxPages: number) {
+// Бюджет на весь обход: maxDuration=300, запас ~60с на разогрев и upsert-ы.
+// Категории, не успевшие закончиться, останавливаются до следующей страницы —
+// функция отвечает корректно, вместо того чтобы быть убитой посреди запроса.
+const SYNC_BUDGET_MS = 240_000;
+// Не все 7 категорий одновременно: по 3 потока — 7 параллельных запросов
+// к krisha.kz на каждую страницу это слишком агрессивно (captcha).
+const SYNC_CONCURRENCY = 3;
+
+async function syncCategory(dealType: string, propType: string, maxPages: number, stopByMs: number) {
   const runStarted = new Date().toISOString();
 
   const batch = await fetchAllKrishaListings(
@@ -25,7 +33,8 @@ async function syncCategory(dealType: string, propType: string, maxPages: number
       }));
       const { error } = await serviceClient.from("objects").upsert(rows, { onConflict: "krisha_id" });
       if (error) throw new Error(error.message);
-    }
+    },
+    stopByMs
   );
 
   // Снимаем с публикации объявления категории, которых больше нет на krisha.kz.
@@ -77,13 +86,34 @@ async function handle(request: NextRequest) {
         }]
       : KRISHA_CATEGORIES;
 
-  const results = [];
-  for (const cat of categories) {
-    results.push(await syncCategory(cat.dealType, cat.propType, maxPages));
-  }
+  // Раньше категории шли строго последовательно и гарантированно не влезали
+  // в maxDuration: 7 × (до 504 страниц × ~0.9с) ≈ десятки минут, функцию убивало
+  // на 300-й секунде и последние категории не синхронизировались никогда.
+  // Теперь: пул по 3 + общий бюджет времени + ошибка одной категории (капча,
+  // сеть) не роняет остальные — она попадает в results как error.
+  const deadline = Date.now() + SYNC_BUDGET_MS;
+  const results: Array<Record<string, unknown>> = [];
+  const queue = [...categories];
+  await Promise.all(
+    Array.from({ length: Math.min(SYNC_CONCURRENCY, queue.length) }, async () => {
+      for (;;) {
+        const cat = queue.shift();
+        if (!cat) return;
+        try {
+          results.push(await syncCategory(cat.dealType, cat.propType, maxPages, deadline));
+        } catch (e) {
+          results.push({
+            dealType: cat.dealType,
+            propType: cat.propType,
+            error: e instanceof Error ? e.message : "Ошибка синхронизации категории",
+          });
+        }
+      }
+    })
+  );
 
-  const imported = results.reduce((s, r) => s + r.imported, 0);
-  const deactivated = results.reduce((s, r) => s + r.deactivated, 0);
+  const imported = results.reduce((s, r) => s + (Number(r.imported) || 0), 0);
+  const deactivated = results.reduce((s, r) => s + (Number(r.deactivated) || 0), 0);
   return NextResponse.json({ ok: true, imported, deactivated, results });
 }
 

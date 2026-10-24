@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/admin";
+import { unauthorized } from "@/lib/route-auth";
 
 const DEAL_TABLES = ["deals_kvartiry", "deals_pomescheniya", "deals_zemlya"] as const;
 
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfToday(): Date {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
+// Границы «сегодня» по Алматы (UTC+5, без перехода на летнее время), а не по
+// серверному поясу (Vercel=UTC): иначе «задачи на сегодня» сдвинуты на 5 часов.
+function almatyDayBounds(): { start: number; end: number } {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Almaty", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date()).split("-").map(Number);
+  const start = Date.UTC(y, m - 1, d) - 5 * 3600_000;
+  return { start, end: start + 86_399_999 };
 }
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const isAdmin = user ? await isAdminUser(user.id) : false;
+  // Гейт как в остальных ручках: без сессии — 401, а не частичный ответ
+  if (!user) return unauthorized();
+  const isAdmin = await isAdminUser(user.id);
   const profileId = Number(request.nextUrl.searchParams.get("profile_id") || 0);
 
   // Все независимые запросы — параллельно: последовательные await-ы
@@ -97,8 +98,7 @@ export async function GET(request: NextRequest) {
   }));
 
   const now = Date.now();
-  const todayStart = startOfToday().getTime();
-  const todayEnd = endOfToday().getTime();
+  const { start: todayStart, end: todayEnd } = almatyDayBounds();
   const parseDue = (s: string) => {
     const t = Date.parse(s);
     return isNaN(t) ? null : t;

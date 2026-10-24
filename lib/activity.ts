@@ -122,26 +122,6 @@ export const TASK_LABELS: Record<string, string> = {
   assignee_ids: "Исполнители",
 };
 
-const NOTIFICATION_ENTITY_LABELS: Record<string, string> = {
-  clients: "Клиенты",
-  deals: "Сделки",
-  tasks: "Задачи",
-  owners: "Собственники",
-  properties: "Объекты",
-};
-
-// Сущность по таблице: clients_* → клиенты, deals_* → сделки, owners_* → собственники
-function entityOf(clientTable: string): string {
-  if (clientTable.startsWith("clients_")) return "clients";
-  if (clientTable.startsWith("deals_")) return "deals";
-  if (clientTable.startsWith("owners_")) return "owners";
-  return clientTable;
-}
-
-export function notificationKey(clientTable: string, action: string): string {
-  return `${entityOf(clientTable)}_${action}`;
-}
-
 function fmtValue(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "number") return v.toLocaleString("ru-RU");
@@ -202,6 +182,9 @@ export async function logActivity(entry: {
       const prof = data?.[0];
       if (prof) actorName = [prof.first_name, prof.last_name].filter(Boolean).join(" ").trim();
     }
+    // Только журнал. Уведомления шлёт notifyAll (lib/notify.ts) — раньше здесь
+    // была вторая рассылка по тем же событиям, и включившие настройку
+    // получали по два уведомления на каждое изменение.
     await serviceClient.from("client_activity").insert({
       client_table: entry.client_table,
       client_id: entry.client_id,
@@ -212,42 +195,7 @@ export async function logActivity(entry: {
       actor_id: user?.id || null,
       actor_name: actorName || "Сотрудник",
     });
-
-    const entity = entityOf(entry.client_table);
-    const key = notificationKey(entry.client_table, entry.action);
-    const skipIds = new Set<number>();
-    if (user) {
-      const { data: actorProfiles } = await serviceClient
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id);
-      (actorProfiles || []).forEach(p => skipIds.add(p.id));
-    }
-    const entityLabel = NOTIFICATION_ENTITY_LABELS[entity] || entity;
-    const { data: targets } = await serviceClient
-      .from("profiles")
-      .select("id, role, notification_settings")
-      .eq("is_active", true);
-    const rows = (targets || [])
-      .filter(p => !skipIds.has(p.id))
-      .filter(p => {
-        // Ветка сделок видна только админам — и в журнале уведомлений тоже
-        if (entity === "deals" && (p as { role?: string }).role !== "admin") return false;
-        const s = (p.notification_settings as Record<string, boolean> | null) || {};
-        return s[key] === true;
-      })
-      .map(p => ({
-        profile_id: p.id,
-        message: `${actorName || "Сотрудник"} · ${entityLabel}: ${entry.message}${entry.client_name ? " — " + entry.client_name : ""}`,
-        type: "activity",
-        related_to: `/activity?table=${entry.client_table}&client=${entry.client_id}`,
-        // related_id в notifications — числовой; для UUID (properties) не подходит
-        related_id: typeof entry.client_id === "number" ? entry.client_id : null,
-      }));
-    if (rows.length > 0) {
-      await serviceClient.from("notifications").insert(rows);
-    }
   } catch {
-    // Журнал и уведомления не должны ломать основную операцию
+    // Журнал не должен ломать основную операцию
   }
 }

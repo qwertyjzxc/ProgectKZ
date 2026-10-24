@@ -40,6 +40,12 @@ CRON_SECRET=                 # Bearer-секрет для /api/objects/sync, /ap
    (`is_admin()`), колонки `clients_*.phone` / `profiles.password_enc` / `profiles.pin`
    закрыты для роли authenticated (column-level), RPC `get_clients_*` — только service_role.
    Телефоны клиентов читаются исключительно через API (маскирование `phone-visibility`)
+7. `supabase-storage-private-docs.sql` — бакеты `deal-documents` и `attachments`
+   приватные; вложения открываются через `/api/files/view` (сессия + подписанный URL
+   на 1 час), `property-images` остаётся публичным для `/p/[id]`.
+   Запускать ПОСЛЕ деплоя кода с роутом `/api/files/view`
+8. `supabase-drop-clients-pokupka.sql` — удаление мёртвой легаси-таблицы
+   (перед запуском проверить `select count(*) from clients_pokupka`)
 
 ## Правила для кода
 

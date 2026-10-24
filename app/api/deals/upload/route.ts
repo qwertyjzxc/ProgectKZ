@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   if (!files.length) return NextResponse.json({ error: "Нет файлов" }, { status: 400 });
 
   const uploaded: { name: string; url: string }[] = [];
+  const failed: string[] = [];
   for (const f of files) {
     const invalid = validateUploadFile(f);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
@@ -25,10 +26,20 @@ export async function POST(request: NextRequest) {
     if (!uploadError) {
       const { data: urlData } = supabase.storage.from("deal-documents").getPublicUrl(fileName);
       uploaded.push({ name: f.name, url: urlData.publicUrl });
+    } else {
+      // Раньше файл молча пропадал из ответа — пользователь считал, что вложение есть
+      failed.push(f.name);
+      console.error("[deals/upload] не загружен «" + f.name + "»:", uploadError.message);
     }
   }
 
-  return NextResponse.json({ files: uploaded });
+  if (uploaded.length === 0 && failed.length > 0) {
+    return NextResponse.json({ error: "Не удалось загрузить файлы: " + failed.join(", ") }, { status: 500 });
+  }
+  return NextResponse.json({
+    files: uploaded,
+    errors: failed.length > 0 ? "Частично не загружены: " + failed.join(", ") : undefined,
+  });
 }
 
 export async function DELETE(request: NextRequest) {

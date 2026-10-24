@@ -12,6 +12,7 @@ import { SHYMKENT_DISTRICTS, SHYMKENT_JK } from "@/lib/shymkent";
 import { type Deal, type DealFormValues, DEAL_STATUSES, defaultAreaUnit } from "@/lib/deal-types";
 import { CONTRACT_KINDS } from "@/lib/client-status";
 import { toISODate } from "@/lib/format";
+import { fileViewHref } from "@/lib/file-links";
 import { Upload, Trash2, FileText, X, Loader2 } from "lucide-react";
 
 const PAYMENT_OPTIONS = ["Наличные", "Перечисление", "QR", "Удаленка"];
@@ -67,6 +68,7 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
     try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return raw ? [{ name: raw, url: raw }] : []; }
   });
   const [docUploading, setDocUploading] = useState(false);
+  const [docError, setDocError] = useState("");
   const [saving, setSaving] = useState(false);
   const submitRef = useRef(false);
   const [restrictions, setRestrictions] = useState(deal?.restrictions || "");
@@ -82,13 +84,20 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
     const files = e.target.files;
     if (!files?.length) return;
     setDocUploading(true);
+    setDocError("");
     try {
       const fd = new FormData();
       for (const f of Array.from(files)) fd.append("files", f);
       const res = await fetch("/api/deals/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.files?.length) setDocuments(prev => [...prev, ...data.files]);
-    } catch { /* ignore */ }
+      if (!res.ok) setDocError((data.error as string) || "Не удалось загрузить файлы");
+      else {
+        if (data.errors) setDocError(data.errors as string);
+        if (data.files?.length) setDocuments(prev => [...prev, ...data.files]);
+      }
+    } catch {
+      setDocError("Не удалось загрузить файлы");
+    }
     setDocUploading(false);
     e.target.value = "";
   };
@@ -233,12 +242,13 @@ export default function DealFormModal({ deal, onClose, onSave, dealType, categor
                         {documents.map((doc, i) => (
                           <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group">
                             <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate flex-1">{doc.name}</a>
+                            <a href={fileViewHref(doc.url)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate flex-1">{doc.name}</a>
                             <button type="button" onClick={() => setDocuments(prev => prev.filter((_, idx) => idx !== i))} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         ))}
                       </div>
                     )}
+                    {docError && <p className="text-xs text-red-600">{docError}</p>}
                     <label className={"flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors " + (docUploading ? "bg-gray-50 text-gray-400" : "hover:bg-blue-50 hover:border-blue-300 text-gray-500 hover:text-blue-600")}>
                       <Upload className="w-4 h-4" />
                       <span className="text-sm">{docUploading ? "Загрузка..." : "Загрузить файл"}</span>

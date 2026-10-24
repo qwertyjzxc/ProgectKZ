@@ -179,6 +179,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [singleDelete, setSingleDelete] = useState<Client | null>(null);
   const [deleting, setDeleting] = useState(false);
   const dragRef = useRef(false);
 
@@ -898,7 +899,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                           <DropdownMenuItem onClick={() => setEditClient(c)}>
                             <Edit3 className="w-4 h-4 mr-2" />Редактировать
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(c.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                          <DropdownMenuItem onClick={() => setSingleDelete(c)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
                             <Trash2 className="w-4 h-4 mr-2" />Удалить
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -949,6 +950,17 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
         cancelLabel="Отмена"
         onConfirm={handleBulkDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={!!singleDelete}
+        title="Удаление клиента"
+        message={`Удалить «${singleDelete?.name || "без имени"}»?`}
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={() => { const target = singleDelete; setSingleDelete(null); if (target) handleDelete(target.id); }}
+        onCancel={() => setSingleDelete(null)}
       />
     </div>
   );

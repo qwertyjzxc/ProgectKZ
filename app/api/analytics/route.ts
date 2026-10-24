@@ -154,10 +154,11 @@ export async function GET(request: NextRequest) {
   // Ошибка чтения клиентских таблиц конверсию ронять не должна.
   let lostClients = 0;
   try {
+    // clients_pokupka — мёртвая легаси-таблица, не опрашиваем (см. supabase-drop-clients-pokupka.sql)
     const clientTables = !categoryParam || normalizeDealCategory(categoryParam) === "arenda"
       ? ["clients_arenda"]
-      : ["clients_prodaja", "clients_pokupka"];
-    if (!categoryParam) clientTables.push("clients_prodaja", "clients_pokupka");
+      : ["clients_prodaja"];
+    if (!categoryParam) clientTables.push("clients_prodaja");
     const counts = await Promise.all(
       clientTables.map(async t => {
         let q = supabase.from(t).select("id", { count: "exact", head: true }).eq("completed", "Закрыт без сделки");

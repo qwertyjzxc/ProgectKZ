@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireCronOrAdmin } from "@/lib/route-auth";
+import { requireCronOrAdmin, requireUser } from "@/lib/route-auth";
 import { serviceClient } from "@/lib/supabase/service";
 import { fetchAllKrishaListings, MAX_KRISHA_PAGES, type KrishaParams } from "@/lib/krisha";
 
 export async function GET(request: NextRequest) {
   try {
+    const { denied } = await requireUser();
+    if (denied) return denied;
     const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
     const perPage = Math.max(1, Math.min(100, parseInt(searchParams.get("perPage") || "30", 10) || 30));

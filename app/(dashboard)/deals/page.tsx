@@ -156,6 +156,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [singleDelete, setSingleDelete] = useState<Deal | null>(null);
   const [deleting, setDeleting] = useState(false);
   const totalCols = (isZemlya ? 12 : isPomescheniya ? 15 : 11) + (deleteMode ? 1 : 0);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -316,7 +317,13 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
 
   const handleDelete = async (id: number) => {
     const res = await fetch("/api/deals/" + id + "?type=" + dealType, { method: "DELETE" });
-    if (res.ok) setDeals(prev => prev.filter(d => d.id !== id));
+    if (res.ok) {
+      setDeals(prev => prev.filter(d => d.id !== id));
+    } else {
+      // Раньше неудача удалялась молча — строка оставалась, а пользователь не знал почему
+      const err = await res.json().catch(() => ({}));
+      setSaveError((err as { error?: string }).error || "Ошибка удаления");
+    }
   };
 
   const allVisibleSelected = filtered.length > 0 && filtered.every(d => selectedIds.has(d.id));
@@ -678,7 +685,7 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
                             <DropdownMenuItem onClick={() => setEditDeal({ ...d })}>
                               <Edit3 className="w-4 h-4 mr-2" />Редактировать
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(d.id)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                            <DropdownMenuItem onClick={() => setSingleDelete(d)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
                               <Trash2 className="w-4 h-4 mr-2" />Удалить
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -725,6 +732,17 @@ function DealsContent({ dealType, category, onBack }: { dealType?: string; categ
         cancelLabel="Отмена"
         onConfirm={handleBulkDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={!!singleDelete}
+        title="Удаление сделки"
+        message={`Удалить «${singleDelete?.name || "без имени"}»?`}
+        hint="Действие необратимо."
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={() => { const target = singleDelete; setSingleDelete(null); if (target) handleDelete(target.id); }}
+        onCancel={() => setSingleDelete(null)}
       />
 
       {showTask && viewDeal && (

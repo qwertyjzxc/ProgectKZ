@@ -19,9 +19,18 @@ export async function GET(request: NextRequest) {
   }
 
   // 3. Защита редиректа для продакшен-среды (учитываем прокси)
+  // x-forwarded-host приходит из запроса — доверять ему нельзя (open redirect):
+  // учитываем, только если он совпадает с хостом из NEXT_PUBLIC_SITE_URL.
   const forwardedHost = request.headers.get("x-forwarded-host");
-  if (forwardedHost) {
-    return NextResponse.redirect(`https://${forwardedHost}/`);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (forwardedHost && siteUrl) {
+    try {
+      if (new URL(siteUrl).host === forwardedHost) {
+        return NextResponse.redirect(`${siteUrl}/`);
+      }
+    } catch {
+      // NEXT_PUBLIC_SITE_URL битый — просто дефолт ниже
+    }
   }
 
   // Дефолтный редирект для локальной разработки (localhost)

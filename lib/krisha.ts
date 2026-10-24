@@ -195,7 +195,12 @@ export async function fetchKrishaListings(params: KrishaParams): Promise<KrishaL
 export async function fetchAllKrishaListings(
   params: KrishaParams,
   maxPages: number,
-  onPage?: (progress: KrishaPageProgress) => void | Promise<void>
+  onPage?: (progress: KrishaPageProgress) => void | Promise<void>,
+  // Эпоха-мс (Date.now()): когда бюджет времени исчерпан, обход останавливается
+  // ДО следующей страницы — чтобы serverless-функция успела ответить, а не была
+  // убита по maxDuration посреди запроса. pagesFetched < totalPages → вызывающий
+  // поймёт, что обход неполный.
+  stopByMs?: number
 ): Promise<KrishaBatch> {
   const dealType = params.dealType === "Аренда" ? "Аренда" : "Продажа";
   const propType = params.propType || "Квартира";
@@ -207,6 +212,7 @@ export async function fetchAllKrishaListings(
   const delayMs = 400;
 
   for (let page = 1; page <= limit; page++) {
+    if (stopByMs && Date.now() > stopByMs) break;
     let html: string;
     try {
       html = await fetchKrishaHtml(buildKrishaUrl(params, page));

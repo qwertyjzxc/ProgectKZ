@@ -8,6 +8,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatBudgetRange } from "@/lib/budget-range";
 import { formatPhone } from "@/components/PhoneInput";
 import { parseTags } from "@/lib/client-status";
+import { fileViewHref } from "@/lib/file-links";
 import { type Client, completedColors, getInitials } from "@/lib/client-types";
 import type { ActivityEntry } from "@/lib/activity";
 import { type LucideIcon, CalendarDays, CheckCircle2, ListTodo, Edit3, X, History, Loader2, Trash2, Home, MapPin, Building, Ruler, FileText, Banknote, Briefcase, Phone, User, Users, Paperclip } from "lucide-react";
@@ -216,7 +217,7 @@ export default function ViewClientModal({ client, category, isAdmin, onClose, on
                     <ul className="space-y-1.5">
                       {docs.map((d: { name: string; url: string }, i: number) => (
                         <li key={i}>
-                          <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
+                          <a href={fileViewHref(d.url)} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1.5 truncate"><FileText className="w-3.5 h-3.5 shrink-0" />{d.name}</a>
                         </li>
                       ))}
                     </ul>

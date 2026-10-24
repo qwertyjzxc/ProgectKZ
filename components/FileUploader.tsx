@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { Paperclip, Loader2, FileText, FileImage, X, File } from "lucide-react";
 import { validateUploadFile } from "@/lib/upload-guard";
+import { fileViewHref } from "@/lib/file-links";
 
 export interface AttachmentFile {
   name: string;
@@ -56,7 +57,11 @@ export default function FileUploader({ files, onChange, title, accept, multiple 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) setError((data.error as string) || "Не удалось загрузить файл");
-      else if (data.files?.length) onChange([...files, ...data.files]);
+      else {
+        // Частичная неудача: загруженные добавляем, но говорим, чего не хватает
+        if (data.errors) setError(data.errors as string);
+        if (data.files?.length) onChange([...files, ...data.files]);
+      }
     } catch {
       setError("Не удалось загрузить файл");
     }
@@ -87,7 +92,7 @@ export default function FileUploader({ files, onChange, title, accept, multiple 
           {files.map((f, i) => (
             <li key={f.url} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
               {fileIcon(f.name)}
-              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-blue-600 truncate flex-1" title={f.name}>
+              <a href={fileViewHref(f.url)} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-blue-600 truncate flex-1" title={f.name}>
                 {f.name}
               </a>
               {f.size ? <span className="text-[11px] text-gray-400 shrink-0">{formatSize(f.size)}</span> : null}
