@@ -68,8 +68,21 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   "Проблемный": "bg-rose-500",
 };
 
-// Единый стиль ячейки шапки: лёгкая, без заливки, тонкая линия снизу
-const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap";
+// Единый стиль ячейки шапки: лёгкая, без заливки, тонкая линия снизу.
+// text-left обязателен: у <th> браузерный дефолт — центр, и шапка «разъезжается»
+// с выровненными влево/вправо ячейками тела.
+const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-left text-[11px] font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap";
+
+// Бюджет в таблице — компактно, без «₸» у каждого числа (валюта уже в шапке):
+// «800 000 — 1 000 000» вместо «800 000 ₸ — 1 000 000 ₸»
+function budgetCompact(min: number | null | undefined, max: number | null | undefined): string {
+  const hasMax = typeof max === "number" && max > 0;
+  const hasMin = typeof min === "number" && min > 0;
+  if (hasMin && hasMax) return `${min.toLocaleString("ru-RU")} — ${max.toLocaleString("ru-RU")}`;
+  if (hasMax) return max.toLocaleString("ru-RU");
+  if (hasMin) return `от ${min.toLocaleString("ru-RU")}`;
+  return "";
+}
 
 import { type Client, type ClientFormData } from "@/lib/client-types";
 
@@ -823,13 +836,13 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <col className="w-[16%]" />
               {showRoomsCol && <col className="w-[5%]" />}
               <col className="w-[8%]" />
-              <col className="w-[14%]" />
-              <col className="w-[11%]" />
-              <col className="w-[9%]" />
               <col className="w-[13%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[12%]" />
               <col className="w-[8%]" />
               <col className="w-[9%]" />
-              <col className="w-[3%]" />
+              <col className="w-[4%]" />
             </colgroup>
             <thead>
               <tr>
@@ -906,7 +919,11 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       </div>
                     </div>
                   </td>
-                  {showRoomsCol && <td className="px-3 py-2.5 text-sm text-gray-600 text-center">{c.rooms || "—"}</td>}
+                  {showRoomsCol && (
+                    <td className="px-3 py-2.5 text-sm text-gray-600 text-center" title={c.rooms}>
+                      <span className="block truncate">{c.rooms || "—"}</span>
+                    </td>
+                  )}
                   <td className="px-3 py-2.5 text-sm text-gray-600 text-right tabular-nums whitespace-nowrap" title={areaLabel(c)}>{areaLabel(c) || "—"}</td>
                   <td className="px-3 py-2.5 text-[13px] text-gray-600">
                     <span className="block truncate" title={[c.district, c.jk].filter(Boolean).join(" · ")}>
@@ -914,7 +931,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-sm font-semibold text-gray-900 text-right tabular-nums whitespace-nowrap" onClick={e => e.stopPropagation()} title={formatBudgetRange(c.amount_min ?? null, c.amount ?? null)}>
-                    {formatBudgetRange(c.amount_min ?? null, c.amount ?? null) || "—"}
+                    {budgetCompact(c.amount_min, c.amount) || "—"}
                   </td>
                   <td className="px-3 py-2.5 text-[13px] text-gray-600">
                     <span className="block truncate" title={c.broker}>{c.broker || "—"}</span>
