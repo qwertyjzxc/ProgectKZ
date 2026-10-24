@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { serviceClient } from "@/lib/supabase/service";
 import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
@@ -24,8 +25,10 @@ export async function GET(
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
     const gate = await requireUser();
     if (gate.denied) return gate.denied;
-    const supabase = await createClient();
-    const { data, error } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
+    // Читаем через service-клиент: колонка phone закрыта для роли authenticated
+    // (RLS v2), а владелец клиента должен видеть свой телефон. Маска ниже
+    // по-прежнему прячет телефон от чужих сотрудников.
+    const { data, error } = await serviceClient.from(table).select("*").eq("id", id).maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Не найден" }, { status: 404 });
     const vis = await getPhoneVisibility();

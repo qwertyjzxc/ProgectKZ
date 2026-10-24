@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { serviceClient } from "@/lib/supabase/service";
 import { isAdminUser } from "@/lib/admin";
 import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
 import { unauthorized } from "@/lib/route-auth";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface SearchHit {
   kind: string;
@@ -12,7 +14,7 @@ export interface SearchHit {
 }
 
 async function safeQuery(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   table: string,
   cols: string,
   q: string,
@@ -46,12 +48,15 @@ export async function GET(request: NextRequest) {
       ? String(phone || "")
       : "";
 
+  // Клиентские таблицы — через service-клиент: колонка phone закрыта для роли
+  // authenticated (RLS v2), а подсказка должна показывать телефон владельцу
+  // клиента/админу (маска phoneOr ниже решает, кому).
   const [clientsA, clientsP, dealsK, dealsP, dealsZ, tasks, props] = await Promise.all([
-    safeQuery(supabase, "clients_arenda", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
+    safeQuery(serviceClient, "clients_arenda", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
       kind: "Клиент", title: String(r.name || "—"), subtitle: [phoneOr(r.phone, r.broker), r.address].filter(Boolean).join(" · ") + " · Аренда",
       href: "/clients",
     })),
-    safeQuery(supabase, "clients_prodaja", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
+    safeQuery(serviceClient, "clients_prodaja", "id,name,phone,address,broker", raw, ["name", "phone", "address"], r => ({
       kind: "Клиент", title: String(r.name || "—"), subtitle: [phoneOr(r.phone, r.broker), r.address].filter(Boolean).join(" · ") + " · Покупка",
       href: "/clients/sell",
     })),

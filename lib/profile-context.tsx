@@ -9,7 +9,6 @@ export interface Profile {
   last_name: string;
   full_name: string;
   role: string;
-  pin: string;
   phone: string;
   email: string;
   avatar_color: string;

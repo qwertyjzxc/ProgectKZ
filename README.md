@@ -36,6 +36,10 @@ CRON_SECRET=                 # Bearer-секрет для /api/objects/sync, /ap
 4. Остальные `supabase-*.sql` — инкрементальные поля (в т.ч. `supabase-deals-category-unify.sql`,
    `supabase-deals-status-sdelka.sql`)
 5. `supabase-storage-policies.sql` — бакеты `property-images`, `deal-documents`, `attachments`
+6. `supabase-rls-v2.sql` — границы в самой БД: сделки — только админам
+   (`is_admin()`), колонки `clients_*.phone` / `profiles.password_enc` / `profiles.pin`
+   закрыты для роли authenticated (column-level), RPC `get_clients_*` — только service_role.
+   Телефоны клиентов читаются исключительно через API (маскирование `phone-visibility`)
 
 ## Правила для кода
 

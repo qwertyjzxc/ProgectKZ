@@ -192,7 +192,9 @@ export async function POST(
         ];
         const dupResults = await Promise.all(
           tables.map(ct =>
-            supabase.from(ct.t).select("id,name").ilike("phone", "%" + digits + "%").neq("id", data.id).limit(3)
+            // service-клиент: фильтр ilike по phone требует SELECT на колонку,
+            // а она закрыта для роли authenticated (RLS v2)
+            serviceClient.from(ct.t).select("id,name").ilike("phone", "%" + digits + "%").neq("id", data.id).limit(3)
           )
         );
         duplicateWarning = dupResults.flatMap((r, i) =>

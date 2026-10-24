@@ -9,13 +9,18 @@ async function getCurrentUserId(): Promise<string | null> {
   return user?.id || null;
 }
 
+// Явный список колонок: password_enc и pin остаются на сервере.
+// Результат серверного экшена уезжает в браузер (ProfileProvider) —
+// select("*") отдавал бы зашифрованные пароли и PIN всех профилей.
+const PROFILE_COLUMNS = "id, user_id, username, email, full_name, role, phone, avatar_color, is_active, notification_settings, first_name, last_name, created_at";
+
 export async function getProfileData() {
   const userId = await getCurrentUserId();
   if (!userId) return { profiles: [], allProfiles: [], currentProfile: null };
 
   const { data: owned } = await serviceClient
     .from("profiles")
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -26,7 +31,7 @@ export async function getProfileData() {
   if (profiles.some(p => p.role === "admin")) {
     const { data } = await serviceClient
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLUMNS)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     const currentIds = new Set(profiles.map(p => p.id));
