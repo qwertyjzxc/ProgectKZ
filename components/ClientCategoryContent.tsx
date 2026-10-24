@@ -24,6 +24,24 @@ const RENT_TYPE_SINGULAR: Record<RentCategory, string> = {
   apartments: "Квартира",
 };
 
+// Площадь в таблице: приоритет — числовой диапазон, легаси-текст — фолбэк
+function areaLabel(c: Client): string {
+  const u = c.type === "Земля" ? " " + (c.area_unit || "сот") : " м²";
+  const min = c.area_min ?? null;
+  const max = c.area_max ?? null;
+  if (min != null && max != null && (min > 0 || max > 0)) return `${min}–${max}${u}`;
+  if (max != null && max > 0) return `${max}${u}`;
+  if (min != null && min > 0) return `от ${min}${u}`;
+  return c.area ? c.area + u : "";
+}
+
+// Дата задачи «2026-10-15T12:00» → «15.10, 12:00»
+function dueLabel(due: string): string {
+  const d = new Date(due);
+  if (isNaN(d.getTime())) return due || "";
+  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
 import { type Client, type ClientFormData } from "@/lib/client-types";
 
 const CLIENT_STATUSES = [
@@ -549,7 +567,6 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
   const isHouses = propertyType === "houses";
   // Комнаты: показываем в разделе «Квартиры» (в остальных убраны по просьбе)
   const showRoomsCol = propertyType === "apartments";
-  const showJkCol = !isHouses && false;
 
   return (
     <div>
@@ -603,11 +620,12 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
           Фильтры
           {hasActiveFilters && <span className="ml-1 w-2 h-2 rounded-full bg-blue-500" />}
         </Button>
-        {!deleteMode ? (
+        {/* ТЗ: удаление клиентов — только администратор */}
+        {isAdmin && !deleteMode ? (
           <Button variant="outline" size="sm" onClick={() => { setDeleteMode(true); setSelectedIds(new Set()); }} className="gap-1 text-red-600 hover:text-red-700">
             <Trash2 className="w-4 h-4" />Удалить
           </Button>
-        ) : (
+        ) : isAdmin && deleteMode ? (
           <>
             <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)} disabled={selectedIds.size === 0 || deleting} className="gap-1">
               {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -617,7 +635,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
               <X className="w-4 h-4" />Отмена
             </Button>
           </>
-        )}
+        ) : null}
       </div>
 
       {deleteMode && (
@@ -774,15 +792,15 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <colgroup>
               <col className="w-[4%]" />
               <col className="w-[15%]" />
-              {showRoomsCol && <col className="w-[7%]" />}
+              {showRoomsCol && <col className="w-[5%]" />}
+              <col className="w-[8%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[14%]" />
               <col className="w-[8%]" />
               <col className="w-[9%]" />
-              {showJkCol && <col className="w-[8%]" />}
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-              <col className="w-[12%]" />
-              <col className="w-[4%]" />
+              <col className="w-[5%]" />
             </colgroup>
             <thead>
               <tr className="bg-gray-100">
@@ -790,10 +808,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Клиент</th>
                 {showRoomsCol && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Комнат</th>}
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Площадь</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Предпочтения</th>
-                {showJkCol && <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Жилой комплекс</th>}
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Район / ЖК</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300 whitespace-nowrap">Бюджет, ₸</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Брокер</th>
-                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Бюджет</th>
+                <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Следующее действие</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Дата обращения</th>
                 <th className="px-3 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">Статус</th>
                 <th className="px-2 py-3 rounded-tr-xl sticky top-0 bg-gray-100 z-10 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-gray-300">
@@ -808,7 +826,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <tbody className="divide-y divide-gray-100 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl">
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-16 text-center text-gray-400">
+                  <td colSpan={showRoomsCol ? 11 : 10} className="px-6 py-16 text-center text-gray-400">
                     <p className="text-lg">Нет клиентов</p>
                     <p className="text-sm mt-1">{totalCount === 0 ? "Нажмите «Добавить клиента»" : "Попробуйте изменить фильтры"}</p>
                     {totalCount > 0 && (
@@ -861,14 +879,27 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     </div>
                   </td>
                   {showRoomsCol && <td className="px-3 py-3 text-sm text-gray-600">{c.rooms || "—"}</td>}
-                  <td className="px-3 py-3 text-sm text-gray-600">{c.area ? c.area + (c.type === "Земля" ? " " + (c.area_unit || "сот") : " м²") : "—"}</td>
-                  <td className="px-3 py-3 text-sm text-gray-500 break-words"><span className="line-clamp-2" title={c.preferences || ""}>{c.preferences || "—"}</span></td>
-                  {showJkCol && <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.jk || "—"}</td>}
+                  <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap" title={areaLabel(c)}>{areaLabel(c) || "—"}</td>
+                  <td className="px-3 py-3 text-sm text-gray-500">
+                    <span className="line-clamp-2" title={[c.district, c.jk].filter(Boolean).join(" · ")}>
+                      {[c.district, c.jk].filter(Boolean).join(" · ") || "—"}
+                    </span>
+                  </td>
                   <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
-                  <td className="px-3 py-3 text-sm font-semibold text-gray-900" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap" onClick={e => e.stopPropagation()} title={formatBudgetRange(c.amount_min ?? null, c.amount ?? null)}>
                     {formatBudgetRange(c.amount_min ?? null, c.amount ?? null) || "—"}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500">{c.date || "—"}</td>
+                  <td className="px-3 py-3 text-sm" onClick={e => e.stopPropagation()}>
+                    {c.next_action ? (
+                      <div className="min-w-0" title={c.next_action.title + (c.next_action.due_date ? " · " + dueLabel(c.next_action.due_date) : "")}>
+                        <p className="text-xs text-gray-800 truncate">{c.next_action.title}</p>
+                        {c.next_action.due_date && <p className="text-[11px] text-gray-400">{dueLabel(c.next_action.due_date)}</p>}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{c.date || "—"}</td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                     <Badge className={"text-xs " + (completedColors[c.completed] || "bg-gray-100 text-gray-700")}>
                       {c.completed || "—"}
@@ -899,9 +930,11 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                           <DropdownMenuItem onClick={() => setEditClient(c)}>
                             <Edit3 className="w-4 h-4 mr-2" />Редактировать
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setSingleDelete(c)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
-                            <Trash2 className="w-4 h-4 mr-2" />Удалить
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem onClick={() => setSingleDelete(c)} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                              <Trash2 className="w-4 h-4 mr-2" />Удалить
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -938,7 +971,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {showAdd && <ClientFormModal defaultType={propertyType ? (propertyType === "houses" && category === "arenda" ? "Дом" : RENT_TYPE_SINGULAR[propertyType]) : ""} category={category} onClose={() => setShowAdd(false)} onSave={handleAdd} />}
       {editClient && <ClientFormModal client={editClient} category={category} onClose={() => setEditClient(null)} onSave={handleEdit} />}
       {viewClient && <ViewClientModal client={viewClient} category={category} isAdmin={isAdmin} onClose={closeViewClient} onEdit={() => { setEditClient(viewClient); setViewClient(null); }} onAssign={() => setAssignClient(viewClient)} onComplete={() => setCompleteClient(viewClient)} />}
-      {assignClient && <AssignTaskModal clientName={assignClient.name || ""} onClose={() => setAssignClient(null)} />}
+      {assignClient && <AssignTaskModal clientName={assignClient.name || ""} clientId={assignClient.id} clientTable={"clients_" + category} onClose={() => setAssignClient(null)} />}
       {completeClient && <CompleteDealModal client={completeClient} propertyType={propertyType} category={category} onClose={() => setCompleteClient(null)} onDone={() => { setCompleteClient(null); setViewClient(null); loadAll(true, 0); }} />}
 
       <ConfirmDialog

@@ -66,6 +66,8 @@ export default function CompleteDealModal({
   const [amount, setAmount] = useState(client.amount ? String(client.amount) : "");
   const [commission, setCommission] = useState("");
   const [contract, setContract] = useState(client.contract || "");
+  const [contractDate, setContractDate] = useState(todayLocalISO());
+  const [contractStatus, setContractStatus] = useState("Подписан");
   const [payment, setPayment] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [completionDate, setCompletionDate] = useState(todayLocalISO());
@@ -133,6 +135,9 @@ export default function CompleteDealModal({
           restrictions: client.restrictions || "",
           payment,
           completion_date: completionDate,
+          // Договор с клиентом (ТЗ): дата и статус уходят в сделку рядом с номером
+          contract_date: contractDate,
+          contract_status: contractStatus,
         }),
       });
       if (!dealRes.ok) {
@@ -142,14 +147,16 @@ export default function CompleteDealModal({
       const createdDeal = await dealRes.json().catch(() => null);
       const createdId = createdDeal && typeof createdDeal.id === "number" ? createdDeal.id : null;
 
-      // 2. Помечаем клиента завершённым. При ошибке откатываем созданную
-      // сделку, чтобы не было сделки без завершённого клиента.
+      // 2. Помечаем клиента завершённым и переносим договор в его карточку.
+      // При ошибке откатываем созданную сделку, чтобы не было сделки без завершённого клиента.
       const updRes = await fetch(`/api/clients/${category}/${client.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: objectType,
           contract: contract,
+          contract_date: contractDate,
+          contract_status: contractStatus,
           amount: parseFloat(amount) || 0,
           completed: "Сделка завершена",
         }),
@@ -208,8 +215,21 @@ export default function CompleteDealModal({
               <MoneyInput value={commission} onChange={setCommission} placeholder="500 000" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Номер договора *</label>
-              <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: АР-2026-001" className="text-sm" />
+              <label className="text-xs text-gray-500 mb-1 block">Договор с клиентом — №</label>
+              <Input value={contract} onChange={e => setContract(e.target.value)} placeholder="Например: 0265" className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Дата договора</label>
+              <Input type="date" value={contractDate} onChange={e => setContractDate(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Статус договора</label>
+              <select value={contractStatus} onChange={e => setContractStatus(e.target.value)} className="w-full h-9 rounded-lg border px-3 text-sm">
+                <option>Не подписан</option>
+                <option>Подписан</option>
+                <option>Истёк</option>
+                <option>Расторгнут</option>
+              </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Способ оплаты *</label>

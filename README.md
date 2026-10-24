@@ -46,6 +46,12 @@ CRON_SECRET=                 # Bearer-секрет для /api/objects/sync, /ap
    Запускать ПОСЛЕ деплоя кода с роутом `/api/files/view`
 8. `supabase-drop-clients-pokupka.sql` — удаление мёртвой легаси-таблицы
    (перед запуском проверить `select count(*) from clients_pokupka`)
+9. `supabase-clients-card-v2.sql` — карточка по ТЗ: площадь от/до (`area_min/area_max`),
+   дата заезда, животные, договор с клиентом (`contract_status/date/valid_until/file`),
+   связь задач с клиентом (`tasks.client_id/client_table` — «Следующее действие»),
+   дата/статус договора в сделках; RPC v4 — фильтр района/ЖК по вхождению
+   (мультивыбор хранится строкой через запятую) и фильтр площади по диапазону.
+   Код совместим и до запуска (новые колонки отбрасываются с warn)
 
 ## Правила для кода
 

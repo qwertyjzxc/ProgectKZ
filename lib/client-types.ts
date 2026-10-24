@@ -21,9 +21,17 @@ export interface Client {
   broker: string;
   type: string;
   area: string;
+  area_min?: number | null;
+  area_max?: number | null;
   address: string;
   jk: string;
   contract: string;
+  move_in_date?: string;
+  pets?: string;
+  contract_status?: string;
+  contract_date?: string;
+  contract_valid_until?: string;
+  contract_file?: string;
   area_unit?: string;
   plot_type?: string;
   purpose?: string;
@@ -44,9 +52,11 @@ export interface Client {
   status_comment?: string;
   resume_date?: string;
   created_at: string;
+  // Рантайм-поле (не в БД): ближайшая невыполненная задача клиента
+  next_action?: { title: string; due_date: string } | null;
 }
 
-export type ClientFormData = Omit<Client, "id" | "created_at">;
+export type ClientFormData = Omit<Client, "id" | "created_at" | "next_action">;
 
 export const completedColors: Record<string, string> = {
   "Новый Клиент": "bg-sky-100 text-sky-800",

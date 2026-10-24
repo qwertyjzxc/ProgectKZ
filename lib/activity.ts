@@ -45,6 +45,14 @@ const FIELD_LABELS: Record<string, string> = {
   jk: "Жилой комплекс",
   rooms: "Кол-во комнат",
   area: "Площадь",
+  area_min: "Площадь от",
+  area_max: "Площадь до",
+  move_in_date: "Дата заезда",
+  pets: "Животные",
+  contract_status: "Статус договора",
+  contract_date: "Дата договора",
+  contract_valid_until: "Срок действия договора",
+  contract_file: "Файл договора",
   amount: "Бюджет",
   amount_min: "Бюджет (от)",
   type: "Тип недвижимости",
@@ -165,7 +173,9 @@ export async function logActivity(entry: {
   client_table: string;
   client_id: number | string;
   client_name: string;
-  action: "create" | "update" | "delete";
+  // create/update/delete — клиентские; task/event — записи о задачах и
+  // быстрых событиях (отправлены объекты, назначен просмотр)
+  action: string;
   message: string;
   changes?: FieldChange[];
 }) {
@@ -198,4 +208,33 @@ export async function logActivity(entry: {
   } catch {
     // Журнал не должен ломать основную операцию
   }
+}
+
+// Ближайшая невыполненная задача клиента — «Следующее действие» в таблице
+// и карточке. Связь через tasks.client_id (миграция card-v2); старые задачи
+// без связи не учитываются. До применения миграции колонка просто пустая.
+export async function fetchNextActions(
+  table: string,
+  clientIds: Array<number | string>
+): Promise<Map<number, { title: string; due_date: string }>> {
+  const map = new Map<number, { title: string; due_date: string }>();
+  if (clientIds.length === 0) return map;
+  try {
+    const { data } = await serviceClient
+      .from("tasks")
+      .select("id,title,due_date,status,client_id")
+      .eq("client_table", table)
+      .in("client_id", clientIds)
+      .neq("status", "Завершено")
+      // пустой срок — в конец, реальные даты по возрастанию
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(300);
+    for (const t of (data || []) as Array<{ id: number; title: string; due_date: string | null; client_id: number | null }>) {
+      const key = Number(t.client_id);
+      if (key && !map.has(key)) map.set(key, { title: t.title || "", due_date: t.due_date || "" });
+    }
+  } catch {
+    // нет колонок связи — «Следующее действие» пока недоступно
+  }
+  return map;
 }

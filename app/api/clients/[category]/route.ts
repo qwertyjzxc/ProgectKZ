@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
-import { logActivity, buildChanges } from "@/lib/activity";
+import { logActivity, buildChanges, fetchNextActions } from "@/lib/activity";
 import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, maskRowsPhones } from "@/lib/phone-visibility";
-import { requireUser, unauthorized } from "@/lib/route-auth";
+import { requireUser, requireAdmin, unauthorized } from "@/lib/route-auth";
 import { todayRuAlmaty } from "@/lib/format";
 import { DEAL_DONE_STATUS } from "@/lib/client-status";
 
@@ -112,9 +112,15 @@ export async function GET(
     // Без живой сессии — 401: раньше здесь был serviceClient без проверки,
     // и запрос без кук отдавал всю базу (телефоны маскировались, остальное нет).
     if (!vis.userId) return unauthorized();
+    // «Следующее действие» — ближайшая открытая задача каждого клиента страницы
+    const rows = (data?.rows || []) as Array<Record<string, unknown> & { id?: number; broker?: string; phone?: string }>;
+    const nextActions = await fetchNextActions(table, rows.map(r => Number(r.id)).filter(Boolean));
+    for (const r of rows) {
+      (r as { next_action?: unknown }).next_action = nextActions.get(Number(r.id)) || null;
+    }
     // Телефоны видит только тот, кто добавил клиента; админу видны все.
     return NextResponse.json({
-      rows: maskRowsPhones((data?.rows || []) as Array<{ broker?: string; phone?: string }>, vis),
+      rows: maskRowsPhones(rows, vis),
       total: data?.total || 0,
       // null, пока в БД старая версия RPC, — фронт откатится на total/byType
       totalAll: data?.totalAll ?? null,
@@ -140,9 +146,17 @@ export async function POST(
     const insertRow: Record<string, unknown> = {
       type: body.type || "",
       area: body.area || "",
+      area_min: body.area_min ?? null,
+      area_max: body.area_max ?? null,
       address: body.address || "",
       jk: body.jk || "",
       contract: body.contract || "",
+      move_in_date: body.move_in_date || "",
+      pets: body.pets || "",
+      contract_status: body.contract_status || "",
+      contract_date: body.contract_date || "",
+      contract_valid_until: body.contract_valid_until || "",
+      contract_file: body.contract_file || "",
       date: body.date || todayRuAlmaty(),
       name: body.name || "",
       rooms: body.rooms || "",
@@ -245,7 +259,8 @@ export async function DELETE(
   try {
     const { category } = await params;
     const { supabase, table } = await getTable(category);
-    const gate = await requireUser();
+    // ТЗ: удаление клиентов — только администратор
+    const gate = await requireAdmin();
     if (gate.denied) return gate.denied;
     const body = await request.json().catch(() => ({}));
     const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map(Number).filter((n: number) => Number.isFinite(n) && n > 0) : [];

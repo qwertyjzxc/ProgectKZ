@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
-import { logActivity, buildChanges, buildUpdateMessage } from "@/lib/activity";
+import { logActivity, buildChanges, buildUpdateMessage, fetchNextActions } from "@/lib/activity";
 import { updateWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { notifyAll, getActorUserId, maybeCreateResumeTask } from "@/lib/notify";
 import { clientListLink } from "@/lib/notify-links";
 import { getPhoneVisibility, canSeePhone, maskRowsPhones } from "@/lib/phone-visibility";
-import { requireUser } from "@/lib/route-auth";
+import { requireUser, requireAdmin } from "@/lib/route-auth";
 
 const TABLE_MAP: Record<string, string> = {
   arenda: "clients_arenda",
@@ -32,7 +32,11 @@ export async function GET(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Не найден" }, { status: 404 });
     const vis = await getPhoneVisibility();
-    return NextResponse.json(maskRowsPhones([data], vis)[0]);
+    // «Следующее действие» — ближайшая открытая задача клиента
+    const nextActions = await fetchNextActions(table, [Number(id)]);
+    const masked = maskRowsPhones([data], vis)[0] as Record<string, unknown>;
+    masked.next_action = nextActions.get(Number(id)) || null;
+    return NextResponse.json(masked);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
   }
@@ -61,9 +65,17 @@ export async function PUT(
     const updateRow: Record<string, unknown> = {
       type: body.type,
       area: body.area,
+      area_min: body.area_min ?? null,
+      area_max: body.area_max ?? null,
       address: body.address,
       jk: body.jk,
       contract: body.contract,
+      move_in_date: body.move_in_date,
+      pets: body.pets,
+      contract_status: body.contract_status,
+      contract_date: body.contract_date,
+      contract_valid_until: body.contract_valid_until,
+      contract_file: body.contract_file,
       date: body.date,
       name: body.name,
       rooms: body.rooms,
@@ -146,7 +158,8 @@ export async function DELETE(
     const table = TABLE_MAP[category];
     if (!table) return NextResponse.json({ error: "Неизвестная категория" }, { status: 400 });
 
-    const gate = await requireUser();
+    // ТЗ: удаление клиентов — только администратор
+    const gate = await requireAdmin();
     if (gate.denied) return gate.denied;
     const supabase = await createClient();
     // Удаление сразу возвращает строки — отдельный select не нужен.

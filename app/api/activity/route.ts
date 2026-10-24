@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { serviceClient } from "@/lib/supabase/service";
+import { logActivity } from "@/lib/activity";
 import { getPhoneVisibility, canSeePhone } from "@/lib/phone-visibility";
-import { requireAdmin } from "@/lib/route-auth";
+import { requireUser, requireAdmin } from "@/lib/route-auth";
 
 const CLIENT_TABLES = ["clients_arenda", "clients_prodaja"];
+
+// Быстрые события в журнал клиента из карточки: «Отправлены объекты …»,
+// «Назначен просмотр …» (ТЗ §10). Текст пишет брокер, шаблон подставляет UI.
+export async function POST(request: NextRequest) {
+  const { denied } = await requireUser();
+  if (denied) return denied;
+  try {
+    const body = await request.json();
+    const clientTable = String(body.client_table || "");
+    const clientId = Number(body.client_id);
+    const message = String(body.message || "").trim();
+    if (!CLIENT_TABLES.includes(clientTable) || !Number.isFinite(clientId) || clientId <= 0) {
+      return NextResponse.json({ error: "Не указан клиент" }, { status: 400 });
+    }
+    if (!message) return NextResponse.json({ error: "Пустой текст события" }, { status: 400 });
+    await logActivity({
+      client_table: clientTable,
+      client_id: clientId,
+      client_name: String(body.client_name || ""),
+      action: "event",
+      message,
+    });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unknown error" }, { status: 400 });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

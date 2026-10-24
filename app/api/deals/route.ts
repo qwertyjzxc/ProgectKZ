@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
     documents: body.documents || "",
     restrictions: body.restrictions || "",
     completion_date: toISODate(body.completion_date) || "",
+    // Договор с клиентом из формы «Завершить сделку» (ТЗ)
+    contract_date: toISODate(body.contract_date) || "",
+    contract_status: body.contract_status || "",
   };
   const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

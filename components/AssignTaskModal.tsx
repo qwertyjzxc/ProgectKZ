@@ -6,7 +6,7 @@ import { X, Save, CheckCircle2, ChevronDown } from "lucide-react";
 import AssigneePicker from "@/components/AssigneePicker";
 import { useEscapeKey } from "@/lib/use-escape";
 
-export default function AssignTaskModal({ clientName, onClose }: { clientName: string; onClose: () => void }) {
+export default function AssignTaskModal({ clientName, clientId, clientTable, onClose }: { clientName: string; clientId?: number; clientTable?: string; onClose: () => void }) {
   useEscapeKey(onClose);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -29,6 +29,8 @@ export default function AssignTaskModal({ clientName, onClose }: { clientName: s
         body: JSON.stringify({
           title,
           client: clientName,
+          client_id: clientId,
+          client_table: clientTable,
           description,
           due_date: due,
           priority,

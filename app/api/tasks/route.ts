@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity, buildChanges, TASK_LABELS } from "@/lib/activity";
+import { insertWithColumnFallback } from "@/lib/supabase-column-fallback";
 import { requireUser } from "@/lib/route-auth";
 
 export async function GET(request: NextRequest) {
@@ -44,7 +45,10 @@ export async function POST(request: NextRequest) {
   const assigneeIds = Array.isArray(body.assignee_ids)
     ? [...new Set(body.assignee_ids.map(Number).filter(Boolean))]
     : [];
-  const { data, error } = await supabase.from("tasks").insert({
+  // Связь с клиентом (для «Следующего действия» и журнала карточки).
+  // insertWithColumnFallback: до миграции card-v2 колонок нет — поля молча
+  // отбросятся, создание задачи не сломается.
+  const taskRow: Record<string, unknown> = {
     title: body.title,
     client: body.client || "",
     description: body.description || "",
@@ -53,7 +57,12 @@ export async function POST(request: NextRequest) {
     priority: body.priority || "Средний",
     status,
     completed_at: status === "Завершено" ? new Date().toISOString() : null,
-  }).select().single();
+  };
+  if (body.client_id) {
+    taskRow.client_id = Number(body.client_id) || null;
+    taskRow.client_table = String(body.client_table || "");
+  }
+  const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, "tasks", taskRow);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (assigneeIds.length) {
@@ -85,6 +94,19 @@ export async function POST(request: NextRequest) {
       message: "Добавил задачу",
       changes: buildChanges({}, { ...data, assignee_ids: assigneeIds }, TASK_LABELS),
     });
+    // Дубль в журнал клиента: «Создана задача … Выполнить до …» — так журнал
+    // карточки показывает события задач в хронологии клиента (ТЗ §10)
+    if (taskRow.client_id) {
+      const due = String(data.due_date || "");
+      const dueLabel = due ? due.replace(/^(\d{4})-(\d{2})-(\d{2})T?(\d{2}:\d{2}).*$/, "$3.$2.$1, $4") : "";
+      await logActivity({
+        client_table: String(taskRow.client_table || ""),
+        client_id: Number(taskRow.client_id),
+        client_name: body.client || "",
+        action: "task",
+        message: "Создана задача «" + (data.title || "") + "»" + (dueLabel ? " · Выполнить до " + dueLabel : ""),
+      });
+    }
   });
 
   return NextResponse.json({ ...data, assignee_ids: assigneeIds }, { status: 201 });
