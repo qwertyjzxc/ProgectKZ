@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Phone, Check, ChevronDown, Loader2, ArrowLeft, ListTodo, Square, CheckSquare } from "lucide-react";
+import { UserPlus, MoreHorizontal, Trash2, Edit3, Filter, X, Eye, Check, ChevronDown, Loader2, ArrowLeft, ListTodo, Square, CheckSquare } from "lucide-react";
 import { getRentCategoryLabel, type RentCategory } from "@/components/RentCategorySelector";
 import Combobox from "@/components/Combobox";
 import DatePicker from "@/components/DatePicker";
@@ -28,7 +28,7 @@ function areaLabel(c: Client): string {
   const u = c.type === "Земля" ? " " + (c.area_unit || "сот") : " м²";
   const min = c.area_min ?? null;
   const max = c.area_max ?? null;
-  if (min != null && max != null && (min > 0 || max > 0)) return `${min}–${max}${u}`;
+  if (min != null && max != null && (min > 0 || max > 0)) return `${min} – ${max}${u}`;
   if (max != null && max > 0) return `${max}${u}`;
   if (min != null && min > 0) return `от ${min}${u}`;
   return c.area ? c.area + u : "";
@@ -41,49 +41,65 @@ function dueLabel(due: string): string {
   return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-// Статус в таблице — цветная точка + текст (легче цветных плашек)
-const STATUS_DOT_COLORS: Record<string, string> = {
-  "Новый Клиент": "bg-sky-500",
-  "Запрос уточняется": "bg-cyan-500",
-  "Подбор объектов": "bg-blue-500",
-  "Варианты отправлены": "bg-indigo-500",
-  "Просмотр": "bg-violet-500",
-  "Переговоры": "bg-amber-500",
-  "Подготовка к сделке": "bg-orange-500",
-  "Сделка в процессе": "bg-yellow-400",
-  "Сделка завершена": "bg-green-500",
-  "Заморожен": "bg-blue-300",
-  "Приостановлен": "bg-gray-400",
-  "Закрыт без сделки": "bg-red-500",
-  // старые статусы из данных
-  "В процессе": "bg-yellow-400",
-  "Завершено": "bg-green-500",
-  "Отказ": "bg-red-500",
-  "Заморожено": "bg-blue-300",
-  "Подписание договора": "bg-indigo-500",
-  "Оплата": "bg-cyan-500",
-  "VIP Клиент": "bg-amber-500",
-  "Перспективный": "bg-emerald-500",
-  "Думает": "bg-orange-500",
-  "Проблемный": "bg-rose-500",
-};
-
-// Шапка: лёгкая, без заливки, тонкая линия снизу. Выравнивание задано каждой
-// th ровно одним классом: у <th> браузерный дефолт — центр, а два конфликтующих
-// класса (text-left + text-right) дают непредсказуемый результат. Перенос
-// заголовков разрешён — nowrap на узком окне заставлял их налезать друг на друга.
-const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-[11px] leading-4 font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200";
-
-// Бюджет в таблице — компактно, без «₸» у каждого числа (валюта уже в шапке):
-// «800 000 — 1 000 000» вместо «800 000 ₸ — 1 000 000 ₸»
+// Бюджет: «150 000 – 200 000» (валюта — отдельным мелким знаком в ячейке)
 function budgetCompact(min: number | null | undefined, max: number | null | undefined): string {
   const hasMax = typeof max === "number" && max > 0;
   const hasMin = typeof min === "number" && min > 0;
-  if (hasMin && hasMax) return `${min.toLocaleString("ru-RU")} — ${max.toLocaleString("ru-RU")}`;
+  if (hasMin && hasMax) return `${min.toLocaleString("ru-RU")} – ${max.toLocaleString("ru-RU")}`;
   if (hasMax) return max.toLocaleString("ru-RU");
   if (hasMin) return `от ${min.toLocaleString("ru-RU")}`;
   return "";
 }
+
+// Аватар клиента: фон по первой букве имени, 4 палитры
+function avatarPalette(name: string): string {
+  const palettes = [
+    "bg-blue-100 text-blue-700",
+    "bg-purple-100 text-purple-700",
+    "bg-teal-100 text-teal-700",
+    "bg-amber-100 text-amber-700",
+  ];
+  const code = ((name || " ").trim().charAt(0).toUpperCase().charCodeAt(0)) || 0;
+  return palettes[code % 4];
+}
+
+// Статус-пилюля: мягкий фон + тёмный текст оттенка + точка 6px
+const STATUS_PILLS: Record<string, { pill: string; dot: string }> = {
+  "Новый Клиент": { pill: "bg-sky-50 text-sky-700", dot: "bg-sky-500" },
+  "Запрос уточняется": { pill: "bg-cyan-50 text-cyan-700", dot: "bg-cyan-500" },
+  "Подбор объектов": { pill: "bg-blue-50 text-blue-700", dot: "bg-blue-500" },
+  "Варианты отправлены": { pill: "bg-indigo-50 text-indigo-700", dot: "bg-indigo-500" },
+  "Просмотр": { pill: "bg-violet-50 text-violet-700", dot: "bg-violet-500" },
+  "Переговоры": { pill: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
+  "Подготовка к сделке": { pill: "bg-orange-50 text-orange-700", dot: "bg-orange-500" },
+  "Сделка в процессе": { pill: "bg-yellow-50 text-yellow-700", dot: "bg-yellow-400" },
+  "Сделка завершена": { pill: "bg-green-50 text-green-700", dot: "bg-green-500" },
+  "Заморожен": { pill: "bg-blue-50 text-blue-700", dot: "bg-blue-300" },
+  "Приостановлен": { pill: "bg-gray-100 text-gray-600", dot: "bg-gray-400" },
+  "Закрыт без сделки": { pill: "bg-red-50 text-red-700", dot: "bg-red-500" },
+  // легаси-статусы из данных
+  "В процессе": { pill: "bg-yellow-50 text-yellow-700", dot: "bg-yellow-400" },
+  "Завершено": { pill: "bg-green-50 text-green-700", dot: "bg-green-500" },
+  "Отказ": { pill: "bg-red-50 text-red-700", dot: "bg-red-500" },
+  "Заморожено": { pill: "bg-blue-50 text-blue-700", dot: "bg-blue-300" },
+  "Подписание договора": { pill: "bg-indigo-50 text-indigo-700", dot: "bg-indigo-500" },
+  "Оплата": { pill: "bg-cyan-50 text-cyan-700", dot: "bg-cyan-500" },
+  "VIP Клиент": { pill: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
+  "Перспективный": { pill: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+  "Думает": { pill: "bg-orange-50 text-orange-700", dot: "bg-orange-500" },
+  "Проблемный": { pill: "bg-rose-50 text-rose-700", dot: "bg-rose-500" },
+};
+const STATUS_PILL_DEFAULT = { pill: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
+
+// Шапка: всё по центру (ТЗ), лёгкая, тонкая линия снизу. У WhatsApp-колонки и
+// колонки «Клиент» — sticky left (там же sticky-ячейки тела), поэтому свои
+// полные классы с одной z-плоскостью, без конфликтов с TH_BASE.
+const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-center text-[11px] leading-4 font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200";
+const TH_STICKY_WA = "sticky left-0 top-0 z-20 bg-white px-2 py-2.5 text-center text-[11px] leading-4 font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200";
+const TH_STICKY_CLIENT = "sticky left-14 top-0 z-20 bg-white px-3 py-2.5 text-center text-[11px] leading-4 font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200";
+
+// Пустые значения — приглушённое «—» одного цвета во всех колонках
+const EMPTY = <span className="text-gray-400">—</span>;
 
 import { type Client, type ClientFormData } from "@/lib/client-types";
 
@@ -830,36 +846,34 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Clients table */}
       {(clients.length > 0 || (!loading && !error)) && (
         <div className="bg-white rounded-xl shadow-sm border">
-          {/* min-width + горизонтальная прокрутка: на узком окне таблица не
-              сплющивается и заголовки не налезают друг на друга */}
           <div className="table-scroll overflow-auto max-h-[calc(100vh-280px)]">
           <table className="w-full table-fixed min-w-[1080px]">
             <colgroup>
-              <col className="w-[4%]" />
+              <col className="w-14" />
               <col className="w-[16%]" />
-              {showRoomsCol && <col className="w-[5%]" />}
+              {showRoomsCol && <col className="w-[6%]" />}
               <col className="w-[8%]" />
               <col className="w-[13%]" />
-              <col className="w-[12%]" />
-              <col className="w-[9%]" />
+              <col className="w-[11%]" />
+              <col className="w-[10%]" />
               <col className="w-[12%]" />
               <col className="w-[8%]" />
-              <col className="w-[9%]" />
+              <col className="w-[10%]" />
               <col className="w-[4%]" />
             </colgroup>
             <thead>
               <tr>
-                <th className={TH_BASE + " text-center"}></th>
-                <th className={TH_BASE + " text-left"}>Клиент</th>
-                {showRoomsCol && <th className={TH_BASE + " text-center"}>Комнат</th>}
-                <th className={TH_BASE + " text-right"}>Площадь</th>
-                <th className={TH_BASE + " text-left"}>Район / ЖК</th>
-                <th className={TH_BASE + " text-right"}>Бюджет, ₸</th>
-                <th className={TH_BASE + " text-left"}>Брокер</th>
-                <th className={TH_BASE + " text-left"}>Следующее действие</th>
-                <th className={TH_BASE + " text-right"}>Дата обращения</th>
-                <th className={TH_BASE + " text-left"}>Статус</th>
-                <th className={TH_BASE + " text-right"}>
+                <th className={TH_STICKY_WA}></th>
+                <th className={TH_STICKY_CLIENT}>Клиент</th>
+                {showRoomsCol && <th className={TH_BASE}>Комнат</th>}
+                <th className={TH_BASE}>Площадь</th>
+                <th className={TH_BASE}>Район / ЖК</th>
+                <th className={TH_BASE}>Бюджет, ₸</th>
+                <th className={TH_BASE}>Брокер</th>
+                <th className={TH_BASE}>Следующее действие</th>
+                <th className={TH_BASE}>Дата обращения</th>
+                <th className={TH_BASE}>Статус</th>
+                <th className={TH_BASE}>
                   {deleteMode && (
                     <button onClick={handleSelectAll} className="text-gray-400 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
                       {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
@@ -892,71 +906,97 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                     (selectedIds.has(c.id) ? "bg-red-50 hover:bg-red-100 " : deleteMode ? "hover:bg-red-50/60 " : "hover:bg-blue-50/50 ")
                   }
                 >
-                  <td className="px-1 py-2.5 text-center" onClick={e => e.stopPropagation()}>
+                  <td className={"sticky left-0 z-[5] px-2 py-2.5 text-center " + (selectedIds.has(c.id) ? "bg-red-50 group-hover:bg-red-100" : "bg-white group-hover:bg-blue-50/50")} onClick={e => e.stopPropagation()}>
                     {c.phone && !c.phone_masked ? (
                       <a
                         href={`https://wa.me/${phoneToWa(c.phone)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
                         title="Написать в WhatsApp"
                       >
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                       </a>
                     ) : (
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-50 text-gray-300">
+                      <span className={"inline-flex items-center justify-center w-8 h-8 rounded-full " + (selectedIds.has(c.id) ? "bg-red-100 group-hover:bg-red-100" : "bg-gray-50 group-hover:bg-blue-50/60") + " text-gray-300"}>
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
+                  <td className={"sticky left-14 z-[5] px-3 py-2.5 " + (selectedIds.has(c.id) ? "bg-red-50 group-hover:bg-red-100" : "bg-white group-hover:bg-blue-50/50")}>
+                    <div className="flex items-center justify-center gap-2.5">
+                      <div className={"w-[34px] h-[34px] rounded-full flex items-center justify-center text-xs font-semibold shrink-0 " + avatarPalette(c.name)}>
                         {getInitials(c.name)}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 text-left">
                         <div className="text-sm font-medium text-gray-900 truncate">{c.name || "—"}</div>
-                        <div className="text-xs text-gray-400 flex items-center gap-1">
-                          <Phone className="w-3 h-3 shrink-0" />{c.phone_masked ? "Скрыт" : c.phone ? formatPhone(c.phone) : "—"}
-                        </div>
+                        <div className="text-xs text-gray-400 tabular-nums">{c.phone_masked ? "Скрыт" : c.phone ? formatPhone(c.phone) : "—"}</div>
                       </div>
                     </div>
                   </td>
                   {showRoomsCol && (
-                    <td className="px-3 py-2.5 text-sm text-gray-600 text-center" title={c.rooms}>
-                      <span className="block truncate">{c.rooms || "—"}</span>
+                    <td className="px-3 py-2.5 text-center">
+                      {c.rooms ? (
+                        <span className="inline-flex items-center max-w-full px-[9px] py-[2px] rounded-[7px] border border-gray-200 bg-gray-50 text-[12.5px] font-medium text-gray-700">
+                          <span className="truncate" title={c.rooms}>{c.rooms}</span>
+                        </span>
+                      ) : EMPTY}
                     </td>
                   )}
-                  <td className="px-3 py-2.5 text-sm text-gray-600 text-right tabular-nums whitespace-nowrap" title={areaLabel(c)}>{areaLabel(c) || "—"}</td>
-                  <td className="px-3 py-2.5 text-[13px] text-gray-600">
+                  <td className="px-3 py-2.5 text-center text-sm text-gray-500 whitespace-nowrap" title={areaLabel(c)}>
+                    {areaLabel(c) || EMPTY}
+                  </td>
+                  <td className="px-3 py-2.5 text-center text-[13px] text-gray-500">
                     <span className="block truncate" title={[c.district, c.jk].filter(Boolean).join(" · ")}>
                       {[c.district, c.jk].filter(Boolean).join(" · ") || "—"}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5 text-sm font-semibold text-gray-900 text-right tabular-nums whitespace-nowrap" onClick={e => e.stopPropagation()} title={formatBudgetRange(c.amount_min ?? null, c.amount ?? null)}>
-                    {budgetCompact(c.amount_min, c.amount) || "—"}
+                  <td className="px-3 py-2.5 text-center text-sm text-gray-800 whitespace-nowrap" onClick={e => e.stopPropagation()} title={formatBudgetRange(c.amount_min ?? null, c.amount ?? null)}>
+                    {budgetCompact(c.amount_min, c.amount) ? (
+                      <>
+                        <span className="font-medium tabular-nums">{budgetCompact(c.amount_min, c.amount)}</span>
+                        <span className="text-[11px] text-gray-400 ml-0.5">₸</span>
+                      </>
+                    ) : EMPTY}
                   </td>
-                  <td className="px-3 py-2.5 text-[13px] text-gray-600">
-                    <span className="block truncate" title={c.broker}>{c.broker || "—"}</span>
+                  <td className="px-3 py-2.5 text-center">
+                    {c.broker ? (
+                      <span className="inline-flex items-center justify-center gap-1.5 min-w-0" title={c.broker}>
+                        <span className="w-6 h-6 rounded-full bg-gray-100 border border-gray-200 text-[9px] font-semibold text-gray-500 shrink-0 flex items-center justify-center">{getInitials(c.broker)}</span>
+                        <span className="text-[13px] text-gray-500 truncate">{c.broker}</span>
+                      </span>
+                    ) : EMPTY}
                   </td>
-                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                  <td className="px-3 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                     {c.next_action ? (
                       <div className="min-w-0" title={c.next_action.title + (c.next_action.due_date ? " · " + dueLabel(c.next_action.due_date) : "")}>
                         <p className="text-[13px] text-gray-800 truncate">{c.next_action.title}</p>
                         {c.next_action.due_date && <p className="text-[11px] text-gray-400 tabular-nums">{dueLabel(c.next_action.due_date)}</p>}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">—</span>
+                      <>
+                        <span className="text-xs text-gray-400 group-hover:hidden">—</span>
+                        <button type="button" onClick={() => setAssignClient(c)} className="hidden group-hover:inline text-xs text-gray-400 hover:text-blue-600 transition-colors">
+                          + Назначить
+                        </button>
+                      </>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-[13px] text-gray-500 text-right whitespace-nowrap tabular-nums">{c.date || "—"}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-600" title={c.completed}>
-                      <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (STATUS_DOT_COLORS[c.completed] || "bg-gray-300")} />
-                      {c.completed || "—"}
-                    </span>
+                  <td className="px-3 py-2.5 text-center text-[13px] text-gray-500 whitespace-nowrap tabular-nums">{c.date || "—"}</td>
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    {c.completed ? (
+                      (() => {
+                        const p = STATUS_PILLS[c.completed] || STATUS_PILL_DEFAULT;
+                        return (
+                          <span className={"inline-flex items-center gap-1.5 rounded-full px-[11px] py-[4px] text-[12.5px] font-medium " + p.pill}>
+                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + p.dot} />
+                            {c.completed}
+                          </span>
+                        );
+                      })()
+                    ) : EMPTY}
                   </td>
-                  <td className="px-1 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-1 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                     {deleteMode ? (
                       <button
                         onPointerDown={e => e.stopPropagation()}
@@ -968,7 +1008,7 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       </button>
                     ) : (
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-7">
+                        <DropdownMenuTrigger className="inline-flex shrink-0 items-center justify-center rounded-[min(var(--radius-md),12px)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-gray-100 hover:text-gray-700 size-[30px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
                           <MoreHorizontal className="w-4 h-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
