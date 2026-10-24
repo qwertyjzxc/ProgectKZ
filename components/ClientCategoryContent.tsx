@@ -885,10 +885,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
                       {[c.district, c.jk].filter(Boolean).join(" · ") || "—"}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap" onClick={e => e.stopPropagation()} title={formatBudgetRange(c.amount_min ?? null, c.amount ?? null)}>
                     {formatBudgetRange(c.amount_min ?? null, c.amount ?? null) || "—"}
                   </td>
+                  <td className="px-3 py-3 text-sm text-gray-500 break-words">{c.broker || "—"}</td>
                   <td className="px-3 py-3 text-sm" onClick={e => e.stopPropagation()}>
                     {c.next_action ? (
                       <div className="min-w-0" title={c.next_action.title + (c.next_action.due_date ? " · " + dueLabel(c.next_action.due_date) : "")}>
