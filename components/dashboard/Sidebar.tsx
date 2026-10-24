@@ -325,7 +325,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Footer */}
       <div className={"border-t flex items-center " + (collapsed ? "p-2 justify-center" : "p-4")}>
-        <span className="text-xs text-gray-400">{collapsed ? "" : "© 2025 kzproject"}</span>
+        <span className="text-xs text-gray-400">{collapsed ? "" : `© ${new Date().getFullYear()} kzproject`}</span>
       </div>
     </aside>
   );
