@@ -68,10 +68,11 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   "Проблемный": "bg-rose-500",
 };
 
-// Единый стиль ячейки шапки: лёгкая, без заливки, тонкая линия снизу.
-// text-left обязателен: у <th> браузерный дефолт — центр, и шапка «разъезжается»
-// с выровненными влево/вправо ячейками тела.
-const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-left text-[11px] font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200 whitespace-nowrap";
+// Шапка: лёгкая, без заливки, тонкая линия снизу. Выравнивание задано каждой
+// th ровно одним классом: у <th> браузерный дефолт — центр, а два конфликтующих
+// класса (text-left + text-right) дают непредсказуемый результат. Перенос
+// заголовков разрешён — nowrap на узком окне заставлял их налезать друг на друга.
+const TH_BASE = "sticky top-0 z-10 bg-white px-3 py-2.5 text-[11px] leading-4 font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200";
 
 // Бюджет в таблице — компактно, без «₸» у каждого числа (валюта уже в шапке):
 // «800 000 — 1 000 000» вместо «800 000 ₸ — 1 000 000 ₸»
@@ -829,8 +830,10 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
       {/* Clients table */}
       {(clients.length > 0 || (!loading && !error)) && (
         <div className="bg-white rounded-xl shadow-sm border">
-          <div className="table-scroll overflow-y-auto max-h-[calc(100vh-280px)]">
-          <table className="w-full table-fixed">
+          {/* min-width + горизонтальная прокрутка: на узком окне таблица не
+              сплющивается и заголовки не налезают друг на друга */}
+          <div className="table-scroll overflow-auto max-h-[calc(100vh-280px)]">
+          <table className="w-full table-fixed min-w-[1080px]">
             <colgroup>
               <col className="w-[4%]" />
               <col className="w-[16%]" />
@@ -847,15 +850,15 @@ export default function ClientCategoryContent({ category, propertyType, onBack }
             <thead>
               <tr>
                 <th className={TH_BASE + " text-center"}></th>
-                <th className={TH_BASE}>Клиент</th>
+                <th className={TH_BASE + " text-left"}>Клиент</th>
                 {showRoomsCol && <th className={TH_BASE + " text-center"}>Комнат</th>}
                 <th className={TH_BASE + " text-right"}>Площадь</th>
-                <th className={TH_BASE}>Район / ЖК</th>
+                <th className={TH_BASE + " text-left"}>Район / ЖК</th>
                 <th className={TH_BASE + " text-right"}>Бюджет, ₸</th>
-                <th className={TH_BASE}>Брокер</th>
-                <th className={TH_BASE}>Следующее действие</th>
+                <th className={TH_BASE + " text-left"}>Брокер</th>
+                <th className={TH_BASE + " text-left"}>Следующее действие</th>
                 <th className={TH_BASE + " text-right"}>Дата обращения</th>
-                <th className={TH_BASE}>Статус</th>
+                <th className={TH_BASE + " text-left"}>Статус</th>
                 <th className={TH_BASE + " text-right"}>
                   {deleteMode && (
                     <button onClick={handleSelectAll} className="text-gray-400 hover:text-blue-600 transition-colors" title={allVisibleSelected ? "Снять выделение" : "Выделить все"}>
