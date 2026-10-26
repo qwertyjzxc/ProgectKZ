@@ -193,7 +193,11 @@ export async function POST(
       insertRow.relief = body.relief || "";
       insertRow.restrictions = body.restrictions || "";
     }
-    const { data, error } = await insertWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, insertRow);
+    // Запись через service-клиент: после RLS v2 у authenticated нет table-level
+    // SELECT на clients_* (колонка phone закрыта вовсе), а insert().select("*")
+    // делает RETURNING * — вставка падала с "permission denied for table
+    // clients_arenda". Доступ уже проверен через requireUser выше.
+    const { data, error } = await insertWithColumnFallback(serviceClient as unknown as { from: (table: string) => unknown }, table, insertRow);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     // Проверка на дубли по телефону (в обеих клиентских таблицах — параллельно)
     let duplicateWarning: Array<{ id: number; name: string; where: string }> = [];
@@ -267,9 +271,10 @@ export async function DELETE(
     if (ids.length === 0) return NextResponse.json({ error: "Нет выбранных клиентов" }, { status: 400 });
 
     // Удаление сразу возвращает строки — отдельный select не нужен.
-    // Удаление и id автора — независимо, параллельно
+    // service-клиент: select от строк clients_* под authenticated упирается
+    // в закрытую колонку phone (RLS v2). Удаление и id автора — параллельно.
     const [delRes, actorUserId] = await Promise.all([
-      supabase.from(table).delete().in("id", ids).select("id, name"),
+      serviceClient.from(table).delete().in("id", ids).select("id, name"),
       getActorUserId(supabase),
     ]);
     if (delRes.error) return NextResponse.json({ error: delRes.error.message }, { status: 500 });

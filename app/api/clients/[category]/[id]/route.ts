@@ -55,7 +55,10 @@ export async function PUT(
     if (gate.denied) return gate.denied;
     const supabase = await createClient();
     const body = await request.json();
-    const { data: existing } = await supabase.from(table).select("*").eq("id", id).maybeSingle();
+    // Существующую строку читаем через service-клиент: select("*") включает
+    // phone, а у роли authenticated его нет (RLS v2) — сохранение карточки
+    // падало с "permission denied for table clients_arenda".
+    const { data: existing } = await serviceClient.from(table).select("*").eq("id", id).maybeSingle();
 
     // Телефоны видит только тот, кто добавил клиента; админу видны все.
     // Чужой номер не показываем в ответе и не даём перезаписывать.
@@ -112,7 +115,8 @@ export async function PUT(
       updateRow.relief = body.relief;
       updateRow.restrictions = body.restrictions;
     }
-    const { data, error } = await updateWithColumnFallback(supabase as unknown as { from: (table: string) => unknown }, table, updateRow, id);
+    // Как и чтение выше: update().select("*") делает RETURNING * с phone.
+    const { data, error } = await updateWithColumnFallback(serviceClient as unknown as { from: (table: string) => unknown }, table, updateRow, id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const changes = buildChanges(existing || {}, data);
     if (changes.length > 0) {
@@ -165,7 +169,8 @@ export async function DELETE(
     // Удаление сразу возвращает строки — отдельный select не нужен.
     // Удаление и id автора — независимо, параллельно.
     const [delRes, actorUserId] = await Promise.all([
-      supabase.from(table).delete().eq("id", id).select("*"),
+      // service-клиент: delete().select("*") иначе упирается в phone (RLS v2)
+      serviceClient.from(table).delete().eq("id", id).select("*"),
       getActorUserId(supabase),
     ]);
     if (delRes.error) return NextResponse.json({ error: delRes.error.message }, { status: 500 });

@@ -52,6 +52,13 @@ CRON_SECRET=                 # Bearer-секрет для /api/objects/sync, /ap
    дата/статус договора в сделках; RPC v4 — фильтр района/ЖК по вхождению
    (мультивыбор хранится строкой через запятую) и фильтр площади по диапазону.
    Код совместим и до запуска (новые колонки отбрасываются с warn)
+10. `supabase-clients-grants.sql` — гранты роли authenticated на `clients_*` и
+    `profiles`: пересчёт column-level SELECT по текущим колонкам (без
+    `phone`/`password_enc`/`pin`) + явный INSERT/UPDATE/DELETE на клиентские
+    таблицы. Запускать после rls-v2 и ПОСЛЕ каждой миграции, добавляющей
+    колонки в `clients_*`/`profiles` — иначе `select("*")` под authenticated
+    падает с «permission denied for table clients_arenda». Включает
+    диагностику дрейфа (NOTICE + SELECT до/после)
 
 ## Правила для кода
 
